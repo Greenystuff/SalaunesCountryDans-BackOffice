@@ -1,0 +1,652 @@
+<template>
+  <MainLayout>
+    <v-container fluid>
+      <v-row>
+        <v-col cols="12">
+          <v-card>
+            <v-card-title class="d-flex align-center justify-space-between">
+              <span>Gestion des Danses</span>
+              <v-btn color="primary" prepend-icon="mdi-plus" @click="openDialog()">
+                Ajouter une danse
+              </v-btn>
+            </v-card-title>
+
+            <!-- Barre de recherche et filtres -->
+            <v-card-text>
+              <v-row>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model="search" prepend-inner-icon="mdi-magnify" label="Rechercher une danse..."
+                    variant="outlined" density="compact" clearable />
+                </v-col>
+                <v-col cols="12" md="2">
+                  <v-select v-model="filters.level" :items="levelOptions" label="Niveau" variant="outlined"
+                    density="compact" clearable />
+                </v-col>
+                <v-col cols="12" md="2">
+                  <v-select v-model="filters.style" :items="styleOptions" label="Style" variant="outlined"
+                    density="compact" clearable />
+                </v-col>
+                <v-col cols="12" md="2">
+                  <v-btn variant="outlined" @click="clearFilters" prepend-icon="mdi-filter-remove">
+                    Effacer les filtres
+                  </v-btn>
+                </v-col>
+              </v-row>
+            </v-card-text>
+
+            <!-- Tableau des danses -->
+            <v-data-table :headers="headers" :items="filteredDances" :search="search"
+              :sort-by="[{ key: 'dateSortable', order: 'desc' }]" class="elevation-1" density="compact">
+              <!-- Colonne Nom -->
+              <template #item.name="{ item }">
+                <span class="font-weight-medium">{{ formatName(item.name) }}</span>
+              </template>
+
+              <!-- Colonne Niveau -->
+              <template #item.level="{ item }">
+                <v-chip :color="getLevelColor(item.level)" size="small" variant="flat">
+                  {{ item.level }}
+                </v-chip>
+              </template>
+
+              <!-- Colonne Style -->
+              <template #item.style="{ item }">
+                <v-chip :color="getStyleColor(item.style)" size="small" variant="flat">
+                  {{ item.style }}
+                </v-chip>
+              </template>
+
+              <!-- Colonne Date -->
+              <template #item.dateSortable="{ item }">
+                {{ item.dateDisplay || formatDate(item.date) }}
+              </template>
+
+              <!-- Colonne Liens -->
+              <template #item.links="{ item }">
+                <div class="d-flex gap-2">
+                  <v-btn v-if="item.youtubeLink1" :href="item.youtubeLink1" target="_blank" icon="mdi-youtube"
+                    size="small" color="red" variant="text" />
+                  <v-btn v-if="item.youtubeLink2" :href="item.youtubeLink2" target="_blank" icon="mdi-youtube"
+                    size="small" color="red" variant="text" />
+                  <v-btn v-if="item.pdfUrl" :href="item.pdfUrl" target="_blank" icon="mdi-file-pdf-box" size="small"
+                    color="red" variant="text" />
+                </div>
+              </template>
+
+              <!-- Colonne Actions -->
+              <template #item.actions="{ item }">
+                <v-btn icon="mdi-pencil" size="small" variant="text" color="primary" @click="openDialog(item)" />
+                <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="confirmDelete(item)" />
+              </template>
+            </v-data-table>
+          </v-card>
+        </v-col>
+      </v-row>
+
+      <!-- Dialog pour ajouter/modifier une danse -->
+      <v-dialog v-model="dialog" max-width="600px">
+        <v-card>
+          <v-card-title>
+            {{ editingDance ? 'Modifier la danse' : 'Ajouter une danse' }}
+          </v-card-title>
+          <v-card-text>
+            <v-form ref="form" v-model="formValid">
+              <v-row>
+                <v-col cols="12">
+                  <v-text-field v-model="danceForm.name" label="Nom de la danse" variant="outlined"
+                    :rules="[v => !!v || 'Le nom est requis']" required />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-select v-model="danceForm.level" :items="levelOptions" label="Niveau" variant="outlined"
+                    :rules="[v => !!v || 'Le niveau est requis']" required />
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-select v-model="danceForm.style" :items="styleOptions" label="Style" variant="outlined"
+                    :rules="[v => !!v || 'Le style est requis']" required />
+                </v-col>
+                <v-col cols="12">
+                  <v-text-field v-model="danceForm.date" label="Date" type="date" variant="outlined"
+                    :rules="[v => !!v || 'La date est requise']" required />
+                </v-col>
+                <v-col cols="12">
+                  <v-text-field v-model="danceForm.youtubeLink1" label="Lien YouTube 1" variant="outlined"
+                    prepend-inner-icon="mdi-youtube"
+                    :rules="[v => !v || isValidYoutubeUrl(v) || 'Lien YouTube invalide']"
+                    hint="Entrez un lien YouTube (normal ou embed)" persistent-hint @blur="transformYoutubeUrl1" />
+                </v-col>
+                <v-col cols="12">
+                  <v-text-field v-model="danceForm.youtubeLink2" label="Lien YouTube 2" variant="outlined"
+                    prepend-inner-icon="mdi-youtube"
+                    :rules="[v => !v || isValidYoutubeUrl(v) || 'Lien YouTube invalide']"
+                    hint="Entrez un lien YouTube (normal ou embed)" persistent-hint @blur="transformYoutubeUrl2" />
+                </v-col>
+                <v-col cols="12">
+                  <div class="text-subtitle-2 mb-3">PDF de la danse</div>
+
+                  <!-- Onglets pour choisir le mode -->
+                  <v-card variant="outlined" class="mb-4">
+                    <v-tabs v-model="pdfMode" color="primary" grow @update:model-value="handlePdfModeChange">
+                      <v-tab value="url" prepend-icon="mdi-link">
+                        Lien URL
+                      </v-tab>
+                      <v-tab value="file" prepend-icon="mdi-file-upload">
+                        Fichier local
+                      </v-tab>
+                    </v-tabs>
+
+                    <v-window v-model="pdfMode">
+                      <!-- Onglet URL -->
+                      <v-window-item value="url">
+                        <v-card-text class="pt-4">
+                          <v-text-field v-model="danceForm.pdfLink" label="Lien PDF" variant="outlined"
+                            prepend-inner-icon="mdi-file-pdf-box" placeholder="https://example.com/document.pdf"
+                            hint="Entrez l'URL d'un fichier PDF" persistent-hint />
+                        </v-card-text>
+                      </v-window-item>
+
+                      <!-- Onglet Fichier -->
+                      <v-window-item value="file">
+                        <v-card-text class="pt-4">
+                          <v-file-input v-model="pdfFile" accept=".pdf" label="Sélectionner un fichier PDF"
+                            variant="outlined" prepend-icon="mdi-file-pdf-box"
+                            :rules="[v => !v || v.size < 10 * 1024 * 1024 || 'Le fichier doit faire moins de 10 MB']"
+                            show-size counter hint="Glissez-déposez ou cliquez pour sélectionner un fichier PDF"
+                            persistent-hint @update:model-value="handlePdfFileChange">
+                            <template #selection="{ fileNames }">
+                              <template v-for="fileName in fileNames" :key="fileName">
+                                <v-chip size="small" label color="primary" class="me-2">
+                                  {{ fileName }}
+                                </v-chip>
+                              </template>
+                            </template>
+                          </v-file-input>
+
+                          <v-alert v-if="pdfFile" type="info" variant="tonal" class="mt-3" density="compact">
+                            <template #prepend>
+                              <v-icon>mdi-information</v-icon>
+                            </template>
+                            Le fichier sera automatiquement uploadé vers MinIO lors de la sauvegarde
+                          </v-alert>
+                        </v-card-text>
+                      </v-window-item>
+                    </v-window>
+                  </v-card>
+                </v-col>
+              </v-row>
+            </v-form>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer />
+            <v-btn variant="text" @click="dialog = false">
+              Annuler
+            </v-btn>
+            <v-btn color="primary" @click="saveDance" :disabled="!formValid">
+              {{ editingDance ? 'Modifier' : 'Ajouter' }}
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <!-- Dialog de confirmation de suppression -->
+      <v-dialog v-model="deleteDialog" max-width="400px">
+        <v-card>
+          <v-card-title>Confirmer la suppression</v-card-title>
+          <v-card-text>
+            Êtes-vous sûr de vouloir supprimer la danse "{{ danceToDelete?.name }}" ?
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer />
+            <v-btn variant="text" @click="deleteDialog = false">
+              Annuler
+            </v-btn>
+            <v-btn color="error" @click="deleteDance">
+              Supprimer
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+    </v-container>
+  </MainLayout>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import MainLayout from '@/layouts/MainLayout.vue'
+import { apiService } from '@/services/api'
+
+interface Dance {
+  _id: string
+  name: string
+  level: 'Débutant' | 'Intermédiaire' | 'Novice'
+  style: 'Catalan' | 'Country'
+  date: string
+  dateDisplay?: string // Date formatée en français
+  dateSortable?: string // Pour le tri chronologique
+  youtubeLink1?: string
+  youtubeLink2?: string
+  pdfLink?: string
+  pdfUrl?: string // URL temporaire MinIO
+}
+
+interface DanceForm {
+  name: string
+  level: 'Débutant' | 'Intermédiaire' | 'Novice'
+  style: 'Catalan' | 'Country'
+  date: string
+  youtubeLink1: string
+  youtubeLink2: string
+  pdfLink: string
+}
+
+// Services
+const api = apiService
+
+// Données réactives
+const dances = ref<Dance[]>([])
+const loading = ref(false)
+const search = ref('')
+const filters = ref({
+  level: '',
+  style: ''
+})
+const dialog = ref(false)
+const deleteDialog = ref(false)
+const formValid = ref(false)
+const editingDance = ref<Dance | null>(null)
+const danceToDelete = ref<Dance | null>(null)
+const form = ref()
+const pdfFile = ref<File | null>(null)
+const pdfMode = ref('url') // 'url' ou 'file'
+
+// Formulaire
+const danceForm = ref<DanceForm>({
+  name: '',
+  level: 'Débutant',
+  style: 'Country',
+  date: new Date().toISOString().split('T')[0], // Date du jour par défaut
+  youtubeLink1: '',
+  youtubeLink2: '',
+  pdfLink: ''
+})
+
+// Options pour les selects
+const levelOptions = ['Débutant', 'Intermédiaire', 'Novice']
+const styleOptions = ['Catalan', 'Country']
+
+// Headers du tableau
+const headers = [
+  { title: 'Nom', key: 'name', sortable: true },
+  { title: 'Niveau', key: 'level', sortable: true },
+  { title: 'Style', key: 'style', sortable: true },
+  { title: 'Date', key: 'dateSortable', sortable: true },
+  { title: 'Liens', key: 'links', sortable: false },
+  { title: 'Actions', key: 'actions', sortable: false }
+]
+
+// Danses filtrées
+const filteredDances = computed(() => {
+  let filtered = dances.value
+
+  if (filters.value.level) {
+    filtered = filtered.filter(dance => dance.level === filters.value.level)
+  }
+
+  if (filters.value.style) {
+    filtered = filtered.filter(dance => dance.style === filters.value.style)
+  }
+
+  return filtered
+})
+
+// Méthodes
+const getLevelColor = (level: string) => {
+  switch (level) {
+    case 'Débutant': return 'green'
+    case 'Intermédiaire': return 'orange'
+    case 'Novice': return 'blue'
+    default: return 'grey'
+  }
+}
+
+const getStyleColor = (style: string) => {
+  switch (style) {
+    case 'Catalan': return 'purple'
+    case 'Country': return 'brown'
+    default: return 'grey'
+  }
+}
+
+const formatDate = (date: string) => {
+  // Si la date est au format ISO (YYYY-MM-DD), la formater en français
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const dateObj = new Date(date);
+    if (!isNaN(dateObj.getTime())) {
+      return dateObj.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    }
+  }
+  // Sinon, retourner la date telle quelle (déjà formatée)
+  return date;
+}
+
+// Fonction pour formater les noms (premières lettres en majuscules)
+const formatName = (name: string) => {
+  return name
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+// Fonction pour valider et transformer les liens YouTube
+const validateAndTransformYoutubeUrl = (url: string): string => {
+  if (!url) return '';
+
+  // Nettoyer l'URL
+  const cleanUrl = url.trim();
+
+  // Si c'est déjà un lien embed (avec ou sans paramètres), le retourner tel quel
+  if (cleanUrl.includes('youtube.com/embed/')) {
+    return cleanUrl;
+  }
+
+  // Patterns pour différents formats YouTube
+  const patterns = [
+    // youtube.com/watch?v=VIDEO_ID
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/,
+    // youtu.be/VIDEO_ID
+    /(?:https?:\/\/)?(?:www\.)?youtu\.be\/([a-zA-Z0-9_-]+)/,
+    // youtube.com/embed/VIDEO_ID
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]+)/,
+    // youtube.com/v/VIDEO_ID
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/v\/([a-zA-Z0-9_-]+)/
+  ];
+
+  // Essayer de matcher avec les patterns
+  for (const pattern of patterns) {
+    const match = cleanUrl.match(pattern);
+    if (match) {
+      const videoId = match[1];
+      return `https://www.youtube.com/embed/${videoId}?feature=oembed`;
+    }
+  }
+
+  // Si aucun pattern ne matche, retourner l'URL originale
+  return cleanUrl;
+}
+
+// Fonction pour valider si une URL YouTube est valide
+const isValidYoutubeUrl = (url: string): boolean => {
+  if (!url) return true; // URL vide est valide (optionnel)
+
+  const cleanUrl = url.trim();
+
+  // Vérifier si c'est déjà un lien embed (avec ou sans paramètres)
+  if (cleanUrl.includes('youtube.com/embed/')) {
+    return true;
+  }
+
+  // Patterns pour différents formats YouTube
+  const patterns = [
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=[a-zA-Z0-9_-]+/,
+    /(?:https?:\/\/)?(?:www\.)?youtu\.be\/[a-zA-Z0-9_-]+/,
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/[a-zA-Z0-9_-]+(?:\?[^?]*)?/,
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/v\/[a-zA-Z0-9_-]+/
+  ];
+
+  return patterns.some(pattern => pattern.test(cleanUrl));
+}
+
+// Fonctions pour transformer les URLs YouTube lors de la perte de focus
+const transformYoutubeUrl1 = () => {
+  if (danceForm.value.youtubeLink1) {
+    danceForm.value.youtubeLink1 = validateAndTransformYoutubeUrl(danceForm.value.youtubeLink1);
+  }
+}
+
+const transformYoutubeUrl2 = () => {
+  if (danceForm.value.youtubeLink2) {
+    danceForm.value.youtubeLink2 = validateAndTransformYoutubeUrl(danceForm.value.youtubeLink2);
+  }
+}
+
+const clearFilters = () => {
+  filters.value.level = ''
+  filters.value.style = ''
+  search.value = ''
+}
+
+// Charger les danses depuis l'API
+const loadDances = async () => {
+  try {
+    loading.value = true
+    const response = await api.get<Dance[]>('/dances')
+    const dancesData = response.data || []
+
+    // Ajouter le champ dateSortable pour le tri chronologique
+    dances.value = dancesData.map(dance => ({
+      ...dance,
+      dateSortable: getDateForSorting(dance.date)
+    }))
+
+
+  } catch (error) {
+    console.error('❌ Erreur lors du chargement des danses:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+// Fonction pour obtenir une date triable (ISO) à partir d'une date française
+const getDateForSorting = (dateStr: string): string => {
+  // Si c'est déjà au format YYYY-MM-DD, le retourner
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
+
+  // Si c'est une date française (ex: "10 juin 2025"), la parser
+  const months: { [key: string]: number } = {
+    'janvier': 1, 'février': 2, 'mars': 3, 'avril': 4,
+    'mai': 5, 'juin': 6, 'juillet': 7, 'août': 8,
+    'septembre': 9, 'octobre': 10, 'novembre': 11, 'décembre': 12
+  };
+
+  const match = dateStr.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
+  if (match) {
+    const [, day, monthName, year] = match;
+    const month = months[monthName.toLowerCase()];
+    if (month) {
+      return `${year}-${month.toString().padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+  }
+
+  // Si on ne peut pas parser, retourner la date du jour
+  return new Date().toISOString().split('T')[0];
+}
+
+const openDialog = (dance?: Dance) => {
+  if (dance) {
+    editingDance.value = dance
+    danceForm.value = {
+      name: dance.name,
+      level: dance.level,
+      style: dance.style,
+      date: formatDateForInput(dance.date), // Formater pour l'input date
+      youtubeLink1: dance.youtubeLink1 || '',
+      youtubeLink2: dance.youtubeLink2 || '',
+      pdfLink: dance.pdfUrl || '' // Utiliser pdfUrl (MinIO) au lieu de pdfLink
+    }
+    pdfFile.value = null // Pas de nouveau fichier lors de l'édition
+
+    // Détecter automatiquement le mode selon le contenu
+    if (dance.pdfUrl && dance.pdfUrl.includes('localhost:9000')) {
+      pdfMode.value = 'url' // C'est un lien MinIO
+    } else if (dance.pdfLink && dance.pdfLink.includes('countrydancemartignas.fr')) {
+      pdfMode.value = 'url' // C'est un lien externe
+    } else {
+      pdfMode.value = 'url' // Par défaut
+    }
+  } else {
+    editingDance.value = null
+    // Date du jour au format YYYY-MM-DD pour l'input date
+    const today = new Date().toISOString().split('T')[0]
+    danceForm.value = {
+      name: '',
+      level: 'Débutant',
+      style: 'Country',
+      date: today,
+      youtubeLink1: '',
+      youtubeLink2: '',
+      pdfLink: ''
+    }
+    pdfFile.value = null
+    pdfMode.value = 'url' // Reset to URL mode
+  }
+  dialog.value = true
+}
+
+// Gérer le changement de fichier PDF
+const handlePdfFileChange = (files: File | File[] | null) => {
+  if (files) {
+    // Vider le champ lien PDF si un fichier est sélectionné
+    danceForm.value.pdfLink = ''
+    // Basculer automatiquement vers le mode fichier
+    pdfMode.value = 'file'
+  }
+}
+
+// Gérer le changement d'onglet
+const handlePdfModeChange = (mode: unknown) => {
+  const modeStr = mode as string;
+  if (modeStr === 'url') {
+    // Vider le fichier si on passe en mode URL
+    pdfFile.value = null
+  } else if (modeStr === 'file') {
+    // Vider le lien si on passe en mode fichier
+    danceForm.value.pdfLink = ''
+  }
+}
+
+// Fonction pour formater une date française en format YYYY-MM-DD pour l'input date
+const formatDateForInput = (dateStr: string): string => {
+  // Si c'est déjà au format YYYY-MM-DD, le retourner
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
+
+  // Si c'est une date française (ex: "10 juin 2025"), la parser
+  const months: { [key: string]: number } = {
+    'janvier': 1, 'février': 2, 'mars': 3, 'avril': 4,
+    'mai': 5, 'juin': 6, 'juillet': 7, 'août': 8,
+    'septembre': 9, 'octobre': 10, 'novembre': 11, 'décembre': 12
+  };
+
+  const match = dateStr.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
+  if (match) {
+    const [, day, monthName, year] = match;
+    const month = months[monthName.toLowerCase()];
+    if (month) {
+      return `${year}-${month.toString().padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+  }
+
+  // Si on ne peut pas parser, retourner la date du jour
+  return new Date().toISOString().split('T')[0];
+}
+
+const saveDance = async () => {
+  try {
+    let uploadedPdfFile: string | null = null;
+
+    // Si un fichier PDF est sélectionné, l'uploader d'abord
+    if (pdfFile.value) {
+      const formData = new FormData();
+      formData.append('pdf', pdfFile.value);
+      formData.append('danceName', danceForm.value.name);
+
+      try {
+        const uploadResponse = await api.post<{ success: boolean, fileName: string }>('/dances/upload-pdf', formData);
+
+        if ((uploadResponse as any).success) {
+          uploadedPdfFile = (uploadResponse as any).fileName;
+        }
+      } catch (uploadError: any) {
+        console.error('❌ Erreur lors de l\'upload du PDF:', uploadError);
+        return;
+      }
+    }
+
+    // Préparer les données à envoyer
+    const danceData: any = {
+      ...danceForm.value,
+      // Convertir la date du formulaire en format français pour l'affichage
+      date: formatDateForDisplay(danceForm.value.date),
+      // Transformer les URLs YouTube en format embed
+      youtubeLink1: validateAndTransformYoutubeUrl(danceForm.value.youtubeLink1),
+      youtubeLink2: validateAndTransformYoutubeUrl(danceForm.value.youtubeLink2)
+    };
+
+    // Ajouter le pdfFile si un fichier a été uploadé
+    if (uploadedPdfFile) {
+      danceData.pdfFile = uploadedPdfFile;
+    }
+
+    if (editingDance.value) {
+      // Modifier une danse existante
+      await api.put(`/dances/${editingDance.value._id}`, danceData)
+    } else {
+      // Ajouter une nouvelle danse
+      await api.post('/dances', danceData)
+    }
+
+    // Recharger les danses
+    await loadDances()
+    dialog.value = false
+    editingDance.value = null
+    pdfFile.value = null // Réinitialiser le fichier
+    pdfMode.value = 'url' // Reset to URL mode
+  } catch (error) {
+    console.error('❌ Erreur lors de la sauvegarde:', error)
+  }
+}
+
+// Fonction pour formater une date YYYY-MM-DD en format français pour l'affichage
+const formatDateForDisplay = (dateStr: string): string => {
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  } catch (error) {
+    return dateStr; // Retourner la date originale si erreur
+  }
+}
+
+const confirmDelete = (dance: Dance) => {
+  danceToDelete.value = dance
+  deleteDialog.value = true
+}
+
+const deleteDance = async () => {
+  if (danceToDelete.value) {
+    try {
+      await api.delete(`/dances/${danceToDelete.value._id}`)
+      await loadDances() // Recharger les danses
+      deleteDialog.value = false
+      danceToDelete.value = null
+    } catch (error) {
+      console.error('❌ Erreur lors de la suppression:', error)
+    }
+  }
+}
+
+// Charger les danses au montage
+onMounted(() => {
+  loadDances()
+})
+</script>
