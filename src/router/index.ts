@@ -46,6 +46,15 @@ const router = createRouter({
         title: 'Les danses',
       },
     },
+    {
+      path: '/gallery',
+      name: 'gallery',
+      component: () => import('@/views/GalleryView.vue'),
+      meta: {
+        requiresAuth: true,
+        title: 'Galerie',
+      },
+    },
   ],
 })
 

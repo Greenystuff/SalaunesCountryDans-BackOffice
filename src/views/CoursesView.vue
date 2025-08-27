@@ -24,7 +24,7 @@
               <v-card class="course-card">
                 <v-card-title class="d-flex align-center">
                   <v-icon
-                    :color="course.level === 'Débutant' ? 'success' : course.level === 'Intermédiaire' ? 'warning' : 'error'"
+                    :color="course.level === 'Débutant' ? 'success' : course.level === 'Novice' ? 'info' : 'warning'"
                     class="me-2">
                     mdi-music-note
                   </v-icon>
@@ -80,7 +80,7 @@ const courses = ref([
   {
     id: 2,
     name: 'Country Intermédiaire',
-    level: 'Intermédiaire',
+    level: 'Novice',
     schedule: 'Mercredi 20h-21h30',
     instructor: 'Jean Martin',
     registered: 18,
@@ -89,7 +89,7 @@ const courses = ref([
   {
     id: 3,
     name: 'Country Avancé',
-    level: 'Avancé',
+    level: 'Intermédiaire',
     schedule: 'Vendredi 20h30-22h',
     instructor: 'Pierre Durand',
     registered: 15,

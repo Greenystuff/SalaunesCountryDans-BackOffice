@@ -210,14 +210,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { apiService } from '@/services/api'
 
 interface Dance {
   _id: string
   name: string
-  level: 'Débutant' | 'Intermédiaire' | 'Novice'
+  level: 'Débutant' | 'Novice' | 'Intermédiaire'
   style: 'Catalan' | 'Country'
   date: string
   dateDisplay?: string // Date formatée en français
@@ -230,7 +230,7 @@ interface Dance {
 
 interface DanceForm {
   name: string
-  level: 'Débutant' | 'Intermédiaire' | 'Novice'
+  level: 'Débutant' | 'Novice' | 'Intermédiaire'
   style: 'Catalan' | 'Country'
   date: string
   youtubeLink1: string
@@ -258,6 +258,9 @@ const form = ref()
 const pdfFile = ref<File | null>(null)
 const pdfMode = ref('url') // 'url' ou 'file'
 
+// Contrôleur d'annulation pour les requêtes
+const abortController = ref<AbortController | null>(null)
+
 // Formulaire
 const danceForm = ref<DanceForm>({
   name: '',
@@ -270,7 +273,7 @@ const danceForm = ref<DanceForm>({
 })
 
 // Options pour les selects
-const levelOptions = ['Débutant', 'Intermédiaire', 'Novice']
+const levelOptions = ['Débutant', 'Novice', 'Intermédiaire']
 const styleOptions = ['Catalan', 'Country']
 
 // Headers du tableau
@@ -302,8 +305,8 @@ const filteredDances = computed(() => {
 const getLevelColor = (level: string) => {
   switch (level) {
     case 'Débutant': return 'green'
-    case 'Intermédiaire': return 'orange'
     case 'Novice': return 'blue'
+    case 'Intermédiaire': return 'orange'
     default: return 'grey'
   }
 }
@@ -422,8 +425,18 @@ const clearFilters = () => {
 // Charger les danses depuis l'API
 const loadDances = async () => {
   try {
+    // Annuler la requête précédente si elle existe
+    if (abortController.value) {
+      abortController.value.abort()
+    }
+
+    // Créer un nouveau contrôleur d'annulation
+    abortController.value = new AbortController()
+
     loading.value = true
-    const response = await api.get<Dance[]>('/dances')
+    const response = await api.get<Dance[]>('/dances', {
+      signal: abortController.value.signal
+    })
     const dancesData = response.data || []
 
     // Ajouter le champ dateSortable pour le tri chronologique
@@ -432,9 +445,11 @@ const loadDances = async () => {
       dateSortable: getDateForSorting(dance.date)
     }))
 
-
-  } catch (error) {
-    console.error('❌ Erreur lors du chargement des danses:', error)
+  } catch (error: any) {
+    // Ne pas afficher l'erreur si la requête a été annulée
+    if (error.name !== 'AbortError') {
+      console.error('❌ Erreur lors du chargement des danses:', error)
+    }
   } finally {
     loading.value = false
   }
@@ -648,5 +663,13 @@ const deleteDance = async () => {
 // Charger les danses au montage
 onMounted(() => {
   loadDances()
+})
+
+// Nettoyer les requêtes au démontage
+onUnmounted(() => {
+  // Annuler les requêtes en cours
+  if (abortController.value) {
+    abortController.value.abort()
+  }
 })
 </script>

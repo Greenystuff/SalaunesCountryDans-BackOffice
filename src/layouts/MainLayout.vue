@@ -112,6 +112,11 @@ const menuItems = [
     title: 'Les danses',
     icon: 'mdi-dance-ballroom',
     to: '/dances'
+  },
+  {
+    title: 'Galerie',
+    icon: 'mdi-image-multiple',
+    to: '/gallery'
   }
 ]
 

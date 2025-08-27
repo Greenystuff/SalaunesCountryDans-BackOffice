@@ -78,9 +78,9 @@ class ApiService {
   }
 
   // Méthode pour faire des requêtes GET
-  async get<T>(url: string): Promise<ApiResponse<T>> {
+  async get<T>(url: string, config?: any): Promise<ApiResponse<T>> {
     try {
-      const response = await this.api.get<ApiResponse<T>>(url)
+      const response = await this.api.get<ApiResponse<T>>(url, config)
       return response.data
     } catch (error: any) {
       throw this.handleError(error)
@@ -88,19 +88,21 @@ class ApiService {
   }
 
   // Méthode pour faire des requêtes POST
-  async post<T>(url: string, data?: any): Promise<ApiResponse<T>> {
+  async post<T>(url: string, data?: any, config?: any): Promise<ApiResponse<T>> {
     try {
       // Si c'est un FormData, ne pas définir le Content-Type
-      const config =
-        data instanceof FormData
-          ? {
-              headers: {
+      const requestConfig = {
+        ...config,
+        headers:
+          data instanceof FormData
+            ? {
+                ...config?.headers,
                 'Content-Type': undefined, // Laisser Axios définir automatiquement
-              },
-            }
-          : {}
+              }
+            : config?.headers,
+      }
 
-      const response = await this.api.post<ApiResponse<T>>(url, data, config)
+      const response = await this.api.post<ApiResponse<T>>(url, data, requestConfig)
       return response.data
     } catch (error: any) {
       throw this.handleError(error)
@@ -108,9 +110,9 @@ class ApiService {
   }
 
   // Méthode pour faire des requêtes PUT
-  async put<T>(url: string, data?: any): Promise<ApiResponse<T>> {
+  async put<T>(url: string, data?: any, config?: any): Promise<ApiResponse<T>> {
     try {
-      const response = await this.api.put<ApiResponse<T>>(url, data)
+      const response = await this.api.put<ApiResponse<T>>(url, data, config)
       return response.data
     } catch (error: any) {
       throw this.handleError(error)
@@ -118,9 +120,9 @@ class ApiService {
   }
 
   // Méthode pour faire des requêtes DELETE
-  async delete<T>(url: string): Promise<ApiResponse<T>> {
+  async delete<T>(url: string, config?: any): Promise<ApiResponse<T>> {
     try {
-      const response = await this.api.delete<ApiResponse<T>>(url)
+      const response = await this.api.delete<ApiResponse<T>>(url, config)
       return response.data
     } catch (error: any) {
       throw this.handleError(error)
@@ -129,6 +131,11 @@ class ApiService {
 
   // Gestion des erreurs
   private handleError(error: any): Error {
+    // Si c'est une erreur d'annulation, la propager telle quelle
+    if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
+      return error
+    }
+
     if (error.response?.data?.message) {
       return new Error(error.response.data.message)
     }
