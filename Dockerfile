@@ -1,17 +1,32 @@
-FROM node:20-alpine
+# Build stage
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
+# Copier les fichiers de dépendances
 COPY package*.json ./
 
-RUN npm ci
+# Installer les dépendances
+RUN npm ci --only=production
 
-# Copier seulement les fichiers de configuration
-COPY vite.config.ts ./
-COPY tsconfig*.json ./
-COPY index.html ./
+# Copier le code source
+COPY . .
 
-EXPOSE 5173
+# Construire l'application pour la production
+RUN npm run build
 
-# Configuration pour le développement avec hot reload
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+# Production stage
+FROM nginx:alpine
+
+# Copier les fichiers construits depuis le stage de build
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Copier la configuration nginx personnalisée
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Exposer le port 80
+EXPOSE 80
+
+# Démarrer nginx
+CMD ["nginx", "-g", "daemon off;"]
+
