@@ -17,6 +17,7 @@ ARG VITE_API_URL
 ENV VITE_API_URL=${VITE_API_URL}
 
 # Construire l'application pour la production
+RUN node -e "console.log('>> VITE_API_URL during build =', process.env.VITE_API_URL || '(empty)')"
 RUN npm run build
 
 # Production stage
