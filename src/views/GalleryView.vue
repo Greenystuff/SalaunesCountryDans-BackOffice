@@ -196,8 +196,7 @@
               <v-btn variant="outlined" @click="resetForm" :disabled="!hasChanges">
                 Réinitialiser
               </v-btn>
-              <v-btn color="primary" :loading="saving" :disabled="!isFormValid || (editingImage && !hasChanges)"
-                @click="saveImage">
+              <v-btn color="primary" :loading="saving" :disabled="isSaveButtonDisabled" @click="saveImage">
                 {{ editingImage ? 'Modifier' : 'Créer' }}
               </v-btn>
             </div>
@@ -330,14 +329,22 @@ const isFormValid = computed(() => {
 })
 
 // Détection des changements
-const hasChanges = computed(() => {
+const hasChanges = computed((): boolean => {
   if (!editingImage.value) {
     // En mode création, on considère qu'il y a des changements si le titre n'est pas vide
-    return !!imageForm.value.title.trim() || !!imageFile.value
+    return Boolean(imageForm.value.title.trim() || imageFile.value)
   }
 
   // En mode édition, comparer avec l'état initial
-  return JSON.stringify(imageForm.value) !== JSON.stringify(initialFormState.value) || !!imageFile.value
+  const hasChanges = (JSON.stringify(imageForm.value) !== JSON.stringify(initialFormState.value) || !!imageFile.value)
+  return Boolean(hasChanges)
+})
+
+const isSaveButtonDisabled = computed((): boolean => {
+  const isValid = Boolean(formValid.value)
+  const hasChangesValue = Boolean(hasChanges.value)
+  const isEditing = Boolean(editingImage.value)
+  return !isValid || (isEditing && !hasChangesValue)
 })
 
 // Méthodes
@@ -355,7 +362,7 @@ const loadImages = async () => {
     const response = await apiService.get('/gallery', {
       signal: abortController.value.signal
     })
-    images.value = response.data || []
+    images.value = (response.data as GalleryImage[]) || []
   } catch (error: any) {
     // Ne pas afficher l'erreur si la requête a été annulée
     if (error.name !== 'AbortError') {
@@ -469,7 +476,7 @@ const saveImage = async () => {
 
     if (editingImage.value) {
       // Mode édition
-      const updateData = {
+      const updateData: any = {
         ...imageForm.value,
         tags: imageForm.value.tagsString ? imageForm.value.tagsString.split(',').map(tag => tag.trim()) : []
       }
