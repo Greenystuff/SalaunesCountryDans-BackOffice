@@ -1,678 +1,467 @@
 <template>
-  <MainLayout>
-    <div class="courses-container">
-      <!-- Header -->
-      <div class="header-section mb-6">
-        <div class="d-flex justify-space-between align-center">
-          <div>
-            <h1 class="text-h3 font-weight-bold mb-2">
-              Gestion des Cours
-            </h1>
-            <p class="text-body-1 text-medium-emphasis">
-              Gérez le planning des cours et événements de country dance
-            </p>
-          </div>
-          <v-btn color="primary" prepend-icon="mdi-plus" size="large" @click="openEventDialog()">
-            Créer un événement
-          </v-btn>
+  <div class="courses-container">
+    <VCard class="main-card">
+
+      <!-- HEADER -->
+      <div class="header-title">
+        <div class="header-content">
+          <h1 class="main-title">Cours & Planning</h1>
+          <p class="subtitle">
+            Back-office du club — gérez vos créneaux, niveaux et animateurs dans une interface apaisée.
+          </p>
+        </div>
+        <div class="header-actions">
+          <VBtn color="primary" prepend-icon="mdi-plus" @click="openCreate()">
+            Nouveau cours
+          </VBtn>
         </div>
       </div>
 
-      <!-- Calendrier VCalendar - Centre d'attention -->
-      <v-card class="calendar-card" elevation="3" rounded="xl">
-        <!-- Indicateur de chargement -->
-        <v-overlay v-model="loading" class="align-center justify-center">
-          <v-progress-circular indeterminate size="64" color="primary" />
-        </v-overlay>
+      <VDivider />
 
-        <!-- Message d'erreur -->
-        <v-alert v-if="error" type="error" variant="tonal" class="ma-4" rounded="lg">
-          <template #prepend>
-            <v-icon>mdi-alert-circle</v-icon>
-          </template>
-          {{ error }}
-        </v-alert>
+      <!-- BARRE D’OUTILS / FILTRES -->
+      <div class="toolbar">
+        <VTextField v-model="filters.q" placeholder="Rechercher un cours, une salle, un animateur…" variant="solo"
+          density="comfortable" hide-details clearable prepend-inner-icon="mdi-magnify" class="toolbar-item" />
+        <VSelect v-model="filters.level" :items="levelOptions" label="Niveau" variant="solo" hide-details clearable
+          class="toolbar-item" />
+        <VSelect v-model="filters.teacher" :items="teacherOptions" label="Animateur" variant="solo" hide-details
+          clearable class="toolbar-item" />
+        <VBtn class="toolbar-item" variant="tonal" @click="resetFilters">
+          Réinitialiser
+        </VBtn>
+      </div>
 
-        <v-card-text class="pa-6">
-          <!-- Contrôles du calendrier -->
-          <div class="d-flex justify-space-between align-center mb-6">
-            <div class="d-flex align-center gap-4">
-              <v-btn icon="mdi-chevron-left" variant="text" size="large" @click="previousMonth" />
-              <h2 class="text-h4 font-weight-bold">{{ currentMonthYear }}</h2>
-              <v-btn icon="mdi-chevron-right" variant="text" size="large" @click="nextMonth" />
-            </div>
-            <div class="d-flex align-center gap-3">
-              <v-btn variant="outlined" size="large" @click="goToToday" prepend-icon="mdi-calendar-today">
-                Aujourd'hui
-              </v-btn>
-              <v-select v-model="viewMode" :items="viewModes" variant="outlined" density="comfortable" hide-details />
-            </div>
-          </div>
-
-          <!-- Calendrier VCalendar - Pleine largeur -->
-          <div class="calendar-wrapper">
-            <VCalendar v-model="calendarSelectedDate" :attributes="calendarAttributes" class="custom-calendar" />
-          </div>
-        </v-card-text>
-      </v-card>
-
-      <!-- Dialog pour créer/modifier un événement -->
-      <v-dialog v-model="eventDialog" max-width="800px" persistent>
-        <v-card>
-          <v-card-title class="text-h5 pa-6 d-flex justify-space-between align-center">
-            <span>{{ editingEvent ? 'Modifier l\'événement' : 'Créer un événement' }}</span>
-            <v-btn icon="mdi-close" variant="text" size="small" @click="closeEventDialog" />
-          </v-card-title>
-
-          <v-card-text class="pa-6">
-            <v-form ref="eventForm" v-model="eventFormValid" class="form-spacing">
-              <!-- Titre -->
-              <v-text-field v-model="eventForm.title" label="Titre de l'événement *" variant="outlined"
-                :rules="[v => !!v || 'Le titre est requis']" required class="mb-4" />
-
-              <!-- Description -->
-              <v-textarea v-model="eventForm.description" label="Description" variant="outlined" rows="3" counter="500"
-                hint="Description détaillée de l'événement" class="mb-4" />
-
-              <!-- Niveau de difficulté -->
-              <v-select v-model="eventForm.level" :items="levelOptions" label="Niveau de difficulté *"
-                variant="outlined" :rules="[v => !!v || 'Le niveau est requis']" required class="mb-4" />
-
-              <!-- Instructeur -->
-              <v-text-field v-model="eventForm.instructor" label="Instructeur" variant="outlined" class="mb-4" />
-
-              <!-- Lieu -->
-              <v-text-field v-model="eventForm.location" label="Lieu" variant="outlined" class="mb-4" />
-
-              <!-- Type d'événement -->
-              <v-select v-model="eventForm.type" :items="eventTypes" label="Type d'événement" variant="outlined"
-                class="mb-4" />
-
-              <!-- Périodes -->
-              <div class="mb-6">
-                <div class="d-flex align-center mb-4">
-                  <h4 class="text-h6">Périodes</h4>
-                  <v-spacer />
-                  <v-btn size="small" variant="outlined" prepend-icon="mdi-plus" @click="addPeriod">
-                    Ajouter une période
-                  </v-btn>
+      <!-- CALENDRIER -->
+      <div class="calendar-section">
+        <div class="calendar-wrapper">
+          <!-- Composant Calendar de v-calendar -->
+          <VCalendar class="custom-calendar" :first-day-of-week="1" :min-weeks="5" :locale="'fr'" :expanded="true"
+            @dayclick="onDayClick">
+            <template #day-content="{ day }">
+              <div class="vc-day-content">
+                <div class="vc-day-label">{{ day.day }}</div>
+                <div class="vc-day-content-wrapper">
+                  <div v-for="item in coursesOnDate(day.date)" :key="item.id" class="vc-day-content-item"
+                    :data-level="item.level"
+                    :title="`${timeShort(item.start)}–${timeShort(item.end)} · ${item.title} (${item.level})`"
+                    @click.stop="openEdit(item)" />
                 </div>
+              </div>
+            </template>
+          </VCalendar>
+        </div>
+      </div>
 
-                <div v-for="(period, index) in eventForm.periods" :key="index" class="period-item mb-4">
-                  <v-row>
-                    <v-col cols="12" md="4">
-                      <v-text-field v-model="period.startDate" label="Date de début" type="date" variant="outlined"
-                        density="compact" />
-                    </v-col>
-                    <v-col cols="12" md="3">
-                      <v-text-field v-model="period.startTime" label="Heure début" type="time" variant="outlined"
-                        density="compact" />
-                    </v-col>
-                    <v-col cols="12" md="3">
-                      <v-text-field v-model="period.endTime" label="Heure fin" type="time" variant="outlined"
-                        density="compact" />
-                    </v-col>
-                    <v-col cols="12" md="2" class="d-flex align-center">
-                      <v-btn icon="mdi-delete" variant="text" color="error" size="small" @click="removePeriod(index)" />
-                    </v-col>
-                  </v-row>
+      <VDivider />
+
+      <!-- LISTE DES ÉVÉNEMENTS À VENIR -->
+      <div class="list-section">
+        <div class="list-header">
+          <h3 class="list-title">À venir</h3>
+          <div class="list-actions">
+            <VBtn variant="text" density="comfortable" @click="addSampleWeek">
+              Générer une semaine d'exemple
+            </VBtn>
+          </div>
+        </div>
+
+        <VTable class="events-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Heure</th>
+              <th>Cours</th>
+              <th>Animateur</th>
+              <th>Salle</th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in upcoming" :key="item.id" class="hover-row">
+              <td>{{ dateLong(item.start) }}</td>
+              <td>{{ timeShort(item.start) }}–{{ timeShort(item.end) }}</td>
+              <td>
+                <div class="title-cell">
+                  <VChip :color="levelColor(item.level)" size="small" variant="flat" class="mr-2">
+                    {{ item.level }}
+                  </VChip>
+                  <span class="title">{{ item.title }}</span>
+                </div>
+              </td>
+              <td>{{ item.teacher || '—' }}</td>
+              <td>{{ item.location || '—' }}</td>
+              <td class="actions">
+                <VBtn icon="mdi-pencil" variant="text" @click="openEdit(item)" />
+                <VBtn icon="mdi-delete" variant="text" color="error" @click="remove(item.id)" />
+              </td>
+            </tr>
+            <tr v-if="!upcoming.length">
+              <td colspan="6" class="empty-row">Aucun créneau à venir.</td>
+            </tr>
+          </tbody>
+        </VTable>
+      </div>
+    </VCard>
+
+    <!-- DIALOGUE CRÉATION / ÉDITION -->
+    <VDialog v-model="dialog.open" max-width="720" class="event-dialog">
+      <VCard>
+        <div class="dialog-title">
+          <span>{{ dialog.mode === 'create' ? 'Nouveau cours' : 'Modifier le cours' }}</span>
+          <VBtn icon="mdi-close" variant="text" @click="dialog.open = false" />
+        </div>
+
+        <div class="dialog-content">
+          <VForm ref="formRef" @submit.prevent="save">
+            <div class="event-form">
+              <VTextField v-model="form.title" label="Intitulé" required />
+              <VTextarea v-model="form.description" label="Description" rows="3" />
+
+              <VRow>
+                <VCol cols="12" md="4">
+                  <VSelect v-model="form.level" :items="levelOptions" label="Niveau" required />
+                </VCol>
+                <VCol cols="12" md="4">
+                  <VTextField v-model="form.teacher" label="Animateur" />
+                </VCol>
+                <VCol cols="12" md="4">
+                  <VTextField v-model="form.location" label="Salle / Lieu" />
+                </VCol>
+              </VRow>
+
+              <div class="periods-section">
+                <div class="periods-header">
+                  <h4 class="periods-title">Créneau</h4>
+                </div>
+                <div class="period-grid">
+                  <VTextField v-model="dateInput" type="date" label="Date" />
+                  <VTextField v-model="startTime" type="time" label="Heure début" />
+                  <VTextField v-model="endTime" type="time" label="Heure fin" />
+                  <VSelect v-model="form.recurrence" :items="recurrenceOptions" label="Récurrence" />
                 </div>
               </div>
 
-              <!-- Capacité -->
-              <v-text-field v-model.number="eventForm.capacity" label="Capacité maximale" type="number"
-                variant="outlined" min="1" class="mb-4" />
-
-              <!-- Prix -->
-              <v-text-field v-model="eventForm.price" label="Prix" variant="outlined" prefix="€" class="mb-4" />
-
-              <!-- Tags -->
-              <v-text-field v-model="eventForm.tagsString" label="Tags" variant="outlined"
-                hint="Séparez les tags par des virgules" placeholder="cours, débutant, country" class="mb-4" />
-            </v-form>
-          </v-card-text>
-
-          <!-- Actions -->
-          <v-card-actions class="pa-6 d-flex justify-space-between align-center">
-            <!-- Toggle à gauche -->
-            <v-switch v-model="eventForm.isActive" label="Événement actif" color="primary" class="ma-0" hide-details />
-
-            <!-- Boutons à droite -->
-            <div class="d-flex gap-3">
-              <v-btn variant="outlined" @click="resetEventForm" :disabled="!hasEventChanges">
-                Réinitialiser
-              </v-btn>
-              <v-btn color="primary" :loading="saving" :disabled="isSaveButtonDisabled" @click="saveEvent">
-                {{ editingEvent ? 'Modifier' : 'Créer' }}
-              </v-btn>
+              <VRow>
+                <VCol cols="12" md="4">
+                  <VTextField v-model.number="form.capacity" type="number" min="0" label="Capacité" />
+                </VCol>
+                <VCol cols="12" md="4">
+                  <VTextField v-model.number="form.price" type="number" min="0" step="0.5" label="Tarif (€)" />
+                </VCol>
+              </VRow>
             </div>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
-    </div>
-  </MainLayout>
+          </VForm>
+        </div>
+
+        <div class="dialog-actions">
+          <div class="left">
+            <VBtn v-if="dialog.mode === 'edit'" variant="text" color="error" @click="remove(form.id)">
+              Supprimer
+            </VBtn>
+          </div>
+          <div class="action-buttons">
+            <VBtn variant="text" @click="dialog.open = false">Annuler</VBtn>
+            <VBtn color="primary" @click="save">
+              {{ dialog.mode === 'create' ? 'Créer' : 'Enregistrer' }}
+            </VBtn>
+          </div>
+        </div>
+      </VCard>
+    </VDialog>
+  </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import MainLayout from '@/layouts/MainLayout.vue'
-import { eventService } from '@/services/eventService'
-import type { CourseEvent, EventFormData, EventPeriod } from '@/types/events'
+<script setup>
+import { ref, reactive, computed } from 'vue'
 
-// État réactif
-const selectedDate = ref<Date>(new Date())
-const calendarSelectedDate = ref<Date[]>([])
-const viewMode = ref('month')
-const eventDialog = ref(false)
-const editingEvent = ref<CourseEvent | null>(null)
-const saving = ref(false)
-const eventFormValid = ref<boolean>(false)
+/** ----------------------------
+ *  Données & constantes
+ *  ---------------------------- */
+const levelOptions = ['Débutant', 'Novice', 'Intermédiaire', 'Avancé']
+const recurrenceOptions = ['Aucune', 'Hebdomadaire', 'Toutes les 2 semaines', 'Mensuelle']
 
-// État des données
-const events = ref<CourseEvent[]>([])
-const loading = ref(false)
-const error = ref<string | null>(null)
+const filters = reactive({
+  q: '',
+  level: null,
+  teacher: null
+})
 
-// Options
-const viewModes = [
-  { title: 'Vue mensuelle', value: 'month' },
-  { title: 'Vue hebdomadaire', value: 'week' }
-]
+/** Jeu d’essai minimal — remplace ensuite par tes données côté API */
+const courses = ref([
+  // Quelques sessions d’exemple sur le mois courant
+  sample('Initiation Line Dance', 'Débutant', 'Sophie', 'Salle A', 19, 0, 1),
+  sample('Two-Step Cool', 'Intermédiaire', 'Marc', 'Salle B', 20, 0, 2),
+  sample('Honky-Tonk Basics', 'Novice', 'Sophie', 'Grande salle', 18, 30, 3),
+  sample('Chorée “Country Roads”', 'Débutant', 'Léa', 'Salle A', 19, 0, 6),
+  sample('Technique & posture', 'Avancé', 'Marc', 'Studio', 20, 30, 8)
+])
 
-const levelOptions = [
-  { title: 'Débutant', value: 'Débutant' },
-  { title: 'Novice', value: 'Novice' },
-  { title: 'Intermédiaire', value: 'Intermédiaire' }
-]
-
-const eventTypes = [
-  'Cours régulier',
-  'Stage',
-  'Soirée',
-  'Compétition',
-  'Démonstration',
-  'Autre'
-]
-
-// Configuration VCalendar
-const locale = {
-  id: 'fr',
-  firstDayOfWeek: 2,
-  masks: {
-    L: 'DD/MM/YYYY',
-    title: 'MMMM YYYY',
-    weekdays: 'W',
-  },
-  dayNames: ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'],
-  dayNamesShort: ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'],
-  monthNames: [
-    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
-  ],
-  monthNamesShort: [
-    'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin',
-    'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'
-  ]
-}
-
-const themeStyles = {
-  light: {
-    wrapper: {
-      border: 'none',
-      borderRadius: '12px',
-      backgroundColor: 'transparent'
-    },
-    header: {
-      backgroundColor: 'transparent',
-      borderBottom: 'none',
-      color: 'rgb(var(--v-theme-on-surface))'
-    },
-    navButton: {
-      color: 'rgb(var(--v-theme-primary))',
-      backgroundColor: 'transparent',
-      border: '1px solid rgb(var(--v-theme-outline))',
-      borderRadius: '8px'
-    },
-    navButtonHover: {
-      backgroundColor: 'rgb(var(--v-theme-primary-container))',
-      color: 'rgb(var(--v-theme-on-primary-container))'
-    },
-    dayCell: {
-      border: '1px solid rgb(var(--v-theme-outline))',
-      backgroundColor: 'rgb(var(--v-theme-surface))',
-      borderRadius: '8px'
-    },
-    dayCellHover: {
-      backgroundColor: 'rgb(var(--v-theme-surface-variant))'
-    },
-    dayCellToday: {
-      backgroundColor: 'rgb(var(--v-theme-primary-container))',
-      color: 'rgb(var(--v-theme-on-primary-container))'
-    }
-  },
-  dark: {
-    wrapper: {
-      border: 'none',
-      borderRadius: '12px',
-      backgroundColor: 'transparent'
-    },
-    header: {
-      backgroundColor: 'transparent',
-      borderBottom: 'none',
-      color: 'rgb(var(--v-theme-on-surface))'
-    },
-    navButton: {
-      color: 'rgb(var(--v-theme-primary))',
-      backgroundColor: 'transparent',
-      border: '1px solid rgb(var(--v-theme-outline))',
-      borderRadius: '8px'
-    },
-    navButtonHover: {
-      backgroundColor: 'rgb(var(--v-theme-primary-container))',
-      color: 'rgb(var(--v-theme-on-primary-container))'
-    },
-    dayCell: {
-      border: '1px solid rgb(var(--v-theme-outline))',
-      backgroundColor: 'rgb(var(--v-theme-surface))',
-      borderRadius: '8px'
-    },
-    dayCellHover: {
-      backgroundColor: 'rgb(var(--v-theme-surface-variant))'
-    },
-    dayCellToday: {
-      backgroundColor: 'rgb(var(--v-theme-primary-container))',
-      color: 'rgb(var(--v-theme-on-primary-container))'
-    }
+function sample(title, level, teacher, location, h, m, dayOffset) {
+  const base = new Date()
+  const d = new Date(base.getFullYear(), base.getMonth(), 1 + dayOffset, h, m, 0, 0)
+  const e = new Date(d); e.setMinutes(e.getMinutes() + 90)
+  return {
+    id: uid(),
+    title, level, teacher, location,
+    description: '',
+    start: d,
+    end: e,
+    recurrence: 'Aucune',
+    capacity: null,
+    price: null
   }
 }
 
-// Formulaire événement
-const eventForm = ref({
+/** ----------------------------
+ *  Sélection / form dialog
+ *  ---------------------------- */
+const dialog = reactive({ open: false, mode: 'create' }) // 'create' | 'edit'
+const formRef = ref(null)
+
+const form = reactive({
+  id: null,
   title: '',
   description: '',
-  level: 'Débutant' as 'Débutant' | 'Novice' | 'Intermédiaire',
-  instructor: '',
+  level: 'Débutant',
+  teacher: '',
   location: '',
-  type: 'Cours régulier',
-  periods: [] as EventPeriod[],
-  capacity: 20,
-  price: '',
-  tagsString: '',
-  isActive: true
+  recurrence: 'Aucune',
+  capacity: null,
+  price: null
 })
 
-// Computed
-const currentMonthYear = computed(() => {
-  return selectedDate.value.toLocaleDateString('fr-FR', {
-    month: 'long',
-    year: 'numeric'
+const dateInput = ref(toISODate(new Date()))
+const startTime = ref('19:00')
+const endTime = ref('20:30')
+
+/** ----------------------------
+ *  Utilitaires date/heure
+ *  ---------------------------- */
+function toISODate(d) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function timeShort(d) {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+function parseTime(s) {
+  const [h, m] = s.split(':').map(Number)
+  return { h, m }
+}
+
+function composeDate(dateStr, timeStr) {
+  const d = new Date(dateStr + 'T00:00:00')
+  const { h, m } = parseTime(timeStr)
+  d.setHours(h, m, 0, 0)
+  return d
+}
+
+function sameDay(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
+}
+
+function dateLong(d) {
+  return d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'long' })
+}
+
+/** ----------------------------
+ *  Filtres & projections
+ *  ---------------------------- */
+const teacherOptions = computed(() => {
+  const set = new Set(courses.value.map(c => (c.teacher || '').trim()).filter(Boolean))
+  return [...set].sort()
+})
+
+const filtered = computed(() => {
+  const q = (filters.q || '').toLowerCase().trim()
+  return courses.value.filter(c => {
+    if (filters.level && c.level !== filters.level) return false
+    if (filters.teacher && (c.teacher || '') !== filters.teacher) return false
+    if (q) {
+      const hay = [
+        c.title, c.description, c.teacher, c.location, c.level
+      ].map(v => (v || '').toLowerCase()).join(' ')
+      if (!hay.includes(q)) return false
+    }
+    return true
   })
 })
 
-const calendarAttributes = computed(() => {
-  return events.value.map(event => ({
-    key: event._id || `event-${Math.random()}`,
-    highlight: {
-      color: getLevelColor(event.level),
-      fillMode: 'light' as const
-    },
-    dates: event.periods.map(period => new Date(period.startDate)),
-    customData: event
-  }))
+const upcoming = computed(() => {
+  const now = new Date()
+  return [...filtered.value]
+    .filter(c => c.end >= now)
+    .sort((a, b) => a.start - b.start)
+    .slice(0, 20)
 })
 
-// Méthodes
-const getLevelColor = (level: string) => {
-  switch (level) {
-    case 'Débutant':
-      return 'green'
-    case 'Novice':
-      return 'blue'
-    case 'Intermédiaire':
-      return 'orange'
-    default:
-      return 'gray'
-  }
+/** Calendrier : sessions du jour (affichage des pastilles) */
+function coursesOnDate(date) {
+  return filtered.value.filter(c => sameDay(c.start, date))
 }
 
-const previousMonth = () => {
-  const newDate = new Date(selectedDate.value)
-  newDate.setMonth(newDate.getMonth() - 1)
-  selectedDate.value = newDate
+/** ----------------------------
+ *  Actions UI
+ *  ---------------------------- */
+function resetFilters() {
+  filters.q = ''
+  filters.level = null
+  filters.teacher = null
 }
 
-const nextMonth = () => {
-  const newDate = new Date(selectedDate.value)
-  newDate.setMonth(newDate.getMonth() + 1)
-  selectedDate.value = newDate
-}
-
-const goToToday = () => {
-  selectedDate.value = new Date()
-}
-
-const onDayClick = ({ date }: { date: Date }) => {
-  openEventDialog()
-  if (eventForm.value.periods.length === 0) {
-    addPeriod()
-  }
-  eventForm.value.periods[0].startDate = date.toISOString().split('T')[0]
-}
-
-const onPageChange = ({ month, year }: { month: number; year: number }) => {
-  selectedDate.value = new Date(year, month, 1)
-}
-
-const openEventDialog = (event?: CourseEvent) => {
-  if (event) {
-    editingEvent.value = event
-    eventForm.value = {
-      title: event.title,
-      description: event.description || '',
-      level: event.level,
-      instructor: event.instructor || '',
-      location: event.location || '',
-      type: event.type || 'Cours régulier',
-      periods: [...event.periods],
-      capacity: event.capacity || 20,
-      price: event.price || '',
-      tagsString: event.tags?.join(', ') || '',
-      isActive: event.isActive
-    }
-  } else {
-    editingEvent.value = null
-    resetEventForm()
-  }
-  eventDialog.value = true
-}
-
-const closeEventDialog = () => {
-  eventDialog.value = false
-  editingEvent.value = null
-  resetEventForm()
-}
-
-const resetEventForm = () => {
-  eventForm.value = {
+function openCreate(baseDate) {
+  dialog.mode = 'create'
+  Object.assign(form, {
+    id: null,
     title: '',
     description: '',
     level: 'Débutant',
-    instructor: '',
+    teacher: '',
     location: '',
-    type: 'Cours régulier',
-    periods: [],
-    capacity: 20,
-    price: '',
-    tagsString: '',
-    isActive: true
-  }
-}
-
-const addPeriod = () => {
-  eventForm.value.periods.push({
-    startDate: new Date().toISOString().split('T')[0],
-    startTime: '19:00',
-    endTime: '20:30'
+    recurrence: 'Aucune',
+    capacity: null,
+    price: null
   })
+  const d = baseDate || new Date()
+  dateInput.value = toISODate(d)
+  startTime.value = '19:00'
+  endTime.value = '20:30'
+  dialog.open = true
 }
 
-const removePeriod = (index: number) => {
-  eventForm.value.periods.splice(index, 1)
+function openEdit(item) {
+  dialog.mode = 'edit'
+  Object.assign(form, { ...item })
+  dateInput.value = toISODate(item.start)
+  startTime.value = timeShort(item.start)
+  endTime.value = timeShort(item.end)
+  dialog.open = true
 }
 
-const saveEvent = async () => {
-  saving.value = true
-  error.value = null
+function onDayClick(day) {
+  // day.date est une date JS
+  openCreate(day.date)
+}
 
-  try {
-    if (editingEvent.value) {
-      // Mise à jour
-      const updatedEvent = await eventService.updateEvent(editingEvent.value._id!, eventForm.value)
-      const index = events.value.findIndex(e => e._id === updatedEvent._id)
-      if (index !== -1) {
-        events.value[index] = updatedEvent
+function save() {
+  const start = composeDate(dateInput.value, startTime.value)
+  const end = composeDate(dateInput.value, endTime.value)
+
+  if (dialog.mode === 'edit' && form.id) {
+    const idx = courses.value.findIndex(c => c.id === form.id)
+    if (idx !== -1) {
+      courses.value[idx] = {
+        ...courses.value[idx],
+        ...form,
+        start,
+        end
       }
-    } else {
-      // Création
-      const newEvent = await eventService.createEvent(eventForm.value)
-      events.value.push(newEvent)
+    }
+  } else {
+    // Création (avec récurrence optionnelle légère)
+    const base = {
+      id: uid(),
+      title: form.title,
+      description: form.description,
+      level: form.level,
+      teacher: form.teacher,
+      location: form.location,
+      capacity: form.capacity,
+      price: form.price
     }
 
-    closeEventDialog()
-  } catch (err: any) {
-    error.value = err.response?.data?.message || 'Erreur lors de la sauvegarde'
-    console.error('Erreur lors de la sauvegarde:', err)
-  } finally {
-    saving.value = false
+    const toAdd = []
+    const repeatCount = form.recurrence === 'Aucune' ? 1
+      : form.recurrence === 'Hebdomadaire' ? 8
+        : form.recurrence === 'Toutes les 2 semaines' ? 6
+          : /* Mensuelle */ 6
+
+    for (let i = 0; i < repeatCount; i++) {
+      const s = new Date(start)
+      const e = new Date(end)
+      if (form.recurrence === 'Hebdomadaire') {
+        s.setDate(s.getDate() + i * 7)
+        e.setDate(e.getDate() + i * 7)
+      } else if (form.recurrence === 'Toutes les 2 semaines') {
+        s.setDate(s.getDate() + i * 14)
+        e.setDate(e.getDate() + i * 14)
+      } else if (form.recurrence === 'Mensuelle') {
+        s.setMonth(s.getMonth() + i)
+        e.setMonth(e.getMonth() + i)
+      }
+      toAdd.push({ ...base, id: uid(), start: s, end: e, recurrence: form.recurrence })
+    }
+    courses.value.push(...toAdd)
+  }
+
+  dialog.open = false
+}
+
+function remove(id) {
+  courses.value = courses.value.filter(c => c.id !== id)
+  if (dialog.open && dialog.mode === 'edit' && form.id === id) {
+    dialog.open = false
   }
 }
 
-const hasEventChanges = computed((): boolean => {
-  if (!editingEvent.value) return true
-
-  const original = editingEvent.value
-  const current = eventForm.value
-
-  const hasChanges = (
-    original.title !== current.title ||
-    original.description !== current.description ||
-    original.level !== current.level ||
-    original.instructor !== current.instructor ||
-    original.location !== current.location ||
-    original.type !== current.type ||
-    original.capacity !== current.capacity ||
-    original.price !== current.price ||
-    original.isActive !== current.isActive ||
-    JSON.stringify(original.periods) !== JSON.stringify(current.periods) ||
-    JSON.stringify(original.tags) !== JSON.stringify(current.tagsString.split(',').map(tag => tag.trim()).filter(tag => tag))
-  )
-
-  return Boolean(hasChanges)
-})
-
-const isSaveButtonDisabled = computed((): boolean => {
-  const isValid = Boolean(eventFormValid.value)
-  const hasChanges = Boolean(hasEventChanges.value)
-  const isEditing = Boolean(editingEvent.value)
-  return !isValid || (isEditing && !hasChanges)
-})
-
-// Charger les événements
-const loadEvents = async () => {
-  loading.value = true
-  error.value = null
-
-  try {
-    const startDate = new Date(selectedDate.value.getFullYear(), selectedDate.value.getMonth(), 1).toISOString().split('T')[0]
-    const endDate = new Date(selectedDate.value.getFullYear(), selectedDate.value.getMonth() + 1, 0).toISOString().split('T')[0]
-
-    events.value = await eventService.getEventsByDateRange(startDate, endDate)
-  } catch (err: any) {
-    error.value = err.response?.data?.message || 'Erreur lors du chargement des événements'
-    console.error('Erreur lors du chargement des événements:', err)
-  } finally {
-    loading.value = false
+/** ----------------------------
+ *  Couleurs & helpers visuels
+ *  ---------------------------- */
+function levelColor(level) {
+  switch (level) {
+    case 'Débutant': return 'success'
+    case 'Novice': return 'info'
+    case 'Intermédiaire': return 'warning'
+    case 'Avancé': return 'error'
+    default: return 'primary'
   }
 }
 
-// Initialisation
-onMounted(() => {
-  loadEvents()
-})
+/** Formatage pour la table */
+function timeRange(item) {
+  return `${timeShort(item.start)}–${timeShort(item.end)}`
+}
 
-// Recharger les événements quand la date change
-watch(selectedDate, () => {
-  loadEvents()
-})
+/** ID simple */
+function uid() {
+  return Math.random().toString(36).slice(2, 10)
+}
+
+/** Petite démo : ajoute une semaine type */
+function addSampleWeek() {
+  const base = new Date()
+  const monday = new Date(base)
+  const day = monday.getDay() || 7
+  monday.setDate(monday.getDate() - (day - 1)) // Lundi de cette semaine
+
+  const mk = (dow, h, m, title, level, teacher, location) => {
+    const d = new Date(monday)
+    d.setDate(d.getDate() + (dow - 1))
+    d.setHours(h, m, 0, 0)
+    const e = new Date(d); e.setMinutes(e.getMinutes() + 90)
+    courses.value.push({
+      id: uid(), title, level, teacher, location,
+      description: '',
+      start: d, end: e, recurrence: 'Aucune', capacity: null, price: null
+    })
+  }
+
+  mk(1, 19, 0, 'Line Dance — Bases', 'Débutant', 'Sophie', 'Salle A')
+  mk(3, 20, 0, 'Two-Step — Atelier', 'Intermédiaire', 'Marc', 'Salle B')
+  mk(5, 19, 30, 'Chorée — Soirée', 'Novice', 'Léa', 'Grande salle')
+}
 </script>
 
-<style scoped>
-/* Container principal */
-.courses-container {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* Header section */
-.header-section {
-  flex-shrink: 0;
-  padding: 24px 0;
-}
-
-/* Carte du calendrier - Centre d'attention */
-.calendar-card {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: linear-gradient(135deg, rgb(var(--v-theme-surface)) 0%, rgb(var(--v-theme-surface-variant)) 100%);
-  border: 1px solid rgb(var(--v-theme-outline));
-  min-height: 0;
-  /* Important pour flex */
-}
-
-/* Wrapper du calendrier */
-.calendar-wrapper {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  /* Important pour flex */
-}
-
-/* Périodes */
-.period-item {
-  border: 1px solid rgb(var(--v-theme-outline));
-  border-radius: 12px;
-  padding: 20px;
-  background: rgb(var(--v-theme-surface));
-}
-
-.gap-3 {
-  gap: 12px;
-}
-
-.gap-4 {
-  gap: 16px;
-}
-
-/* Styles VCalendar personnalisés */
-:deep(.custom-calendar) {
-  flex: 1 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  min-height: 0 !important;
-  border: none !important;
-  border-radius: 12px !important;
-}
-
-:deep(.vc-container) {
-  flex: 1 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  border: none !important;
-  border-radius: 12px !important;
-  background: transparent !important;
-  min-height: 0 !important;
-}
-
-:deep(.vc-header) {
-  flex-shrink: 0 !important;
-  background: transparent !important;
-  color: rgb(var(--v-theme-on-surface)) !important;
-  border-radius: 12px 12px 0 0 !important;
-  padding: 16px !important;
-}
-
-:deep(.vc-weeks) {
-  flex: 1 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  padding: 16px !important;
-  gap: 8px !important;
-  min-height: 0 !important;
-}
-
-:deep(.vc-week) {
-  flex: 1 !important;
-  display: flex !important;
-  gap: 8px !important;
-  min-height: 0 !important;
-}
-
-:deep(.vc-day) {
-  flex: 1 !important;
-  border-radius: 8px !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  border: 1px solid rgb(var(--v-theme-outline)) !important;
-  background: rgb(var(--v-theme-surface)) !important;
-  min-height: 80px !important;
-  display: flex !important;
-  flex-direction: column !important;
-}
-
-:deep(.vc-day:hover) {
-  background-color: rgb(var(--v-theme-surface-variant)) !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 0 8px 25px rgba(var(--v-theme-shadow-key-umbra-opacity), 0.15) !important;
-}
-
-:deep(.vc-day.is-today) {
-  background: linear-gradient(135deg, rgb(var(--v-theme-primary-container)) 0%, rgb(var(--v-theme-primary)) 100%) !important;
-  color: rgb(var(--v-theme-on-primary)) !important;
-  font-weight: 700 !important;
-  transform: scale(1.02) !important;
-}
-
-:deep(.vc-day.is-not-in-month) {
-  opacity: 0.5 !important;
-}
-
-:deep(.vc-day-content) {
-  flex: 1 !important;
-  padding: 8px !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-:deep(.vc-day-content .vc-day-label) {
-  font-weight: 600 !important;
-  font-size: 0.875rem !important;
-  margin-bottom: 4px !important;
-}
-
-:deep(.vc-day-content .vc-day-content-wrapper) {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  gap: 2px !important;
-}
-
-:deep(.vc-day-content .vc-day-content-wrapper .vc-day-content-item) {
-  width: 8px !important;
-  height: 8px !important;
-  border-radius: 50% !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-}
-
-:deep(.vc-day-content .vc-day-content-wrapper .vc-day-content-item:hover) {
-  transform: scale(1.2) !important;
-}
-
-/* Couleurs des événements par niveau */
-:deep(.vc-day-content .vc-day-content-wrapper .vc-day-content-item[data-level="Débutant"]) {
-  background-color: rgb(var(--v-theme-success)) !important;
-}
-
-:deep(.vc-day-content .vc-day-content-wrapper .vc-day-content-item[data-level="Novice"]) {
-  background-color: rgb(var(--v-theme-info)) !important;
-}
-
-:deep(.vc-day-content .vc-day-content-wrapper .vc-day-content-item[data-level="Intermédiaire"]) {
-  background-color: rgb(var(--v-theme-warning)) !important;
-}
+<!-- Styles globaux pour cette vue -->
+<style>
+@import '@/assets/courses-view.css';
 </style>

@@ -1,0 +1,381 @@
+/* ===================================
+   STYLES POUR LA VUE DANCESVIEW
+   =================================== */
+
+/* Container principal */
+.dances-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 24px;
+}
+
+/* Tableau des danses */
+.dances-table {
+  max-height: 600px;
+  overflow: auto;
+}
+
+/* Responsive pour le tableau */
+@media (max-width: 768px) {
+  .dances-table {
+    max-height: 400px;
+  }
+}
+
+/* Cartes de statistiques */
+.stats-card {
+  transition: all 0.3s ease;
+  border: 1px solid rgb(var(--v-theme-outline));
+}
+
+.stats-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(var(--v-theme-shadow-key-umbra-opacity), 0.15);
+}
+
+.stats-card .v-card-text {
+  padding: 24px;
+}
+
+.stats-card .text-h3 {
+  font-size: 2.5rem;
+  line-height: 1.2;
+}
+
+.stats-card .v-icon {
+  opacity: 0.8;
+}
+
+/* Styles pour les colonnes du tableau */
+.dances-table .font-weight-medium {
+  font-weight: 500;
+}
+
+/* Styles pour les chips de niveau */
+.dances-table .v-chip {
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+/* Styles pour les boutons d'action */
+.dances-table .v-btn {
+  margin: 0 2px;
+}
+
+/* Styles pour les liens YouTube et PDF */
+.dances-table .v-btn[icon='mdi-youtube'] {
+  color: #ff0000 !important;
+}
+
+.dances-table .v-btn[icon='mdi-file-pdf-box'] {
+  color: #dc2626 !important;
+}
+
+/* Styles pour les filtres */
+.filters-section .v-text-field,
+.filters-section .v-select {
+  margin-bottom: 16px;
+}
+
+.filters-section .v-btn {
+  height: 40px;
+}
+
+/* Styles pour le titre de la section statistiques */
+.stats-section-title {
+  margin-bottom: 24px;
+  color: rgb(var(--v-theme-on-surface));
+  font-weight: 600;
+}
+
+/* Styles pour les barres de progression des statistiques */
+.stats-progress .v-progress-linear {
+  border-radius: 4px;
+}
+
+/* Styles pour les icônes des statistiques */
+.stats-icon {
+  margin-bottom: 16px;
+  opacity: 0.9;
+}
+
+/* Styles pour les compteurs de statistiques */
+.stats-counter {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+
+.stats-label {
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Styles pour les dialogues */
+.dance-dialog .v-card-title {
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.dance-dialog .v-card-text {
+  padding-top: 16px;
+}
+
+.dance-dialog .v-form {
+  margin-top: 16px;
+}
+
+/* Styles pour les onglets PDF */
+.pdf-tabs .v-tabs {
+  margin-bottom: 16px;
+}
+
+.pdf-tabs .v-card {
+  border: 1px solid rgb(var(--v-theme-outline));
+}
+
+/* Styles pour les champs de formulaire */
+.form-field {
+  margin-bottom: 16px;
+}
+
+.form-field .v-text-field,
+.form-field .v-select,
+.form-field .v-file-input {
+  margin-bottom: 0;
+}
+
+/* Styles pour les actions du dialogue */
+.dialog-actions {
+  padding: 16px 24px;
+  border-top: 1px solid rgb(var(--v-theme-outline));
+}
+
+/* Styles pour le dialogue de confirmation */
+.confirm-dialog .v-card-title {
+  color: rgb(var(--v-theme-error));
+  font-weight: 600;
+}
+
+.confirm-dialog .v-card-text {
+  padding: 24px;
+  text-align: center;
+}
+
+/* Styles pour les messages d'erreur */
+.error-message {
+  color: rgb(var(--v-theme-error));
+  font-size: 0.875rem;
+  margin-top: 4px;
+}
+
+/* Styles pour les validations */
+.validation-error {
+  border-color: rgb(var(--v-theme-error)) !important;
+}
+
+.validation-success {
+  border-color: rgb(var(--v-theme-success)) !important;
+}
+
+/* Styles pour les états de chargement */
+.loading-state {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.loading-state .v-btn {
+  cursor: not-allowed;
+}
+
+/* Styles pour les états vides */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.empty-state .v-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+/* Styles pour les tooltips */
+.tooltip-content {
+  max-width: 300px;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+/* Styles pour les badges de statut */
+.status-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Styles pour les indicateurs de niveau */
+.level-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.level-indicator .v-icon {
+  font-size: 16px;
+}
+
+/* Styles pour les métadonnées des danses */
+.dance-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.metadata-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.metadata-item .v-icon {
+  font-size: 14px;
+}
+
+/* Styles pour les animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Styles pour les transitions */
+.transition-all {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-transform {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-opacity {
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Styles pour les états de focus */
+.focus-ring:focus {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 2px;
+}
+
+/* Styles pour les états de hover améliorés */
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(var(--v-theme-shadow-key-umbra-opacity), 0.15);
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+/* Styles pour les états de sélection */
+.selected-item {
+  background-color: rgb(var(--v-theme-primary-container));
+  border-color: rgb(var(--v-theme-primary));
+}
+
+.selected-item .v-icon {
+  color: rgb(var(--v-theme-primary));
+}
+
+/* Styles pour les états de désactivation */
+.disabled-state {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+/* Styles pour les indicateurs de chargement */
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.loading-spinner {
+  margin-right: 12px;
+}
+
+/* Styles pour les messages d'information */
+.info-message {
+  background-color: rgb(var(--v-theme-primary-container));
+  color: rgb(var(--v-theme-on-primary-container));
+  border: 1px solid rgb(var(--v-theme-primary));
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 16px 0;
+}
+
+/* Styles pour les messages de succès */
+.success-message {
+  background-color: rgb(var(--v-theme-success-container));
+  color: rgb(var(--v-theme-on-success-container));
+  border: 1px solid rgb(var(--v-theme-success));
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 16px 0;
+}
+
+/* Styles pour les messages d'avertissement */
+.warning-message {
+  background-color: rgb(var(--v-theme-warning-container));
+  color: rgb(var(--v-theme-on-warning-container));
+  border: 1px solid rgb(var(--v-theme-warning));
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 16px 0;
+}
+
+/* Styles pour les messages d'erreur */
+.error-message {
+  background-color: rgb(var(--v-theme-error-container));
+  color: rgb(var(--v-theme-on-error-container));
+  border: 1px solid rgb(var(--v-theme-error));
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 16px 0;
+}

@@ -1,0 +1,611 @@
+/* ==========================================================================
+   CoursesView — Design moderne, sobre et détendu
+   Palette douce, coins arrondis, ombres légères, grands espaces
+   ========================================================================== */
+
+/* ===== LAYOUT PRINCIPAL ===== */
+.courses-container {
+  padding: 24px;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ===== CARTE ===== */
+.main-card {
+  border-radius: 16px !important;
+  overflow: hidden;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-outline), 0.12);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
+}
+
+/* ===== HEADER ===== */
+.header-title {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 28px 32px;
+  background: linear-gradient(
+    135deg,
+    rgba(var(--v-theme-primary), 0.04),
+    rgba(var(--v-theme-primary), 0.02) 45%,
+    rgba(var(--v-theme-surface), 1) 100%
+  );
+  border-bottom: 1px solid rgba(var(--v-theme-outline), 0.08);
+}
+
+.header-content {
+  flex: 1;
+}
+
+.main-title {
+  margin: 0 0 6px 0;
+  font-weight: 700;
+  font-size: clamp(1.75rem, 2.4vw, 2.5rem);
+  letter-spacing: -0.01em;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.subtitle {
+  margin: 0;
+  max-width: 720px;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  line-height: 1.6;
+}
+
+/* ===== BARRE D’OUTILS ===== */
+.toolbar {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr 0.8fr auto;
+  gap: 12px;
+  padding: 16px 20px;
+  align-items: center;
+  border-bottom: 1px solid rgba(var(--v-theme-outline), 0.06);
+}
+
+.toolbar-item {
+  min-width: 0;
+}
+
+/* ===== CALENDRIER ===== */
+.calendar-section {
+  background: rgb(var(--v-theme-surface));
+}
+
+.calendar-wrapper {
+  padding: 20px 24px 24px;
+}
+
+/* v-calendar (scopé naturellement par les classes internes) */
+.custom-calendar {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+
+.vc-container {
+  background: transparent !important;
+  border: none !important;
+  font-family: inherit !important;
+}
+
+/* --- Barre de nav du calendrier : centrage + anti-clipping --- */
+.custom-calendar .vc-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  height: 48px;
+  padding: 0 8px;
+  margin: 0;
+  box-sizing: border-box;
+
+  background: rgba(var(--v-theme-primary), 0.08);
+  border: 1px solid rgba(var(--v-theme-outline), 0.06);
+  border-radius: 12px;
+  overflow: visible; /* ne pas rogner le titre */
+}
+
+/* Boutons/flèches */
+.custom-calendar .vc-header .vc-arrow,
+.custom-calendar .vc-header button {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+.custom-calendar .vc-header .vc-arrow:hover,
+.custom-calendar .vc-header button:hover {
+  background: rgba(var(--v-theme-on-surface), 0.06);
+  cursor: pointer;
+  z-index: 2;
+}
+
+/* Titre parfaitement centré, largeur bornée entre les flèches */
+.custom-calendar .vc-title,
+.custom-calendar .vc-header .vc-title {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%); /* centre géométrique */
+  max-width: calc(100% - 112px); /* 56px de marge de chaque côté */
+  padding: 0 8px; /* petit confort visuel */
+  text-align: center;
+  width: fit-content;
+  margin: 0;
+  line-height: 1.2;
+  font-weight: 600;
+  z-index: 2;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none; /* laisse les clics aux flèches */
+}
+
+.vc-weeks {
+  padding: 16px 2px 2px;
+}
+
+.vc-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin: 0 0 8px 0;
+}
+
+.vc-day {
+  background: rgba(var(--v-theme-on-surface), 0.04);
+  border-radius: 12px;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+  border: 1px solid transparent;
+  min-height: 90px;
+  cursor: pointer;
+}
+
+.vc-day:hover {
+  background: rgba(var(--v-theme-primary), 0.08);
+  border-color: rgba(var(--v-theme-primary), 0.16);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
+.vc-day.is-today {
+  background: linear-gradient(
+    135deg,
+    rgba(var(--v-theme-primary), 0.12),
+    rgba(var(--v-theme-primary), 0.06)
+  );
+  border-color: rgba(var(--v-theme-primary), 0.35);
+}
+
+.vc-day.is-not-in-month {
+  opacity: 0.5;
+  background: rgba(var(--v-theme-on-surface), 0.02);
+}
+
+/* Contenu du jour + pastilles d'événements */
+.vc-day-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.vc-day-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: rgb(var(--v-theme-on-surface));
+  margin-top: 2px;
+}
+
+.vc-day-content-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+}
+
+.vc-day-content-item {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Couleurs par niveau (pastilles) */
+.vc-day-content-item[data-level='Débutant'] {
+  background: #10b981;
+}
+.vc-day-content-item[data-level='Novice'] {
+  background: #3b82f6;
+}
+.vc-day-content-item[data-level='Intermédiaire'] {
+  background: #f59e0b;
+}
+.vc-day-content-item[data-level='Avancé'] {
+  background: #ef4444;
+}
+
+/* ===== LISTE À VENIR ===== */
+.list-section {
+  padding: 8px 20px 24px;
+}
+
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 4px 12px;
+}
+
+.list-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.events-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 6px;
+}
+
+.events-table thead th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: rgba(var(--v-theme-on-surface), 0.75);
+  padding: 8px 10px;
+}
+
+.events-table tbody tr {
+  background: rgba(var(--v-theme-on-surface), 0.03);
+  border: 1px solid rgba(var(--v-theme-outline), 0.06);
+  border-radius: 10px;
+}
+
+.events-table tbody tr td {
+  padding: 12px 10px;
+  vertical-align: middle;
+}
+
+.events-table .col-actions {
+  width: 96px;
+}
+
+.hover-row:hover {
+  background: rgba(var(--v-theme-primary), 0.06);
+  border-color: rgba(var(--v-theme-primary), 0.16);
+}
+
+.empty-row {
+  text-align: center;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  padding: 22px 0 !important;
+}
+
+.title-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.title-cell .title {
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+/* ===== DIALOGUE ===== */
+.event-dialog .dialog-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(var(--v-theme-outline), 0.08);
+  background: rgba(var(--v-theme-primary), 0.04);
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.event-dialog .dialog-content {
+  padding: 22px;
+}
+
+.event-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.periods-section {
+  background: rgba(var(--v-theme-primary), 0.04);
+  border: 1px solid rgba(var(--v-theme-primary), 0.12);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.periods-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.periods-title {
+  margin: 0;
+  font-weight: 700;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.period-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(130px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 22px;
+  border-top: 1px solid rgba(var(--v-theme-outline), 0.08);
+  background: rgba(var(--v-theme-primary), 0.02);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1080px) {
+  .toolbar {
+    grid-template-columns: 1fr 1fr 1fr auto;
+  }
+  .period-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .header-title {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .toolbar {
+    grid-template-columns: 1fr;
+  }
+  .calendar-wrapper {
+    padding: 16px;
+  }
+  .vc-day {
+    min-height: 72px;
+  }
+  .events-table thead {
+    display: none;
+  }
+  .events-table tbody tr td {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .events-table tbody tr td.actions {
+    grid-template-columns: auto auto;
+    justify-content: end;
+  }
+}
+
+@media (max-width: 420px) {
+  .courses-container {
+    padding: 14px;
+  }
+  .header-title {
+    padding: 18px;
+  }
+  .vc-day {
+    min-height: 60px;
+  }
+}
+
+/* ======================================================================
+   PATCH : rendre flèches et titre cliquables + gérer `.vc-header.is-lg`
+   (On NE SUPPRIME RIEN ; on surcharge proprement avec !important)
+   ====================================================================== */
+.custom-calendar .vc-header,
+.custom-calendar .vc-header.is-lg {
+  display: grid !important;
+  grid-template-columns: 40px minmax(0, 1fr) 40px !important; /* flèche | TITRE | flèche */
+  align-items: center !important;
+  justify-items: center !important;
+  position: relative !important;
+  z-index: 10 !important; /* au-dessus du reste */
+}
+
+/* Empêche les semaines de recouvrir le header */
+.custom-calendar .vc-weeks,
+.custom-calendar .vc-pane,
+.custom-calendar .vc-grid {
+  position: relative !important;
+  z-index: 0 !important;
+}
+
+/* Flèches centrées et cliquables */
+.custom-calendar .vc-header > *:first-child,
+.custom-calendar .vc-header > *:last-child {
+  width: 40px !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.custom-calendar .vc-header .vc-arrow,
+.custom-calendar .vc-header button {
+  position: relative !important;
+  z-index: 11 !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* Titre : non-absolu, occupe la colonne centrale, cliquable */
+.custom-calendar .vc-title,
+.custom-calendar .vc-header .vc-title {
+  position: static !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  transform: none !important;
+
+  grid-column: 2 !important; /* colonne centrale */
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 0 8px !important;
+  text-align: center !important;
+
+  margin: 0 !important;
+  line-height: 1.2 !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  pointer-events: auto !important; /* redevient cliquable */
+}
+
+/* === FIX: v-calendar header — répartir flèches + titre correctement === */
+
+/* 1) Le header est une grid 3 colonnes flexibles */
+.custom-calendar .vc-header,
+.custom-calendar .vc-header.is-lg {
+  display: grid !important;
+  grid-template-columns: auto 1fr auto !important; /* flèche | TITRE | flèche */
+  align-items: center !important;
+  justify-items: center !important;
+  position: relative !important;
+  z-index: 10 !important;
+}
+
+/* 2) Aplatir le wrapper qui contient les flèches (quel que soit son nom) */
+.custom-calendar .vc-header .vc-arrows,
+.custom-calendar .vc-header .vc-nav,
+.custom-calendar .vc-header .vc-controls {
+  display: contents !important;
+}
+
+/* 3) Placer explicitement les flèches dans les colonnes 1 et 3 */
+.custom-calendar .vc-header .vc-arrow {
+  grid-row: 1 !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 8px !important;
+  position: relative !important;
+  z-index: 11 !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+.custom-calendar .vc-header .vc-arrow:first-of-type {
+  grid-column: 1 !important;
+  justify-self: start !important;
+}
+.custom-calendar .vc-header .vc-arrow:last-of-type {
+  grid-column: 3 !important;
+  justify-self: end !important;
+}
+
+/* 4) Titre au centre (colonne 2), cliquable, aucune position absolue */
+.custom-calendar .vc-title,
+.custom-calendar .vc-header .vc-title {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  position: static !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  transform: none !important;
+
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 0 8px !important;
+  text-align: center !important;
+
+  margin: 0 !important;
+  line-height: 1.2 !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  pointer-events: auto !important; /* <- re-cliquable */
+}
+
+/* 5) S'assure que les semaines ne recouvrent pas le header */
+.custom-calendar .vc-weeks,
+.custom-calendar .vc-pane,
+.custom-calendar .vc-grid {
+  position: relative !important;
+  z-index: 0 !important;
+}
+
+/* === FIX add-on : rendre le TITRE cliquable et bien positionné === */
+.custom-calendar .vc-header .vc-title,
+.custom-calendar .vc-title {
+  /* annule toute position absolue héritée */
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+
+  /* place le titre dans la colonne centrale et centre-le */
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  justify-self: center !important;
+  align-self: center !important;
+
+  /* clic OK + au-dessus de tout */
+  pointer-events: auto !important;
+  z-index: 12 !important;
+  cursor: pointer !important;
+
+  /* largeur confortable sans empiéter */
+  width: 100% !important;
+  max-width: 100% !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Si le titre contient un bouton/élément interne, on le rend cliquable aussi */
+.custom-calendar .vc-header .vc-title *,
+.custom-calendar .vc-title *,
+.custom-calendar .vc-title button {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  position: relative; /* pour que le z-index prenne effet si besoin */
+  z-index: 12;
+}
+
+/* (sécurité) si un wrapper d'arrows existe encore, on le "flatten" */
+.custom-calendar .vc-header .vc-arrows,
+.custom-calendar .vc-header .vc-nav,
+.custom-calendar .vc-header .vc-controls,
+.custom-calendar .vc-header .vc-title-wrap,
+.custom-calendar .vc-header .vc-title-wrapper {
+  display: contents !important;
+}

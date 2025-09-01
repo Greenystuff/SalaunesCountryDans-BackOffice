@@ -1,7 +1,8 @@
 <template>
   <v-app>
     <!-- Navigation latérale -->
-    <v-navigation-drawer v-model="drawer" :rail="rail" permanent @click="rail = false">
+    <v-navigation-drawer v-model="drawer" :rail="!isMobile && rail" @click="rail = false" location="left"
+      :temporary="isMobile">
       <v-list-item nav>
         <template v-slot:prepend>
           <v-avatar size="40">
@@ -18,7 +19,8 @@
         </v-list-item-subtitle>
 
         <template v-slot:append>
-          <v-btn variant="text" icon="mdi-chevron-left" @click.stop="rail = !rail" />
+          <v-btn v-if="!isMobile" variant="text" icon="mdi-chevron-left" @click.stop="rail = !rail" />
+          <v-btn v-else variant="text" icon="mdi-close" @click.stop="drawer = false" />
         </template>
       </v-list-item>
 
@@ -39,7 +41,7 @@
     </v-navigation-drawer>
 
     <!-- Barre d'outils supérieure -->
-    <v-app-bar>
+    <v-app-bar app elevation="1">
       <v-app-bar-nav-icon @click="drawer = !drawer" />
 
       <v-app-bar-title>Salaunes Country Dance - BackOffice</v-app-bar-title>
@@ -52,8 +54,6 @@
           {{ theme.global.current.value.dark ? 'mdi-weather-sunny' : 'mdi-weather-night' }}
         </v-icon>
       </v-btn>
-
-
 
       <!-- Menu utilisateur -->
       <v-menu>
@@ -77,25 +77,45 @@
 
     <!-- Contenu principal -->
     <v-main>
-      <v-container fluid class="pa-6">
-        <slot />
-      </v-container>
+      <div class="content-wrapper">
+        <RouterView />
+      </div>
     </v-main>
   </v-app>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
 import { useTheme } from 'vuetify'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 
 const theme = useTheme()
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 const drawer = ref(true)
 const rail = ref(false)
+
+// Gestion responsive du drawer
+const isMobile = ref(false)
+
+// Fonction pour détecter la taille d'écran
+const checkScreenSize = () => {
+  isMobile.value = window.innerWidth < 1024
+  if (isMobile.value) {
+    drawer.value = false
+    rail.value = false
+  } else {
+    drawer.value = true
+    // Garder l'état rail précédent sur desktop si on revient de mobile
+    if (rail.value === false && !isMobile.value) {
+      rail.value = false // Garder le drawer ouvert par défaut
+    }
+  }
+}
 
 const menuItems = [
   {
@@ -162,5 +182,50 @@ onMounted(() => {
   if (savedTheme) {
     theme.change(savedTheme)
   }
+
+  // Vérifier la taille d'écran au montage
+  checkScreenSize()
+
+  // Écouter les changements de taille d'écran
+  window.addEventListener('resize', checkScreenSize)
 })
 </script>
+
+<style scoped>
+/* Layout principal */
+.v-app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Contenu principal qui s'adapte à la hauteur */
+.v-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Wrapper du contenu pour le padding interne */
+.content-wrapper {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Navigation drawer responsive */
+.v-navigation-drawer {
+  z-index: 1000;
+}
+
+/* App bar avec comportement responsive */
+.v-app-bar {
+  flex-shrink: 0;
+  z-index: 1001;
+}
+
+/* Responsive design - Vuetify gère automatiquement */
+</style>

@@ -1,206 +1,280 @@
 <template>
-  <MainLayout>
-    <v-container fluid>
-      <v-row>
-        <v-col cols="12">
-          <v-card>
-            <v-card-title class="d-flex align-center justify-space-between">
-              <span>Gestion des Danses</span>
-              <v-btn color="primary" prepend-icon="mdi-plus" @click="openDialog()">
-                Ajouter une danse
-              </v-btn>
-            </v-card-title>
-
-            <!-- Barre de recherche et filtres -->
-            <v-card-text>
-              <v-row>
-                <v-col cols="12" md="4">
-                  <v-text-field v-model="search" prepend-inner-icon="mdi-magnify" label="Rechercher une danse..."
-                    variant="outlined" density="compact" clearable />
-                </v-col>
-                <v-col cols="12" md="2">
-                  <v-select v-model="filters.level" :items="levelOptions" label="Niveau" variant="outlined"
-                    density="compact" clearable />
-                </v-col>
-
-                <v-col cols="12" md="2">
-                  <v-btn variant="outlined" @click="clearFilters" prepend-icon="mdi-filter-remove">
-                    Effacer les filtres
-                  </v-btn>
-                </v-col>
-              </v-row>
-            </v-card-text>
-
-            <!-- Tableau des danses -->
-            <v-data-table :headers="headers" :items="filteredDances" :search="search"
-              :sort-by="[{ key: 'dateSortable', order: 'desc' }]" class="elevation-1" density="compact">
-              <!-- Colonne Nom -->
-              <template #item.name="{ item }">
-                <span class="font-weight-medium">{{ formatName(item.name) }}</span>
-              </template>
-
-              <!-- Colonne Niveau -->
-              <template #item.level="{ item }">
-                <v-chip :color="getLevelColor(item.level)" size="small" variant="flat">
-                  {{ item.level }}
-                </v-chip>
-              </template>
-
-
-
-              <!-- Colonne Date -->
-              <template #item.dateSortable="{ item }">
-                {{ item.dateDisplay || formatDate(item.date) }}
-              </template>
-
-              <!-- Colonne Liens -->
-              <template #item.links="{ item }">
-                <div class="d-flex gap-2">
-                  <v-btn v-if="item.youtubeLink1" :href="item.youtubeLink1" target="_blank" icon="mdi-youtube"
-                    size="small" color="red" variant="text" />
-                  <v-btn v-if="item.youtubeLink2" :href="item.youtubeLink2" target="_blank" icon="mdi-youtube"
-                    size="small" color="red" variant="text" />
-                  <v-btn v-if="item.pdfUrl" :href="item.pdfUrl" target="_blank" icon="mdi-file-pdf-box" size="small"
-                    color="red" variant="text" />
-                </div>
-              </template>
-
-              <!-- Colonne Actions -->
-              <template #item.actions="{ item }">
-                <v-btn icon="mdi-pencil" size="small" variant="text" color="primary" @click="openDialog(item)" />
-                <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="confirmDelete(item)" />
-              </template>
-            </v-data-table>
-          </v-card>
-        </v-col>
-      </v-row>
-
-      <!-- Dialog pour ajouter/modifier une danse -->
-      <v-dialog v-model="dialog" max-width="600px">
+  <div class="dances-container">
+    <v-row>
+      <v-col cols="12">
         <v-card>
-          <v-card-title>
-            {{ editingDance ? 'Modifier la danse' : 'Ajouter une danse' }}
+          <v-card-title class="d-flex align-center justify-space-between">
+            <span>Gestion des Danses</span>
+            <v-btn color="primary" prepend-icon="mdi-plus" @click="openDialog()">
+              Ajouter une danse
+            </v-btn>
           </v-card-title>
-          <v-card-text>
-            <v-form ref="form" v-model="formValid">
-              <v-row>
-                <v-col cols="12">
-                  <v-text-field v-model="danceForm.name" label="Nom de la danse" variant="outlined"
-                    :rules="[v => !!v || 'Le nom est requis']" required />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-select v-model="danceForm.level" :items="levelOptions" label="Niveau" variant="outlined"
-                    :rules="[v => !!v || 'Le niveau est requis']" required />
-                </v-col>
 
-                <v-col cols="12">
-                  <v-text-field v-model="danceForm.date" label="Date" type="date" variant="outlined"
-                    :rules="[v => !!v || 'La date est requise']" required />
-                </v-col>
-                <v-col cols="12">
-                  <v-text-field v-model="danceForm.youtubeLink1" label="Lien YouTube 1" variant="outlined"
-                    prepend-inner-icon="mdi-youtube"
-                    :rules="[v => !v || isValidYoutubeUrl(v) || 'Lien YouTube invalide']"
-                    hint="Entrez un lien YouTube (normal ou embed)" persistent-hint @blur="transformYoutubeUrl1" />
-                </v-col>
-                <v-col cols="12">
-                  <v-text-field v-model="danceForm.youtubeLink2" label="Lien YouTube 2" variant="outlined"
-                    prepend-inner-icon="mdi-youtube"
-                    :rules="[v => !v || isValidYoutubeUrl(v) || 'Lien YouTube invalide']"
-                    hint="Entrez un lien YouTube (normal ou embed)" persistent-hint @blur="transformYoutubeUrl2" />
-                </v-col>
-                <v-col cols="12">
-                  <div class="text-subtitle-2 mb-3">PDF de la danse</div>
+          <!-- Barre de recherche et filtres -->
+          <v-card-text class="filters-section">
+            <v-row>
+              <v-col cols="12" md="4">
+                <v-text-field v-model="search" prepend-inner-icon="mdi-magnify" label="Rechercher une danse..."
+                  variant="outlined" density="compact" clearable />
+              </v-col>
+              <v-col cols="12" md="2">
+                <v-select v-model="filters.level" :items="levelOptions" label="Niveau" variant="outlined"
+                  density="compact" clearable />
+              </v-col>
 
-                  <!-- Onglets pour choisir le mode -->
-                  <v-card variant="outlined" class="mb-4">
-                    <v-tabs v-model="pdfMode" color="primary" grow @update:model-value="handlePdfModeChange">
-                      <v-tab value="url" prepend-icon="mdi-link">
-                        Lien URL
-                      </v-tab>
-                      <v-tab value="file" prepend-icon="mdi-file-upload">
-                        Fichier local
-                      </v-tab>
-                    </v-tabs>
-
-                    <v-window v-model="pdfMode">
-                      <!-- Onglet URL -->
-                      <v-window-item value="url">
-                        <v-card-text class="pt-4">
-                          <v-text-field v-model="danceForm.pdfLink" label="Lien PDF" variant="outlined"
-                            prepend-inner-icon="mdi-file-pdf-box" placeholder="https://example.com/document.pdf"
-                            hint="Entrez l'URL d'un fichier PDF" persistent-hint />
-                        </v-card-text>
-                      </v-window-item>
-
-                      <!-- Onglet Fichier -->
-                      <v-window-item value="file">
-                        <v-card-text class="pt-4">
-                          <v-file-input v-model="pdfFile" accept=".pdf" label="Sélectionner un fichier PDF"
-                            variant="outlined" prepend-icon="mdi-file-pdf-box"
-                            :rules="[v => !v || v.size < 10 * 1024 * 1024 || 'Le fichier doit faire moins de 10 MB']"
-                            show-size counter hint="Glissez-déposez ou cliquez pour sélectionner un fichier PDF"
-                            persistent-hint @update:model-value="handlePdfFileChange">
-                            <template #selection="{ fileNames }">
-                              <template v-for="fileName in fileNames" :key="fileName">
-                                <v-chip size="small" label color="primary" class="me-2">
-                                  {{ fileName }}
-                                </v-chip>
-                              </template>
-                            </template>
-                          </v-file-input>
-
-                          <v-alert v-if="pdfFile" type="info" variant="tonal" class="mt-3" density="compact">
-                            <template #prepend>
-                              <v-icon>mdi-information</v-icon>
-                            </template>
-                            Le fichier sera automatiquement uploadé vers MinIO lors de la sauvegarde
-                          </v-alert>
-                        </v-card-text>
-                      </v-window-item>
-                    </v-window>
-                  </v-card>
-                </v-col>
-              </v-row>
-            </v-form>
+              <v-col cols="12" md="2">
+                <v-btn variant="outlined" @click="clearFilters" prepend-icon="mdi-filter-remove">
+                  Effacer les filtres
+                </v-btn>
+              </v-col>
+            </v-row>
           </v-card-text>
-          <v-card-actions>
-            <v-spacer />
-            <v-btn variant="text" @click="dialog = false">
-              Annuler
-            </v-btn>
-            <v-btn color="primary" @click="saveDance" :disabled="!formValid">
-              {{ editingDance ? 'Modifier' : 'Ajouter' }}
-            </v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
 
-      <!-- Dialog de confirmation de suppression -->
-      <v-dialog v-model="deleteDialog" max-width="400px">
-        <v-card>
-          <v-card-title>Confirmer la suppression</v-card-title>
-          <v-card-text>
-            Êtes-vous sûr de vouloir supprimer la danse "{{ danceToDelete?.name }}" ?
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer />
-            <v-btn variant="text" @click="deleteDialog = false">
-              Annuler
-            </v-btn>
-            <v-btn color="error" @click="deleteDance">
-              Supprimer
-            </v-btn>
-          </v-card-actions>
+          <!-- Tableau des danses -->
+          <v-data-table :headers="headers" :items="filteredDances" :search="search"
+            :sort-by="[{ key: 'dateSortable', order: 'desc' }]" class="dances-table elevation-1" density="compact"
+            height="400">
+            <!-- Colonne Nom -->
+            <template #item.name="{ item }">
+              <span class="font-weight-medium">{{ formatName(item.name) }}</span>
+            </template>
+
+            <!-- Colonne Niveau -->
+            <template #item.level="{ item }">
+              <v-chip :color="getLevelColor(item.level)" size="small" variant="flat">
+                {{ item.level }}
+              </v-chip>
+            </template>
+
+            <!-- Colonne Date -->
+            <template #item.dateSortable="{ item }">
+              {{ item.dateDisplay || formatDate(item.date) }}
+            </template>
+
+            <!-- Colonne Liens -->
+            <template #item.links="{ item }">
+              <div class="d-flex gap-2">
+                <v-btn v-if="item.youtubeLink1" :href="item.youtubeLink1" target="_blank" icon="mdi-youtube"
+                  size="small" color="red" variant="text" />
+                <v-btn v-if="item.youtubeLink2" :href="item.youtubeLink2" target="_blank" icon="mdi-youtube"
+                  size="small" color="red" variant="text" />
+                <v-btn v-if="item.pdfUrl" :href="item.pdfUrl" target="_blank" icon="mdi-file-pdf-box" size="small"
+                  color="red" variant="text" />
+              </div>
+            </template>
+
+            <!-- Colonne Actions -->
+            <template #item.actions="{ item }">
+              <v-btn icon="mdi-pencil" size="small" variant="text" color="primary" @click="openDialog(item)" />
+              <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="confirmDelete(item)" />
+            </template>
+          </v-data-table>
         </v-card>
-      </v-dialog>
-    </v-container>
-  </MainLayout>
+      </v-col>
+    </v-row>
+
+    <!-- Section des statistiques -->
+    <v-row class="mt-6">
+      <v-col cols="12">
+        <h3 class="text-h5 font-weight-bold mb-4 stats-section-title">Statistiques des Danses</h3>
+      </v-col>
+
+      <!-- Total des danses -->
+      <v-col cols="12" md="3">
+        <v-card class="stats-card" elevation="2" rounded="lg">
+          <v-card-text class="text-center pa-6">
+            <v-icon size="48" color="primary" class="mb-3 stats-icon">mdi-music-note-multiple</v-icon>
+            <div class="text-h3 font-weight-bold text-primary stats-counter">{{ totalDances }}</div>
+            <div class="text-body-1 text-medium-emphasis stats-label">Total des danses</div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <!-- Répartition par niveau -->
+      <v-col cols="12" md="3">
+        <v-card class="stats-card" elevation="2" rounded="lg">
+          <v-card-text class="text-center pa-6">
+            <v-icon size="48" color="success" class="mb-3 stats-icon">mdi-account-group</v-icon>
+            <div class="text-h3 font-weight-bold text-success stats-counter">{{ levelStats.Débutant || 0 }}</div>
+            <div class="text-body-1 text-medium-emphasis stats-label">Débutant</div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" md="3">
+        <v-card class="stats-card" elevation="2" rounded="lg">
+          <v-card-text class="text-center pa-6">
+            <v-icon size="48" color="info" class="mb-3 stats-icon">mdi-account-check</v-icon>
+            <div class="text-h3 font-weight-bold text-info stats-counter">{{ levelStats.Novice || 0 }}</div>
+            <div class="text-body-1 text-medium-emphasis stats-label">Novice</div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" md="3">
+        <v-card class="stats-card" elevation="2" rounded="lg">
+          <v-card-text class="text-center pa-6">
+            <v-icon size="48" color="warning" class="mb-3 stats-icon">mdi-account-star</v-icon>
+            <div class="text-h3 font-weight-bold text-warning stats-counter">{{ levelStats.Intermédiaire || 0 }}</div>
+            <div class="text-body-1 text-medium-emphasis stats-label">Intermédiaire</div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <!-- Statistiques avancées -->
+      <v-col cols="12" md="6">
+        <v-card class="stats-card" elevation="2" rounded="lg">
+          <v-card-title class="text-h6 pa-4">
+            <v-icon class="me-2">mdi-chart-pie</v-icon>
+            Répartition par niveau
+          </v-card-title>
+          <v-card-text class="pa-4 stats-progress">
+            <div class="d-flex align-center mb-3" v-for="(count, level) in levelStats" :key="level">
+              <div class="d-flex align-center me-3" style="width: 120px;">
+                <v-chip :color="getLevelColor(level)" size="small" variant="flat" class="me-2">
+                  {{ level }}
+                </v-chip>
+                <span class="text-body-2">{{ count }}</span>
+              </div>
+              <v-progress-linear :model-value="(count / totalDances) * 100" :color="getLevelColor(level)" height="8"
+                rounded class="flex-grow-1" />
+              <span class="text-body-2 ms-3">{{ Math.round((count / totalDances) * 100) }}%</span>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" md="6">
+        <v-card class="stats-card" elevation="2" rounded="lg">
+          <v-card-title class="text-h6 pa-4">
+            <v-icon class="me-2">mdi-link-variant</v-icon>
+            Ressources disponibles
+          </v-card-title>
+          <v-card-text class="pa-4">
+            <div class="d-flex align-center justify-space-between mb-3">
+              <div class="d-flex align-center">
+                <v-icon color="red" class="me-2">mdi-youtube</v-icon>
+                <span>Vidéos YouTube</span>
+              </div>
+              <v-chip color="red" size="small" variant="flat">{{ videosCount }}</v-chip>
+            </div>
+            <div class="d-flex align-center justify-space-between mb-3">
+              <div class="d-flex align-center">
+                <v-icon color="red" class="me-2">mdi-file-pdf-box</v-icon>
+                <span>Documents PDF</span>
+              </div>
+              <v-chip color="red" size="small" variant="flat">{{ pdfsCount }}</v-chip>
+            </div>
+            <div class="d-flex align-center justify-space-between">
+              <div class="d-flex align-center">
+                <v-icon color="primary" class="me-2">mdi-calendar</v-icon>
+                <span>Ajoutées ce mois</span>
+              </div>
+              <v-chip color="primary" size="small" variant="flat">{{ thisMonthCount }}</v-chip>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- Dialog pour ajouter/modifier une danse -->
+    <v-dialog v-model="dialog" max-width="600px">
+      <v-card class="dance-dialog">
+        <v-card-title>
+          {{ editingDance ? 'Modifier la danse' : 'Ajouter une danse' }}
+        </v-card-title>
+        <v-card-text>
+          <v-form ref="form" v-model="formValid">
+            <v-row>
+              <v-col cols="12">
+                <v-text-field v-model="danceForm.name" label="Nom de la danse" variant="outlined"
+                  :rules="[v => !!v || 'Le nom est requis']" required />
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-select v-model="danceForm.level" :items="levelOptions" label="Niveau" variant="outlined"
+                  :rules="[v => !!v || 'Le niveau est requis']" required />
+              </v-col>
+
+              <v-col cols="12">
+                <v-text-field v-model="danceForm.date" label="Date" type="date" variant="outlined"
+                  :rules="[v => !!v || 'La date est requise']" required />
+              </v-col>
+              <v-col cols="12">
+                <v-text-field v-model="danceForm.youtubeLink1" label="Lien YouTube 1" variant="outlined"
+                  prepend-inner-icon="mdi-youtube" :rules="[v => !v || isValidYoutubeUrl(v) || 'Lien YouTube invalide']"
+                  hint="Entrez un lien YouTube (normal ou embed)" persistent-hint @blur="transformYoutubeUrl1" />
+              </v-col>
+              <v-col cols="12">
+                <v-text-field v-model="danceForm.youtubeLink2" label="Lien YouTube 2" variant="outlined"
+                  prepend-inner-icon="mdi-youtube" :rules="[v => !v || isValidYoutubeUrl(v) || 'Lien YouTube invalide']"
+                  hint="Entrez un lien YouTube (normal ou embed)" persistent-hint @blur="transformYoutubeUrl2" />
+              </v-col>
+              <v-col cols="12">
+                <div class="text-subtitle-2 mb-3">PDF de la danse</div>
+
+                <!-- Onglets pour choisir le mode -->
+                <v-card variant="outlined" class="mb-4 pdf-tabs">
+                  <v-tabs v-model="pdfMode" color="primary" grow @update:model-value="handlePdfModeChange">
+                    <v-tab value="url" prepend-icon="mdi-link">
+                      Lien URL
+                    </v-tab>
+                    <v-tab value="file" prepend-icon="mdi-file-upload">
+                      Fichier local
+                    </v-tab>
+                  </v-tabs>
+
+                  <v-window v-model="pdfMode">
+                    <!-- Onglet URL -->
+                    <v-window-item value="url">
+                      <v-card-text class="pt-4">
+                        <v-text-field v-model="danceForm.pdfLink" label="Lien PDF" variant="outlined"
+                          prepend-inner-icon="mdi-file-pdf-box" placeholder="https://example.com/document.pdf"
+                          hint="Entrez l'URL d'un fichier PDF" persistent-hint />
+                      </v-card-text>
+                    </v-window-item>
+
+                    <!-- Onglet Fichier -->
+                    <v-window-item value="file">
+                      <v-card-text class="pt-4">
+                        <v-file-input v-model="pdfFile" accept=".pdf" label="Sélectionner un fichier PDF"
+                          variant="outlined" prepend-icon="mdi-file-upload" hint="Taille maximale : 10 MB"
+                          persistent-hint
+                          :rules="[v => !v || v.size <= 10 * 1024 * 1024 || 'Fichier trop volumineux']" />
+                      </v-card-text>
+                    </v-window-item>
+                  </v-window>
+                </v-card>
+              </v-col>
+            </v-row>
+          </v-form>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="outlined" @click="dialog = false">Annuler</v-btn>
+          <v-btn color="primary" :disabled="!formValid" @click="saveDance">Enregistrer</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Dialog de confirmation de suppression -->
+    <v-dialog v-model="deleteDialog" max-width="400px">
+      <v-card class="confirm-dialog">
+        <v-card-title>Confirmer la suppression</v-card-title>
+        <v-card-text>
+          Êtes-vous sûr de vouloir supprimer la danse "{{ danceToDelete?.name }}" ?
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="outlined" @click="deleteDialog = false">Annuler</v-btn>
+          <v-btn color="error" @click="deleteDance">Supprimer</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import MainLayout from '@/layouts/MainLayout.vue'
 import { apiService } from '@/services/api'
 
 interface Dance {
@@ -269,15 +343,52 @@ const headers = [
   { title: 'Actions', key: 'actions', sortable: false }
 ]
 
-// Danses filtrées
+// Computed
 const filteredDances = computed(() => {
   let filtered = dances.value
 
+  // Filtre par niveau
   if (filters.value.level) {
     filtered = filtered.filter(dance => dance.level === filters.value.level)
   }
 
   return filtered
+})
+
+// Statistiques des danses
+const totalDances = computed(() => dances.value.length)
+
+const levelStats = computed(() => {
+  const stats: Record<string, number> = {}
+  dances.value.forEach(dance => {
+    stats[dance.level] = (stats[dance.level] || 0) + 1
+  })
+  return stats
+})
+
+const videosCount = computed(() => {
+  return dances.value.filter(dance =>
+    dance.youtubeLink1 || dance.youtubeLink2
+  ).length
+})
+
+const pdfsCount = computed(() => {
+  return dances.value.filter(dance => dance.pdfUrl).length
+})
+
+const thisMonthCount = computed(() => {
+  const now = new Date()
+  const thisMonth = now.getMonth()
+  const thisYear = now.getFullYear()
+
+  return dances.value.filter(dance => {
+    try {
+      const danceDate = new Date(dance.date)
+      return danceDate.getMonth() === thisMonth && danceDate.getFullYear() === thisYear
+    } catch {
+      return false
+    }
+  }).length
 })
 
 // Méthodes
@@ -643,3 +754,8 @@ onUnmounted(() => {
   }
 })
 </script>
+
+<!-- Import des styles externes -->
+<style>
+@import '@/assets/dances-view.css';
+</style>

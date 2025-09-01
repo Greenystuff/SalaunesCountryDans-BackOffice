@@ -1,217 +1,215 @@
 <template>
-  <MainLayout>
-    <div>
-      <!-- Header -->
-      <div class="d-flex justify-space-between align-center mb-6">
-        <div>
-          <h1 class="text-h4 font-weight-bold mb-2">Galerie d'images</h1>
-          <p class="text-body-1 text-medium-emphasis">
-            Gérez les images de votre galerie avec leurs métadonnées
-          </p>
-        </div>
-        <v-btn color="primary" prepend-icon="mdi-plus" @click="openDialog()">
-          Ajouter une image
-        </v-btn>
-      </div>
-
-      <!-- Filtres -->
-      <v-row class="mb-6">
-        <v-col cols="12" md="4">
-          <v-text-field v-model="search" prepend-inner-icon="mdi-magnify" label="Rechercher une image..."
-            variant="outlined" density="compact" clearable hide-details />
-        </v-col>
-        <v-col cols="12" md="3">
-          <v-select v-model="filters.category" :items="categoryOptions" label="Catégorie" variant="outlined"
-            density="compact" clearable hide-details />
-        </v-col>
-        <v-col cols="12" md="3">
-          <v-select v-model="filters.isActive" :items="[
-            { title: 'Toutes', value: '' },
-            { title: 'Actives', value: 'true' },
-            { title: 'Inactives', value: 'false' }
-          ]" label="Statut" variant="outlined" density="compact" hide-details />
-        </v-col>
-        <v-col cols="12" md="2">
-          <v-btn variant="outlined" @click="clearFilters" prepend-icon="mdi-filter-remove" block>
-            Effacer
-          </v-btn>
-        </v-col>
-      </v-row>
-
-      <!-- Grille des images -->
-      <v-row v-if="!loading && filteredImages.length > 0">
-        <v-col v-for="image in filteredImages" :key="image._id" cols="12" sm="6" md="4" lg="3">
-          <v-card class="modern-image-card h-100" :elevation="0" :hover="true">
-            <!-- Overlay avec dégradé pour l'image -->
-            <div class="image-overlay">
-              <v-img :src="image.imageUrl" :alt="image.altText || image.title" height="240" :cover="isPortrait(image)"
-                :contain="!isPortrait(image)" class="card-image"
-                :class="{ 'portrait-image': isPortrait(image), 'landscape-image': !isPortrait(image) }">
-                <template #placeholder>
-                  <div class="d-flex align-center justify-center fill-height">
-                    <v-progress-circular indeterminate color="white" />
-                  </div>
-                </template>
-
-                <!-- Overlay dégradé en bas de l'image -->
-                <div class="image-gradient-overlay"></div>
-
-                <!-- Badges flottants sur l'image -->
-                <div class="floating-badges">
-                  <v-chip v-if="image.category" :color="getCategoryColor(image.category)" size="small" variant="flat"
-                    class="floating-chip">
-                    {{ image.category }}
-                  </v-chip>
-                  <v-chip :color="image.isActive ? 'success' : 'error'" size="small" variant="flat"
-                    class="floating-chip">
-                    {{ image.isActive ? 'Active' : 'Inactive' }}
-                  </v-chip>
-                </div>
-
-                <!-- Actions flottantes -->
-                <div class="floating-actions">
-                  <v-btn icon="mdi-pencil" size="small" variant="tonal" color="white" class="action-btn"
-                    @click="openDialog(image)" />
-                  <v-btn icon="mdi-delete" size="small" variant="tonal" color="error" class="action-btn"
-                    @click="deleteImage(image)" />
-                </div>
-              </v-img>
-            </div>
-
-            <!-- Contenu sous l'image -->
-            <div class="card-content">
-              <!-- Section texte (titre + description) -->
-              <div class="text-section">
-                <h3 class="card-title">
-                  {{ image.title }}
-                </h3>
-
-                <p v-if="image.description" class="card-description">
-                  {{ image.description.length > 200 ? image.description.substring(0, 200) + '...' : image.description }}
-                </p>
-
-                <!-- Tags avec design moderne -->
-                <div v-if="image.tags && image.tags.length > 0" class="tags-container">
-                  <v-chip v-for="tag in image.tags.slice(0, 3)" :key="tag" size="x-small" variant="outlined"
-                    class="modern-tag">
-                    {{ tag }}
-                  </v-chip>
-                  <v-chip v-if="image.tags.length > 3" size="x-small" variant="outlined" class="modern-tag">
-                    +{{ image.tags.length - 3 }}
-                  </v-chip>
-                </div>
-              </div>
-
-              <!-- Section caractéristiques techniques (en bas) -->
-              <div class="tech-section">
-                <div class="tech-info">
-                  <div v-if="image.width && image.height" class="tech-item">
-                    <v-icon :icon="isPortrait(image) ? 'mdi-phone-portrait' : 'mdi-monitor'" size="14"
-                      :color="isPortrait(image) ? 'primary' : 'secondary'" />
-                    <span>{{ image.width }} × {{ image.height }}</span>
-                  </div>
-                  <div v-if="image.fileSize" class="tech-item">
-                    <v-icon icon="mdi-file" size="14" color="grey" />
-                    <span>{{ formatFileSize(image.fileSize) }}</span>
-                  </div>
-                  <div v-if="image.mimeType" class="tech-item">
-                    <v-icon icon="mdi-image" size="14" color="grey" />
-                    <span>{{ image.mimeType.split('/')[1]?.toUpperCase() }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </v-card>
-        </v-col>
-      </v-row>
-
-      <!-- Message si aucune image -->
-      <v-card v-else-if="!loading" class="text-center pa-8">
-        <v-icon icon="mdi-image-off" size="48" color="grey" class="mb-4" />
-        <h2 class="text-h5 font-weight-bold mb-2">Aucune image trouvée</h2>
-        <p class="text-body-1 text-medium-emphasis">
-          Aucune image ne correspond à vos critères de recherche.
-        </p>
-      </v-card>
-
-      <!-- Loading -->
-      <div v-if="loading" class="text-center py-12">
-        <v-progress-circular indeterminate color="primary" size="64" class="mb-4" />
-        <p class="text-h6">Chargement des images...</p>
-      </div>
-
-      <!-- Dialog pour ajouter/modifier une image -->
-      <v-dialog v-model="dialog" max-width="600px" persistent>
+  <div class="gallery-container">
+    <v-row>
+      <v-col cols="12">
         <v-card>
-          <v-card-title class="text-h5 pa-4 d-flex justify-space-between align-center">
-            <span>{{ editingImage ? 'Modifier l\'image' : 'Ajouter une image' }}</span>
-            <v-btn icon="mdi-close" variant="text" size="small" @click="closeDialog" class="ml-auto" />
+          <v-card-title class="d-flex align-center justify-space-between">
+            <span>Galerie des Danses</span>
+            <v-btn color="primary" prepend-icon="mdi-plus" @click="openDialog()">
+              Ajouter des images
+            </v-btn>
           </v-card-title>
 
-          <v-card-text class="pa-4">
-            <v-form ref="form" v-model="formValid" class="form-spacing">
-              <!-- Upload d'image -->
-              <v-file-input v-model="imageFile" label="Image" accept="image/*" prepend-icon="mdi-camera"
-                variant="outlined" :rules="editingImage ? [] : [v => !!v || 'Une image est requise']"
-                :disabled="!!editingImage" @change="handleImageChange" class="mb-4" />
-
-              <!-- Prévisualisation -->
-              <div v-if="imagePreview" class="text-center mb-6">
-                <v-img :src="imagePreview" max-height="200" max-width="300" class="mx-auto rounded" contain />
-              </div>
-
-              <!-- Titre -->
-              <v-text-field v-model="imageForm.title" label="Titre *" variant="outlined"
-                :rules="[v => !!v || 'Le titre est requis']" required class="mb-4" />
-
-              <!-- Description -->
-              <v-textarea v-model="imageForm.description" label="Description" variant="outlined" rows="3" counter="1000"
-                class="mb-4" />
-
-              <!-- Alt Text -->
-              <v-text-field v-model="imageForm.altText" label="Texte alternatif" variant="outlined" counter="200"
-                hint="Description de l'image pour l'accessibilité" class="mb-4" />
-
-              <!-- Catégorie -->
-              <v-select v-model="imageForm.category" :items="categoryOptions" label="Catégorie" variant="outlined"
-                clearable class="mb-4" />
-
-              <!-- Tags -->
-              <v-text-field v-model="imageForm.tagsString" label="Tags" variant="outlined"
-                hint="Séparez les tags par des virgules" placeholder="événement, danse, groupe" class="mb-4" />
-
-              <!-- Ordre -->
-              <v-text-field v-model.number="imageForm.order" label="Ordre d'affichage" type="number" variant="outlined"
-                min="0" class="mb-4" />
-            </v-form>
-          </v-card-text>
-
-          <!-- Actions avec toggle et boutons -->
-          <v-card-actions class="pa-4 d-flex justify-space-between align-center">
-            <!-- Toggle à gauche -->
-            <v-switch v-model="imageForm.isActive" label="Image active" color="primary" class="ma-0" hide-details />
-
-            <!-- Boutons à droite -->
-            <div class="d-flex gap-2">
-              <v-btn variant="outlined" @click="resetForm" :disabled="!hasChanges">
-                Réinitialiser
+          <!-- Filtres -->
+          <v-row class="mb-6">
+            <v-col cols="12" md="4">
+              <v-text-field v-model="search" prepend-inner-icon="mdi-magnify" label="Rechercher une image..."
+                variant="outlined" density="compact" clearable hide-details />
+            </v-col>
+            <v-col cols="12" md="3">
+              <v-select v-model="filters.category" :items="categoryOptions" label="Catégorie" variant="outlined"
+                density="compact" clearable hide-details />
+            </v-col>
+            <v-col cols="12" md="3">
+              <v-select v-model="filters.isActive" :items="[
+                { title: 'Toutes', value: '' },
+                { title: 'Actives', value: 'true' },
+                { title: 'Inactives', value: 'false' }
+              ]" label="Statut" variant="outlined" density="compact" hide-details />
+            </v-col>
+            <v-col cols="12" md="2">
+              <v-btn variant="outlined" @click="clearFilters" prepend-icon="mdi-filter-remove" block>
+                Effacer
               </v-btn>
-              <v-btn color="primary" :loading="saving" :disabled="isSaveButtonDisabled" @click="saveImage">
-                {{ editingImage ? 'Modifier' : 'Créer' }}
-              </v-btn>
-            </div>
-          </v-card-actions>
+            </v-col>
+          </v-row>
+
+          <!-- Grille des images -->
+          <v-row v-if="!loading && filteredImages.length > 0">
+            <v-col v-for="image in filteredImages" :key="image._id" cols="12" sm="6" md="4" lg="3">
+              <v-card class="modern-image-card h-100" :elevation="0" :hover="true">
+                <!-- Overlay avec dégradé pour l'image -->
+                <div class="image-overlay">
+                  <v-img :src="image.imageUrl" :alt="image.altText || image.title" height="240"
+                    :cover="isPortrait(image)" :contain="!isPortrait(image)" class="card-image"
+                    :class="{ 'portrait-image': isPortrait(image), 'landscape-image': !isPortrait(image) }">
+                    <template #placeholder>
+                      <div class="d-flex align-center justify-center fill-height">
+                        <v-progress-circular indeterminate color="white" />
+                      </div>
+                    </template>
+
+                    <!-- Overlay dégradé en bas de l'image -->
+                    <div class="image-gradient-overlay"></div>
+
+                    <!-- Badges flottants sur l'image -->
+                    <div class="floating-badges">
+                      <v-chip v-if="image.category" :color="getCategoryColor(image.category)" size="small"
+                        variant="flat" class="floating-chip">
+                        {{ image.category }}
+                      </v-chip>
+                      <v-chip :color="image.isActive ? 'success' : 'error'" size="small" variant="flat"
+                        class="floating-chip">
+                        {{ image.isActive ? 'Active' : 'Inactive' }}
+                      </v-chip>
+                    </div>
+
+                    <!-- Actions flottantes -->
+                    <div class="floating-actions">
+                      <v-btn icon="mdi-pencil" size="small" variant="tonal" color="white" class="action-btn"
+                        @click="openDialog(image)" />
+                      <v-btn icon="mdi-delete" size="small" variant="tonal" color="error" class="action-btn"
+                        @click="deleteImage(image)" />
+                    </div>
+                  </v-img>
+                </div>
+
+                <!-- Contenu sous l'image -->
+                <div class="card-content">
+                  <!-- Section texte (titre + description) -->
+                  <div class="text-section">
+                    <h3 class="card-title">
+                      {{ image.title }}
+                    </h3>
+
+                    <p v-if="image.description" class="card-description">
+                      {{ image.description.length > 200 ? image.description.substring(0, 200) + '...' :
+                      image.description }}
+                    </p>
+
+                    <!-- Tags avec design moderne -->
+                    <div v-if="image.tags && image.tags.length > 0" class="tags-container">
+                      <v-chip v-for="tag in image.tags.slice(0, 3)" :key="tag" size="x-small" variant="outlined"
+                        class="modern-tag">
+                        {{ tag }}
+                      </v-chip>
+                      <v-chip v-if="image.tags.length > 3" size="x-small" variant="outlined" class="modern-tag">
+                        +{{ image.tags.length - 3 }}
+                      </v-chip>
+                    </div>
+                  </div>
+
+                  <!-- Section caractéristiques techniques (en bas) -->
+                  <div class="tech-section">
+                    <div class="tech-info">
+                      <div v-if="image.width && image.height" class="tech-item">
+                        <v-icon :icon="isPortrait(image) ? 'mdi-phone-portrait' : 'mdi-monitor'" size="14"
+                          :color="isPortrait(image) ? 'primary' : 'secondary'" />
+                        <span>{{ image.width }} × {{ image.height }}</span>
+                      </div>
+                      <div v-if="image.fileSize" class="tech-item">
+                        <v-icon icon="mdi-file" size="14" color="grey" />
+                        <span>{{ formatFileSize(image.fileSize) }}</span>
+                      </div>
+                      <div v-if="image.mimeType" class="tech-item">
+                        <v-icon icon="mdi-image" size="14" color="grey" />
+                        <span>{{ image.mimeType.split('/')[1]?.toUpperCase() }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </v-card>
+            </v-col>
+          </v-row>
+
+          <!-- Message si aucune image -->
+          <v-card v-else-if="!loading" class="text-center pa-8">
+            <v-icon icon="mdi-image-off" size="48" color="grey" class="mb-4" />
+            <h2 class="text-h5 font-weight-bold mb-2">Aucune image trouvée</h2>
+            <p class="text-body-1 text-medium-emphasis">
+              Aucune image ne correspond à vos critères de recherche.
+            </p>
+          </v-card>
+
+          <!-- Loading -->
+          <div v-if="loading" class="text-center py-12">
+            <v-progress-circular indeterminate color="primary" size="64" class="mb-4" />
+            <p class="text-h6">Chargement des images...</p>
+          </div>
+
+          <!-- Dialog pour ajouter/modifier une image -->
+          <v-dialog v-model="dialog" max-width="600px" persistent>
+            <v-card>
+              <v-card-title class="text-h5 pa-4 d-flex justify-space-between align-center">
+                <span>{{ editingImage ? 'Modifier l\'image' : 'Ajouter une image' }}</span>
+                <v-btn icon="mdi-close" variant="text" size="small" @click="closeDialog" class="ml-auto" />
+              </v-card-title>
+
+              <v-card-text class="pa-4">
+                <v-form ref="form" v-model="formValid" class="form-spacing">
+                  <!-- Upload d'image -->
+                  <v-file-input v-model="imageFile" label="Image" accept="image/*" prepend-icon="mdi-camera"
+                    variant="outlined" :rules="editingImage ? [] : [v => !!v || 'Une image est requise']"
+                    :disabled="!!editingImage" @change="handleImageChange" class="mb-4" />
+
+                  <!-- Prévisualisation -->
+                  <div v-if="imagePreview" class="text-center mb-6">
+                    <v-img :src="imagePreview" max-height="200" max-width="300" class="mx-auto rounded" contain />
+                  </div>
+
+                  <!-- Titre -->
+                  <v-text-field v-model="imageForm.title" label="Titre *" variant="outlined"
+                    :rules="[v => !!v || 'Le titre est requis']" required class="mb-4" />
+
+                  <!-- Description -->
+                  <v-textarea v-model="imageForm.description" label="Description" variant="outlined" rows="3"
+                    counter="1000" class="mb-4" />
+
+                  <!-- Alt Text -->
+                  <v-text-field v-model="imageForm.altText" label="Texte alternatif" variant="outlined" counter="200"
+                    hint="Description de l'image pour l'accessibilité" class="mb-4" />
+
+                  <!-- Catégorie -->
+                  <v-select v-model="imageForm.category" :items="categoryOptions" label="Catégorie" variant="outlined"
+                    clearable class="mb-4" />
+
+                  <!-- Tags -->
+                  <v-text-field v-model="imageForm.tagsString" label="Tags" variant="outlined"
+                    hint="Séparez les tags par des virgules" placeholder="événement, danse, groupe" class="mb-4" />
+
+                  <!-- Ordre -->
+                  <v-text-field v-model.number="imageForm.order" label="Ordre d'affichage" type="number"
+                    variant="outlined" min="0" class="mb-4" />
+                </v-form>
+              </v-card-text>
+
+              <!-- Actions avec toggle et boutons -->
+              <v-card-actions class="pa-4 d-flex justify-space-between align-center">
+                <!-- Toggle à gauche -->
+                <v-switch v-model="imageForm.isActive" label="Image active" color="primary" class="ma-0" hide-details />
+
+                <!-- Boutons à droite -->
+                <div class="d-flex gap-2">
+                  <v-btn variant="outlined" @click="resetForm" :disabled="!hasChanges">
+                    Réinitialiser
+                  </v-btn>
+                  <v-btn color="primary" :loading="saving" :disabled="isSaveButtonDisabled" @click="saveImage">
+                    {{ editingImage ? 'Modifier' : 'Créer' }}
+                  </v-btn>
+                </div>
+              </v-card-actions>
 
 
+            </v-card>
+          </v-dialog>
         </v-card>
-      </v-dialog>
-    </div>
-  </MainLayout>
+      </v-col>
+    </v-row>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import MainLayout from '@/layouts/MainLayout.vue'
 import { apiService } from '@/services/api'
 
 interface GalleryImage {
@@ -778,5 +776,10 @@ onUnmounted(() => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Container principal */
+.gallery-container {
+  padding: 24px;
 }
 </style>
