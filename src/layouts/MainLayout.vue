@@ -33,8 +33,9 @@
 
       <template v-slot:append>
         <div class="pa-2">
-          <v-btn block color="error" variant="outlined" prepend-icon="mdi-logout" @click="logout">
-            Déconnexion
+          <v-btn block color="error" variant="outlined" :prepend-icon="rail ? undefined : 'mdi-logout'" @click="logout">
+            <v-icon v-if="rail" class="mx-auto">mdi-logout</v-icon>
+            <span v-if="!rail">Déconnexion</span>
           </v-btn>
         </div>
       </template>
