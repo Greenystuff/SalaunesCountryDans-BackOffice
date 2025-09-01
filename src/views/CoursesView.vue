@@ -36,16 +36,35 @@
       <div class="calendar-section">
         <div class="calendar-wrapper">
           <!-- Composant Calendar de v-calendar -->
-          <VCalendar class="custom-calendar" :first-day-of-week="1" :min-weeks="5" :locale="'fr'" :expanded="true"
-            @dayclick="onDayClick">
+          <VCalendar class="custom-calendar" :first-day-of-week="1" :min-weeks="5" :locale="'fr'" :expanded="true">
             <template #day-content="{ day }">
-              <div class="vc-day-content">
+              <div class="vc-day-content" @click="onDayClick(day)">
                 <div class="vc-day-label">{{ day.day }}</div>
                 <div class="vc-day-content-wrapper">
-                  <div v-for="item in coursesOnDate(day.date)" :key="item.id" class="vc-day-content-item"
-                    :data-level="item.level"
-                    :title="`${timeShort(item.start)}–${timeShort(item.end)} · ${item.title} (${item.level})`"
-                    @click.stop="openEdit(item)" />
+                  <!-- Affichage normal pour 1-2 événements -->
+                  <template v-if="coursesOnDate(day.date).length <= 2">
+                    <div v-for="item in coursesOnDate(day.date)" :key="item.id" class="vc-day-content-item"
+                      :data-level="item.level"
+                      :title="`${timeShort(item.start)}–${timeShort(item.end)} · ${item.title} (${item.level})`"
+                      @click.stop="openEdit(item)">
+                      <div class="event-time">{{ timeShort(item.start) }}</div>
+                      <div class="event-title">{{ item.title }}</div>
+                      <div class="event-level">{{ item.level }}</div>
+                    </div>
+                  </template>
+
+                  <!-- Affichage en dots pour 3+ événements -->
+                  <template v-else>
+                    <div class="vc-day-dots-wrapper">
+                      <div v-for="item in coursesOnDate(day.date)" :key="item.id" class="vc-day-dot"
+                        :data-level="item.level"
+                        :title="`${timeShort(item.start)}–${timeShort(item.end)} · ${item.title} (${item.level})`"
+                        @click.stop="openEdit(item)" />
+                    </div>
+                    <div class="vc-day-events-count">
+                      {{ coursesOnDate(day.date).length }} cours
+                    </div>
+                  </template>
                 </div>
               </div>
             </template>
@@ -142,14 +161,7 @@
                 </div>
               </div>
 
-              <VRow>
-                <VCol cols="12" md="4">
-                  <VTextField v-model.number="form.capacity" type="number" min="0" label="Capacité" />
-                </VCol>
-                <VCol cols="12" md="4">
-                  <VTextField v-model.number="form.price" type="number" min="0" step="0.5" label="Tarif (€)" />
-                </VCol>
-              </VRow>
+
             </div>
           </VForm>
         </div>
@@ -169,16 +181,21 @@
         </div>
       </VCard>
     </VDialog>
+
+    <!-- MODALE DE GESTION DE JOURNÉE -->
+    <DayManagementModal v-model="dayModal.open" :selected-date="selectedDate" :events="filtered"
+      @add-course="openCreate" @edit-course="openEdit" @delete-course="remove" />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed } from 'vue'
+import DayManagementModal from '@/components/DayManagementModal.vue'
 
 /** ----------------------------
  *  Données & constantes
  *  ---------------------------- */
-const levelOptions = ['Débutant', 'Novice', 'Intermédiaire', 'Avancé']
+const levelOptions = ['Débutant', 'Novice', 'Intermédiaire']
 const recurrenceOptions = ['Aucune', 'Hebdomadaire', 'Toutes les 2 semaines', 'Mensuelle']
 
 const filters = reactive({
@@ -194,7 +211,7 @@ const courses = ref([
   sample('Two-Step Cool', 'Intermédiaire', 'Marc', 'Salle B', 20, 0, 2),
   sample('Honky-Tonk Basics', 'Novice', 'Sophie', 'Grande salle', 18, 30, 3),
   sample('Chorée “Country Roads”', 'Débutant', 'Léa', 'Salle A', 19, 0, 6),
-  sample('Technique & posture', 'Avancé', 'Marc', 'Studio', 20, 30, 8)
+  sample('Technique & posture', 'Intermédiaire', 'Marc', 'Studio', 20, 30, 8)
 ])
 
 function sample(title, level, teacher, location, h, m, dayOffset) {
@@ -207,9 +224,7 @@ function sample(title, level, teacher, location, h, m, dayOffset) {
     description: '',
     start: d,
     end: e,
-    recurrence: 'Aucune',
-    capacity: null,
-    price: null
+    recurrence: 'Aucune'
   }
 }
 
@@ -219,6 +234,12 @@ function sample(title, level, teacher, location, h, m, dayOffset) {
 const dialog = reactive({ open: false, mode: 'create' }) // 'create' | 'edit'
 const formRef = ref(null)
 
+/** ----------------------------
+ *  Modale de gestion de journée
+ *  ---------------------------- */
+const dayModal = reactive({ open: false })
+const selectedDate = ref(new Date())
+
 const form = reactive({
   id: null,
   title: '',
@@ -226,9 +247,7 @@ const form = reactive({
   level: 'Débutant',
   teacher: '',
   location: '',
-  recurrence: 'Aucune',
-  capacity: null,
-  price: null
+  recurrence: 'Aucune'
 })
 
 const dateInput = ref(toISODate(new Date()))
@@ -309,6 +328,8 @@ function coursesOnDate(date) {
   return filtered.value.filter(c => sameDay(c.start, date))
 }
 
+
+
 /** ----------------------------
  *  Actions UI
  *  ---------------------------- */
@@ -327,9 +348,7 @@ function openCreate(baseDate) {
     level: 'Débutant',
     teacher: '',
     location: '',
-    recurrence: 'Aucune',
-    capacity: null,
-    price: null
+    recurrence: 'Aucune'
   })
   const d = baseDate || new Date()
   dateInput.value = toISODate(d)
@@ -348,8 +367,9 @@ function openEdit(item) {
 }
 
 function onDayClick(day) {
-  // day.date est une date JS
-  openCreate(day.date)
+  // Ouvrir la modale de gestion de la journée
+  selectedDate.value = day.date
+  dayModal.open = true
 }
 
 function save() {
@@ -374,9 +394,7 @@ function save() {
       description: form.description,
       level: form.level,
       teacher: form.teacher,
-      location: form.location,
-      capacity: form.capacity,
-      price: form.price
+      location: form.location
     }
 
     const toAdd = []
@@ -421,7 +439,6 @@ function levelColor(level) {
     case 'Débutant': return 'success'
     case 'Novice': return 'info'
     case 'Intermédiaire': return 'warning'
-    case 'Avancé': return 'error'
     default: return 'primary'
   }
 }
