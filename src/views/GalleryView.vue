@@ -259,7 +259,7 @@ const imageForm = ref({
   title: '',
   description: '',
   altText: '',
-  category: null,
+  category: null as string | null,
   tagsString: '',
   order: 0,
   isActive: true
@@ -270,7 +270,7 @@ const initialFormState = ref({
   title: '',
   description: '',
   altText: '',
-  category: null,
+  category: null as string | null,
   tagsString: '',
   order: 0,
   isActive: true
@@ -442,7 +442,7 @@ const closeDialog = () => {
     title: '',
     description: '',
     altText: '',
-    category: '',
+    category: null,
     tagsString: '',
     order: 0,
     isActive: true
@@ -490,10 +490,10 @@ const saveImage = async () => {
       const formData = new FormData()
       formData.append('image', imageFile.value)
       formData.append('title', imageForm.value.title)
-      formData.append('description', imageForm.value.description)
-      formData.append('altText', imageForm.value.altText)
-      formData.append('category', imageForm.value.category)
-      formData.append('tags', imageForm.value.tagsString)
+      formData.append('description', imageForm.value.description || '')
+      formData.append('altText', imageForm.value.altText || '')
+      formData.append('category', imageForm.value.category || '')
+      formData.append('tags', imageForm.value.tagsString || '')
       formData.append('order', imageForm.value.order.toString())
       formData.append('isActive', imageForm.value.isActive.toString())
 
@@ -528,8 +528,8 @@ const deleteImage = async (image: GalleryImage) => {
 
 const clearFilters = () => {
   search.value = ''
-  filters.value.category = ''
-  filters.value.isActive = ''
+  filters.value.category = null
+  filters.value.isActive = null
 }
 
 const getCategoryColor = (category: string) => {

@@ -525,7 +525,7 @@ const transformYoutubeUrl2 = () => {
 }
 
 const clearFilters = () => {
-  filters.value.level = ''
+  filters.value.level = null
   search.value = ''
 }
 
