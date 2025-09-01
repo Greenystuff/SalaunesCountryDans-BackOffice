@@ -49,7 +49,7 @@
                   {{ timeShort(item.start) }} – {{ timeShort(item.end) }}
                 </div>
                 <div class="duration">
-                  {{ Math.round((item.end - item.start) / (1000 * 60)) }} min
+                  {{ Math.round((new Date(item.end) - new Date(item.start)) / (1000 * 60)) }} min
                 </div>
               </div>
 
