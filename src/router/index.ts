@@ -2,6 +2,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import LoginView from '@/views/LoginView.vue'
 import DashboardView from '@/views/DashboardView.vue'
+import CoursesView from '@/views/CoursesView.vue'
+import DancesView from '@/views/DancesView.vue'
+import GalleryView from '@/views/GalleryView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -31,7 +34,7 @@ const router = createRouter({
     {
       path: '/courses',
       name: 'courses',
-      component: () => import('@/views/CoursesView.vue'),
+      component: CoursesView,
       meta: {
         requiresAuth: true,
         title: 'Gestion des cours',
@@ -40,7 +43,7 @@ const router = createRouter({
     {
       path: '/dances',
       name: 'dances',
-      component: () => import('@/views/DancesView.vue'),
+      component: DancesView,
       meta: {
         requiresAuth: true,
         title: 'Les danses',
@@ -49,7 +52,7 @@ const router = createRouter({
     {
       path: '/gallery',
       name: 'gallery',
-      component: () => import('@/views/GalleryView.vue'),
+      component: GalleryView,
       meta: {
         requiresAuth: true,
         title: 'Galerie',
