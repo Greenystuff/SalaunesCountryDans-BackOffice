@@ -83,7 +83,7 @@
       <v-col cols="12" md="3">
         <v-card class="stats-card" elevation="2" rounded="lg">
           <v-card-text class="text-center pa-6">
-            <v-icon size="48" color="primary" class="mb-3 stats-icon">mdi-music-note-multiple</v-icon>
+            <v-icon size="48" color="primary" class="mb-3 stats-icon">mdi-music-note</v-icon>
             <div class="text-h3 font-weight-bold text-primary stats-counter">{{ totalDances }}</div>
             <div class="text-body-1 text-medium-emphasis stats-label">Total des danses</div>
           </v-card-text>
