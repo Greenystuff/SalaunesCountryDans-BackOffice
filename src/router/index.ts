@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import LoginView from '@/views/LoginView.vue'
-import DashboardView from '@/views/DashboardView.vue'
+import HomeView from '@/views/HomeView.vue'
 import CoursesView from '@/views/CoursesView.vue'
 import DancesView from '@/views/DancesView.vue'
 import GalleryView from '@/views/GalleryView.vue'
@@ -26,7 +26,7 @@ const router = createRouter({
     {
       path: '/dashboard',
       name: 'dashboard',
-      component: DashboardView,
+      component: HomeView,
       meta: {
         requiresAuth: true,
         title: 'Tableau de bord',
