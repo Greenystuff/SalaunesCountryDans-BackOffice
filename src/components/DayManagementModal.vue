@@ -82,7 +82,7 @@
               <!-- Actions -->
               <div class="event-actions">
                 <VBtn icon="mdi-pencil" variant="text" size="small" @click="editCourse(item)" />
-                <VBtn icon="mdi-delete" variant="text" color="error" size="small" @click="deleteCourse(item.id)" />
+                <VBtn icon="mdi-delete" variant="text" color="error" size="small" @click="deleteCourse(item._id)" />
               </div>
             </div>
           </div>
@@ -133,16 +133,20 @@ const eventsForSelectedDate = computed(() => {
     )
   })
 
-  return eventsOnDate.sort((a, b) => a.start - b.start)
+  return eventsOnDate.sort((a, b) => new Date(a.start) - new Date(b.start))
 })
 
 // Méthodes utilitaires
 function dateLong(date) {
-  return date.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'long' })
+  // S'assurer que date est un objet Date
+  const dateObj = date instanceof Date ? date : new Date(date)
+  return dateObj.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'long' })
 }
 
 function timeShort(date) {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  // S'assurer que date est un objet Date
+  const dateObj = date instanceof Date ? date : new Date(date)
+  return `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`
 }
 
 function levelColor(level) {

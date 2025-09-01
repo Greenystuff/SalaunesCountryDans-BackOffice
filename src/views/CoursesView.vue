@@ -19,7 +19,7 @@
 
       <VDivider />
 
-      <!-- BARRE D’OUTILS / FILTRES -->
+      <!-- BARRE D'OUTILS / FILTRES -->
       <div class="toolbar">
         <VTextField v-model="filters.q" placeholder="Rechercher un cours, une salle, un animateur…" variant="solo"
           density="comfortable" hide-details clearable prepend-inner-icon="mdi-magnify" class="toolbar-item" />
@@ -43,7 +43,7 @@
                 <div class="vc-day-content-wrapper">
                   <!-- Affichage normal pour 1-2 événements -->
                   <template v-if="coursesOnDate(day.date).length <= 2">
-                    <div v-for="item in coursesOnDate(day.date)" :key="item.id" class="vc-day-content-item"
+                    <div v-for="item in coursesOnDate(day.date)" :key="item._id" class="vc-day-content-item"
                       :data-level="item.level"
                       :title="`${timeShort(item.start)}–${timeShort(item.end)} · ${item.title} (${item.level})`"
                       @click.stop="openEdit(item)">
@@ -56,7 +56,7 @@
                   <!-- Affichage en dots pour 3+ événements -->
                   <template v-else>
                     <div class="vc-day-dots-wrapper">
-                      <div v-for="item in coursesOnDate(day.date)" :key="item.id" class="vc-day-dot"
+                      <div v-for="item in coursesOnDate(day.date)" :key="item._id" class="vc-day-dot"
                         :data-level="item.level"
                         :title="`${timeShort(item.start)}–${timeShort(item.end)} · ${item.title} (${item.level})`"
                         @click.stop="openEdit(item)" />
@@ -79,8 +79,8 @@
         <div class="list-header">
           <h3 class="list-title">À venir</h3>
           <div class="list-actions">
-            <VBtn variant="text" density="comfortable" @click="addSampleWeek">
-              Générer une semaine d'exemple
+            <VBtn variant="text" density="comfortable" @click="loadCourses">
+              Actualiser
             </VBtn>
           </div>
         </div>
@@ -97,7 +97,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in upcoming" :key="item.id" class="hover-row">
+            <tr v-for="item in upcoming" :key="item._id" class="hover-row">
               <td>{{ dateLong(item.start) }}</td>
               <td>{{ timeShort(item.start) }}–{{ timeShort(item.end) }}</td>
               <td>
@@ -112,11 +112,14 @@
               <td>{{ item.location || '—' }}</td>
               <td class="actions">
                 <VBtn icon="mdi-pencil" variant="text" @click="openEdit(item)" />
-                <VBtn icon="mdi-delete" variant="text" color="error" @click="remove(item.id)" />
+                <VBtn icon="mdi-delete" variant="text" color="error" @click="remove(item._id)" />
               </td>
             </tr>
-            <tr v-if="!upcoming.length">
+            <tr v-if="!upcoming.length && !loading">
               <td colspan="6" class="empty-row">Aucun créneau à venir.</td>
+            </tr>
+            <tr v-if="loading">
+              <td colspan="6" class="empty-row">Chargement...</td>
             </tr>
           </tbody>
         </VTable>
@@ -160,21 +163,19 @@
                   <VSelect v-model="form.recurrence" :items="recurrenceOptions" label="Récurrence" />
                 </div>
               </div>
-
-
             </div>
           </VForm>
         </div>
 
         <div class="dialog-actions">
           <div class="left">
-            <VBtn v-if="dialog.mode === 'edit'" variant="text" color="error" @click="remove(form.id)">
+            <VBtn v-if="dialog.mode === 'edit'" variant="text" color="error" @click="remove(form._id)">
               Supprimer
             </VBtn>
           </div>
           <div class="action-buttons">
             <VBtn variant="text" @click="dialog.open = false">Annuler</VBtn>
-            <VBtn color="primary" @click="save">
+            <VBtn color="primary" @click="save" :loading="saving">
               {{ dialog.mode === 'create' ? 'Créer' : 'Enregistrer' }}
             </VBtn>
           </div>
@@ -189,8 +190,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import DayManagementModal from '@/components/DayManagementModal.vue'
+import { apiService } from '@/services/api'
 
 /** ----------------------------
  *  Données & constantes
@@ -204,29 +206,14 @@ const filters = reactive({
   teacher: null
 })
 
-/** Jeu d’essai minimal — remplace ensuite par tes données côté API */
-const courses = ref([
-  // Quelques sessions d’exemple sur le mois courant
-  sample('Initiation Line Dance', 'Débutant', 'Sophie', 'Salle A', 19, 0, 1),
-  sample('Two-Step Cool', 'Intermédiaire', 'Marc', 'Salle B', 20, 0, 2),
-  sample('Honky-Tonk Basics', 'Novice', 'Sophie', 'Grande salle', 18, 30, 3),
-  sample('Chorée “Country Roads”', 'Débutant', 'Léa', 'Salle A', 19, 0, 6),
-  sample('Technique & posture', 'Intermédiaire', 'Marc', 'Studio', 20, 30, 8)
-])
+// État de chargement et gestion des erreurs
+const loading = ref(false)
+const saving = ref(false)
+const error = ref(null)
+const abortController = ref(null)
 
-function sample(title, level, teacher, location, h, m, dayOffset) {
-  const base = new Date()
-  const d = new Date(base.getFullYear(), base.getMonth(), 1 + dayOffset, h, m, 0, 0)
-  const e = new Date(d); e.setMinutes(e.getMinutes() + 90)
-  return {
-    id: uid(),
-    title, level, teacher, location,
-    description: '',
-    start: d,
-    end: e,
-    recurrence: 'Aucune'
-  }
-}
+// Données des cours depuis l'API
+const courses = ref([])
 
 /** ----------------------------
  *  Sélection / form dialog
@@ -241,7 +228,7 @@ const dayModal = reactive({ open: false })
 const selectedDate = ref(new Date())
 
 const form = reactive({
-  id: null,
+  _id: null,
   title: '',
   description: '',
   level: 'Débutant',
@@ -258,14 +245,17 @@ const endTime = ref('20:30')
  *  Utilitaires date/heure
  *  ---------------------------- */
 function toISODate(d) {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
+  // S'assurer que d est un objet Date
+  const date = d instanceof Date ? d : new Date(d)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
 
 function timeShort(d) {
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  const date = new Date(d)
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
 function parseTime(s) {
@@ -281,15 +271,18 @@ function composeDate(dateStr, timeStr) {
 }
 
 function sameDay(a, b) {
+  const dateA = new Date(a)
+  const dateB = new Date(b)
   return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
+    dateA.getFullYear() === dateB.getFullYear() &&
+    dateA.getMonth() === dateB.getMonth() &&
+    dateA.getDate() === dateB.getDate()
   )
 }
 
 function dateLong(d) {
-  return d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'long' })
+  const date = new Date(d)
+  return date.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'long' })
 }
 
 /** ----------------------------
@@ -318,8 +311,8 @@ const filtered = computed(() => {
 const upcoming = computed(() => {
   const now = new Date()
   return [...filtered.value]
-    .filter(c => c.end >= now)
-    .sort((a, b) => a.start - b.start)
+    .filter(c => new Date(c.end) >= now)
+    .sort((a, b) => new Date(a.start) - new Date(b.start))
     .slice(0, 20)
 })
 
@@ -328,7 +321,43 @@ function coursesOnDate(date) {
   return filtered.value.filter(c => sameDay(c.start, date))
 }
 
+/** ----------------------------
+ *  API Calls
+ *  ---------------------------- */
+const loadCourses = async () => {
+  try {
+    // Annuler la requête précédente si elle existe
+    if (abortController.value) {
+      abortController.value.abort()
+    }
 
+    // Créer un nouveau contrôleur d'annulation
+    abortController.value = new AbortController()
+
+    loading.value = true
+    error.value = null
+
+    const response = await apiService.get('/courses', {
+      signal: abortController.value.signal
+    })
+
+    // Vérifier que le composant est toujours monté avant de traiter la réponse
+    if (isComponentMounted.value) {
+      courses.value = response.data || []
+    }
+  } catch (error) {
+    // Ne pas afficher l'erreur si la requête a été annulée ou si le composant n'est plus monté
+    if (error.name !== 'AbortError' && isComponentMounted.value) {
+      console.error('❌ Erreur lors du chargement des cours:', error)
+      error.value = error.message
+    }
+  } finally {
+    // Ne mettre à jour loading que si le composant est toujours monté
+    if (isComponentMounted.value) {
+      loading.value = false
+    }
+  }
+}
 
 /** ----------------------------
  *  Actions UI
@@ -342,7 +371,7 @@ function resetFilters() {
 function openCreate(baseDate) {
   dialog.mode = 'create'
   Object.assign(form, {
-    id: null,
+    _id: null,
     title: '',
     description: '',
     level: 'Débutant',
@@ -360,7 +389,7 @@ function openCreate(baseDate) {
 function openEdit(item) {
   dialog.mode = 'edit'
   Object.assign(form, { ...item })
-  dateInput.value = toISODate(item.start)
+  dateInput.value = toISODate(new Date(item.start))
   startTime.value = timeShort(item.start)
   endTime.value = timeShort(item.end)
   dialog.open = true
@@ -368,66 +397,64 @@ function openEdit(item) {
 
 function onDayClick(day) {
   // Ouvrir la modale de gestion de la journée
-  selectedDate.value = day.date
+  selectedDate.value = new Date(day.date)
   dayModal.open = true
 }
 
-function save() {
-  const start = composeDate(dateInput.value, startTime.value)
-  const end = composeDate(dateInput.value, endTime.value)
+async function save() {
+  try {
+    saving.value = true
 
-  if (dialog.mode === 'edit' && form.id) {
-    const idx = courses.value.findIndex(c => c.id === form.id)
-    if (idx !== -1) {
-      courses.value[idx] = {
-        ...courses.value[idx],
-        ...form,
-        start,
-        end
-      }
-    }
-  } else {
-    // Création (avec récurrence optionnelle légère)
-    const base = {
-      id: uid(),
+    const start = composeDate(dateInput.value, startTime.value)
+    const end = composeDate(dateInput.value, endTime.value)
+
+    const courseData = {
       title: form.title,
       description: form.description,
       level: form.level,
       teacher: form.teacher,
-      location: form.location
+      location: form.location,
+      start: start.toISOString(),
+      end: end.toISOString(),
+      recurrence: form.recurrence
     }
 
-    const toAdd = []
-    const repeatCount = form.recurrence === 'Aucune' ? 1
-      : form.recurrence === 'Hebdomadaire' ? 8
-        : form.recurrence === 'Toutes les 2 semaines' ? 6
-          : /* Mensuelle */ 6
-
-    for (let i = 0; i < repeatCount; i++) {
-      const s = new Date(start)
-      const e = new Date(end)
-      if (form.recurrence === 'Hebdomadaire') {
-        s.setDate(s.getDate() + i * 7)
-        e.setDate(e.getDate() + i * 7)
-      } else if (form.recurrence === 'Toutes les 2 semaines') {
-        s.setDate(s.getDate() + i * 14)
-        e.setDate(e.getDate() + i * 14)
-      } else if (form.recurrence === 'Mensuelle') {
-        s.setMonth(s.getMonth() + i)
-        e.setMonth(e.getMonth() + i)
-      }
-      toAdd.push({ ...base, id: uid(), start: s, end: e, recurrence: form.recurrence })
+    if (dialog.mode === 'edit' && form._id) {
+      await apiService.put(`/courses/${form._id}`, courseData)
+    } else {
+      await apiService.post('/courses', courseData)
     }
-    courses.value.push(...toAdd)
+
+    // Recharger les données seulement si le composant est toujours monté
+    if (isComponentMounted.value) {
+      await loadCourses()
+      dialog.open = false
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors de la sauvegarde:', error)
+    error.value = error.message
+  } finally {
+    saving.value = false
   }
-
-  dialog.open = false
 }
 
-function remove(id) {
-  courses.value = courses.value.filter(c => c.id !== id)
-  if (dialog.open && dialog.mode === 'edit' && form.id === id) {
-    dialog.open = false
+async function remove(id) {
+  if (!confirm('Êtes-vous sûr de vouloir supprimer ce cours ?')) {
+    return
+  }
+
+  try {
+    await apiService.delete(`/courses/${id}`)
+    // Recharger les données seulement si le composant est toujours monté
+    if (isComponentMounted.value) {
+      await loadCourses()
+      if (dialog.open && dialog.mode === 'edit' && form._id === id) {
+        dialog.open = false
+      }
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors de la suppression:', error)
+    error.value = error.message
   }
 }
 
@@ -448,34 +475,23 @@ function timeRange(item) {
   return `${timeShort(item.start)}–${timeShort(item.end)}`
 }
 
-/** ID simple */
-function uid() {
-  return Math.random().toString(36).slice(2, 10)
-}
+// État pour éviter les requêtes inutiles
+const isComponentMounted = ref(false)
 
-/** Petite démo : ajoute une semaine type */
-function addSampleWeek() {
-  const base = new Date()
-  const monday = new Date(base)
-  const day = monday.getDay() || 7
-  monday.setDate(monday.getDate() - (day - 1)) // Lundi de cette semaine
+// Charger les cours au montage
+onMounted(() => {
+  isComponentMounted.value = true
+  loadCourses()
+})
 
-  const mk = (dow, h, m, title, level, teacher, location) => {
-    const d = new Date(monday)
-    d.setDate(d.getDate() + (dow - 1))
-    d.setHours(h, m, 0, 0)
-    const e = new Date(d); e.setMinutes(e.getMinutes() + 90)
-    courses.value.push({
-      id: uid(), title, level, teacher, location,
-      description: '',
-      start: d, end: e, recurrence: 'Aucune', capacity: null, price: null
-    })
+// Nettoyer les requêtes au démontage
+onUnmounted(() => {
+  isComponentMounted.value = false
+  // Annuler les requêtes en cours
+  if (abortController.value) {
+    abortController.value.abort()
   }
-
-  mk(1, 19, 0, 'Line Dance — Bases', 'Débutant', 'Sophie', 'Salle A')
-  mk(3, 20, 0, 'Two-Step — Atelier', 'Intermédiaire', 'Marc', 'Salle B')
-  mk(5, 19, 30, 'Chorée — Soirée', 'Novice', 'Léa', 'Grande salle')
-}
+})
 </script>
 
 <!-- Styles globaux pour cette vue -->
