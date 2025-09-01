@@ -7,7 +7,7 @@
         <div class="header-content">
           <h1 class="main-title">Cours & Planning</h1>
           <p class="subtitle">
-            Back-office du club — gérez vos créneaux, niveaux et animateurs dans une interface apaisée.
+            Gérez les cours, niveaux et animateurs.
           </p>
         </div>
         <div class="header-actions">
