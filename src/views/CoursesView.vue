@@ -238,8 +238,9 @@ const form = reactive({
 })
 
 const dateInput = ref(toISODate(new Date()))
-const startTime = ref('19:00')
-const endTime = ref('20:30')
+const startTime = ref('18:30')
+const endTime = ref('19h:15')
+
 
 /** ----------------------------
  *  Utilitaires date/heure
@@ -318,7 +319,58 @@ const upcoming = computed(() => {
 
 /** Calendrier : sessions du jour (affichage des pastilles) */
 function coursesOnDate(date) {
-  return filtered.value.filter(c => sameDay(c.start, date))
+  const coursesForDate = []
+
+  filtered.value.forEach(course => {
+    // Cours ponctuels
+    if (course.recurrence === 'Aucune') {
+      if (sameDay(course.start, date)) {
+        coursesForDate.push(course)
+      }
+    }
+    // Cours récurrents - générer les occurrences dynamiquement
+    else if (course.recurrence !== 'Aucune') {
+      const courseStart = new Date(course.start)
+      const courseEnd = new Date(course.end)
+      const duration = courseEnd.getTime() - courseStart.getTime()
+
+      // Calculer la date de fin de récurrence (6 mois par défaut)
+      const recurrenceEndDate = new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000) // 6 mois par défaut
+
+      let currentDate = new Date(courseStart)
+
+      // Générer les occurrences jusqu'à la date demandée + quelques mois
+      while (currentDate <= recurrenceEndDate) {
+        if (sameDay(currentDate, date)) {
+          // Créer une occurrence virtuelle
+          const occurrence = {
+            ...course,
+            _id: `${course._id}_${currentDate.getTime()}`, // ID unique pour l'occurrence
+            start: new Date(currentDate),
+            end: new Date(currentDate.getTime() + duration),
+            isVirtualOccurrence: true, // Marquer comme occurrence virtuelle
+            originalCourseId: course._id // Référence vers le cours original
+          }
+          coursesForDate.push(occurrence)
+        }
+
+        // Calculer la prochaine occurrence
+        switch (course.recurrence) {
+          case 'Hebdomadaire':
+            currentDate.setDate(currentDate.getDate() + 7)
+            break
+          case 'Toutes les 2 semaines':
+            currentDate.setDate(currentDate.getDate() + 14)
+            break
+          case 'Mensuelle':
+            currentDate.setMonth(currentDate.getMonth() + 1)
+            break
+        }
+      }
+    }
+  })
+
+  return coursesForDate
 }
 
 /** ----------------------------
@@ -388,10 +440,16 @@ function openCreate(baseDate) {
 
 function openEdit(item) {
   dialog.mode = 'edit'
-  Object.assign(form, { ...item })
-  dateInput.value = toISODate(new Date(item.start))
-  startTime.value = timeShort(item.start)
-  endTime.value = timeShort(item.end)
+
+  // Si c'est une occurrence virtuelle, utiliser le cours original
+  const courseToEdit = item.isVirtualOccurrence ?
+    filtered.value.find(c => c._id === item.originalCourseId) :
+    item
+
+  Object.assign(form, { ...courseToEdit })
+  dateInput.value = toISODate(new Date(courseToEdit.start))
+  startTime.value = timeShort(courseToEdit.start)
+  endTime.value = timeShort(courseToEdit.end)
   dialog.open = true
 }
 
@@ -444,11 +502,14 @@ async function remove(id) {
   }
 
   try {
-    await apiService.delete(`/courses/${id}`)
+    // Si c'est une occurrence virtuelle, extraire l'ID du cours original
+    const courseId = id.includes('_') ? id.split('_')[0] : id
+
+    await apiService.delete(`/courses/${courseId}`)
     // Recharger les données seulement si le composant est toujours monté
     if (isComponentMounted.value) {
       await loadCourses()
-      if (dialog.open && dialog.mode === 'edit' && form._id === id) {
+      if (dialog.open && dialog.mode === 'edit' && form._id === courseId) {
         dialog.open = false
       }
     }
