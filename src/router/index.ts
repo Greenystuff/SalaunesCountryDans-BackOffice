@@ -5,6 +5,7 @@ import DashboardView from '@/views/DashboardView.vue'
 import CoursesView from '@/views/CoursesView.vue'
 import DancesView from '@/views/DancesView.vue'
 import GalleryView from '@/views/GalleryView.vue'
+import MembersView from '@/views/MembersView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -56,6 +57,15 @@ const router = createRouter({
       meta: {
         requiresAuth: true,
         title: 'Galerie',
+      },
+    },
+    {
+      path: '/members',
+      name: 'members',
+      component: MembersView,
+      meta: {
+        requiresAuth: true,
+        title: 'Gestion des membres',
       },
     },
   ],

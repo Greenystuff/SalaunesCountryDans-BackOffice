@@ -4,7 +4,7 @@
       <v-col cols="12">
         <v-card>
           <v-card-title class="d-flex align-center justify-space-between">
-            <span>Galerie des Danses</span>
+            <span>Galerie Photos</span>
             <v-btn color="primary" prepend-icon="mdi-plus" @click="openDialog()">
               Ajouter des images
             </v-btn>
@@ -84,7 +84,7 @@
 
                     <p v-if="image.description" class="card-description">
                       {{ image.description.length > 200 ? image.description.substring(0, 200) + '...' :
-                      image.description }}
+                        image.description }}
                     </p>
 
                     <!-- Tags avec design moderne -->

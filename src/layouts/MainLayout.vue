@@ -138,6 +138,11 @@ const menuItems = [
     title: 'Galerie',
     icon: 'mdi-image-multiple',
     to: '/gallery'
+  },
+  {
+    title: 'Membres',
+    icon: 'mdi-account-group',
+    to: '/members'
   }
 ]
 

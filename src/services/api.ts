@@ -78,6 +78,21 @@ class ApiService {
     )
   }
 
+  // Méthode PATCH
+  async patch<T>(url: string, data?: any, config?: any): Promise<ApiResponse<T>> {
+    try {
+      const response = await this.api.patch<ApiResponse<T>>(url, data, config)
+      return response.data
+    } catch (error: any) {
+      throw this.handleError(error)
+    }
+  }
+
+  async patchData<T>(url: string, data?: any, config?: any): Promise<T> {
+    const res = await this.patch<T>(url, data, config)
+    return res?.data as T
+  }
+
   // Méthode pour faire des requêtes GET
   async get<T>(url: string, config?: any): Promise<ApiResponse<T>> {
     try {
@@ -86,6 +101,12 @@ class ApiService {
     } catch (error: any) {
       throw this.handleError(error)
     }
+  }
+
+  // Variante: retourne directement le payload (data) typé
+  async getData<T>(url: string, config?: any): Promise<T> {
+    const res = await this.get<T>(url, config)
+    return res?.data as T
   }
 
   // Méthode pour faire des requêtes POST
@@ -110,6 +131,12 @@ class ApiService {
     }
   }
 
+  // Variante: retourne directement le payload (data) typé
+  async postData<T>(url: string, data?: any, config?: any): Promise<T> {
+    const res = await this.post<T>(url, data, config)
+    return res?.data as T
+  }
+
   // Méthode pour faire des requêtes PUT
   async put<T>(url: string, data?: any, config?: any): Promise<ApiResponse<T>> {
     try {
@@ -120,6 +147,12 @@ class ApiService {
     }
   }
 
+  // Variante: retourne directement le payload (data) typé
+  async putData<T>(url: string, data?: any, config?: any): Promise<T> {
+    const res = await this.put<T>(url, data, config)
+    return res?.data as T
+  }
+
   // Méthode pour faire des requêtes DELETE
   async delete<T>(url: string, config?: any): Promise<ApiResponse<T>> {
     try {
@@ -128,6 +161,12 @@ class ApiService {
     } catch (error: any) {
       throw this.handleError(error)
     }
+  }
+
+  // Variante: retourne directement le payload (data) typé
+  async deleteData<T>(url: string, config?: any): Promise<T> {
+    const res = await this.delete<T>(url, config)
+    return res?.data as T
   }
 
   // Gestion des erreurs
@@ -171,4 +210,21 @@ export const authService = {
   async refreshToken(): Promise<ApiResponse<{ token: string; expiresIn: string }>> {
     return apiService.post<{ token: string; expiresIn: string }>('/admin/refresh-token')
   },
+}
+
+// Composable useApi pour Vue 3
+export const useApi = () => {
+  return {
+    get: apiService.get.bind(apiService),
+    post: apiService.post.bind(apiService),
+    put: apiService.put.bind(apiService),
+    delete: apiService.delete.bind(apiService),
+    patch: apiService.patch.bind(apiService),
+    // Payload-only helpers
+    getData: apiService.getData.bind(apiService),
+    postData: apiService.postData.bind(apiService),
+    putData: apiService.putData.bind(apiService),
+    deleteData: apiService.deleteData.bind(apiService),
+    patchData: apiService.patchData.bind(apiService),
+  }
 }
