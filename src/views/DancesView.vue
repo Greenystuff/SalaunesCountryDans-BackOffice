@@ -196,8 +196,15 @@
               </v-col>
 
               <v-col cols="12">
-                <v-text-field v-model="danceForm.date" label="Date" type="date" variant="outlined"
-                  :rules="[v => !!v || 'La date est requise']" required />
+                <v-menu v-model="showDatePicker" :close-on-content-click="false" transition="scale-transition" offset-y>
+                  <template #activator="{ props }">
+                    <v-text-field v-model="formattedDanceDate" label="Date" prepend-inner-icon="mdi-calendar"
+                      variant="outlined" readonly v-bind="props" :rules="[v => !!v || 'La date est requise']"
+                      required />
+                  </template>
+                  <v-date-picker v-model="danceForm.date" :min="minDanceDate" :max="maxDanceDate"
+                    @update:model-value="showDatePicker = false" />
+                </v-menu>
               </v-col>
               <v-col cols="12">
                 <v-text-field v-model="danceForm.youtubeLink1" label="Lien YouTube 1" variant="outlined"
@@ -307,11 +314,12 @@ const dances = ref<Dance[]>([])
 const loading = ref(false)
 const search = ref('')
 const filters = ref({
-  level: ''
+  level: null
 })
 const dialog = ref(false)
 const deleteDialog = ref(false)
 const formValid = ref(false)
+const showDatePicker = ref(false)
 const editingDance = ref<Dance | null>(null)
 const danceToDelete = ref<Dance | null>(null)
 const form = ref()
@@ -389,6 +397,22 @@ const thisMonthCount = computed(() => {
       return false
     }
   }).length
+})
+
+// Computed properties pour le date picker
+const formattedDanceDate = computed(() => {
+  if (!danceForm.value.date) return ''
+  return new Date(danceForm.value.date).toLocaleDateString('fr-FR')
+})
+
+// Date minimale pour une danse (pas de restriction)
+const minDanceDate = computed(() => {
+  return undefined
+})
+
+// Date maximale pour une danse (pas de restriction)
+const maxDanceDate = computed(() => {
+  return undefined
 })
 
 // Méthodes

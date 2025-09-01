@@ -76,7 +76,13 @@
               <VTextField v-model="form.remitBatch" label="Remise n°" />
             </VCol>
             <VCol cols="12" md="6">
-              <VTextField v-model="form.issuedAt" label="Date d'émission" type="date" />
+              <VMenu v-model="showDatePicker" :close-on-content-click="false" transition="scale-transition" offset-y>
+                <template #activator="{ props }">
+                  <VTextField v-model="formattedIssuedAt" label="Date d'émission" prepend-inner-icon="mdi-calendar"
+                    readonly v-bind="props" />
+                </template>
+                <VDatePicker v-model="form.issuedAt" :max="maxIssuedAt" @update:model-value="showDatePicker = false" />
+              </VMenu>
             </VCol>
             <VCol cols="12" md="6">
               <VSelect v-model="form.status" :items="statusItems" label="Statut" />
@@ -113,7 +119,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { useApi } from '@/services/api'
 
 interface Cheque {
@@ -140,6 +146,7 @@ const cheques = ref<Cheque[]>([])
 const showModal = ref(false)
 const showDelete = ref(false)
 const saving = ref(false)
+const showDatePicker = ref(false)
 const deleting = ref(false)
 const editing = ref(false)
 const currentId = ref<string | null>(null)
@@ -162,6 +169,17 @@ const statusItems = [
   { title: 'Rejeté', value: 'rejete' },
   { title: 'Retourné', value: 'retourne' },
 ]
+
+// Computed properties pour le date picker
+const formattedIssuedAt = computed(() => {
+  if (!form.issuedAt) return ''
+  return new Date(form.issuedAt).toLocaleDateString('fr-FR')
+})
+
+// Date maximale pour l'émission (aujourd'hui)
+const maxIssuedAt = computed(() => {
+  return new Date().toISOString().split('T')[0]
+})
 
 const formatDate = (d: string) => new Date(d).toLocaleDateString('fr-FR')
 const statusColor = (s: Cheque['status']) => ({

@@ -166,8 +166,16 @@
                   density="compact" />
               </VCol>
               <VCol cols="12" md="6">
-                <VTextField v-model="formData.birthDate" label="Date de naissance *" type="date" required
-                  variant="outlined" density="compact" />
+                <VMenu v-model="showBirthDatePicker" :close-on-content-click="false" transition="scale-transition"
+                  offset-y>
+                  <template #activator="{ props }">
+                    <VTextField v-model="formattedBirthDate" label="Date de naissance *"
+                      prepend-inner-icon="mdi-calendar" variant="outlined" density="compact" readonly v-bind="props"
+                      required />
+                  </template>
+                  <VDatePicker v-model="formData.birthDate" :max="maxBirthDate"
+                    @update:model-value="showBirthDatePicker = false" />
+                </VMenu>
               </VCol>
               <VCol cols="12">
                 <VTextField v-model="formData.address" label="Adresse *" required variant="outlined"
@@ -202,8 +210,15 @@
                 <h4 class="text-h6 mb-3">Informations administratives</h4>
               </VCol>
               <VCol cols="12" md="6">
-                <VTextField v-model="formData.registrationDate" label="Date d'inscription" type="date"
-                  variant="outlined" density="compact" />
+                <VMenu v-model="showRegistrationDatePicker" :close-on-content-click="false"
+                  transition="scale-transition" offset-y>
+                  <template #activator="{ props }">
+                    <VTextField v-model="formattedRegistrationDate" label="Date d'inscription"
+                      prepend-inner-icon="mdi-calendar" variant="outlined" density="compact" readonly v-bind="props" />
+                  </template>
+                  <VDatePicker v-model="formData.registrationDate" :max="maxRegistrationDate"
+                    @update:model-value="showRegistrationDatePicker = false" />
+                </VMenu>
               </VCol>
               <!-- Ligne 1: Paiement cotisation + Montant cotisation -->
               <VCol cols="12">
@@ -286,7 +301,15 @@
                           <VTextField v-model="c.checkNumber" density="compact" hide-details />
                         </td>
                         <td style="width:160px">
-                          <VTextField v-model="c.issuedAt" type="date" density="compact" hide-details />
+                          <VMenu v-model="showChequeDatePicker[idx]" :close-on-content-click="false"
+                            transition="scale-transition" offset-y>
+                            <template #activator="{ props }">
+                              <VTextField v-model="formattedChequeDate[idx]" prepend-inner-icon="mdi-calendar"
+                                density="compact" hide-details readonly v-bind="props" />
+                            </template>
+                            <VDatePicker v-model="c.issuedAt" :max="maxChequeDate"
+                              @update:model-value="showChequeDatePicker[idx] = false" />
+                          </VMenu>
                         </td>
                         <td class="text-right">
                           <VBtn icon="mdi-delete" size="small" variant="text" color="error"
@@ -469,6 +492,10 @@ const newCheques = ref<NewCheque[]>([])
 const showModal = ref(false)
 const showViewModal = ref(false)
 const showDeleteModal = ref(false)
+const showBirthDatePicker = ref(false)
+const showRegistrationDatePicker = ref(false)
+const showChequeDatePicker = ref<boolean[]>([])
+const maxChequeDate = computed(() => new Date().toISOString().split('T')[0])
 
 // Form data
 const editingMember = ref<Member | null>(null)
@@ -488,9 +515,9 @@ const formData = reactive({
   imageRights: false,
   enrolledCourses: [] as string[],
   registrationDate: '',
-  annualFeePaymentMethod: '' as 'chèque' | 'Espèce' | '',
+  annualFeePaymentMethod: null as 'chèque' | 'Espèce' | null,
   annualFeeAmount: 60,
-  membershipPaymentMethod: '' as 'chèque' | 'Espèce' | '',
+  membershipPaymentMethod: null as 'chèque' | 'Espèce' | null,
   membershipFeeAmount: 20,
   status: 'pré-inscrit' as 'pré-inscrit' | 'inscrit' | 'actif' | 'inactif',
 })
@@ -499,8 +526,8 @@ const formData = reactive({
 const filters = reactive({
   q: '',
   city: '',
-  imageRights: '',
-  status: '',
+  imageRights: null,
+  status: null,
 })
 
 // Options
@@ -545,13 +572,23 @@ const removeNewCheque = (idx: number) => {
 const loadMembers = async () => {
   try {
     loading.value = true
-    const params = new URLSearchParams({
+
+    // Construire les paramètres en excluant les valeurs vides
+    const params: Record<string, string> = {
       page: currentPage.value.toString(),
       limit: '20',
-      ...filters
-    })
+    }
 
-    const payload = await api.getData<Member[]>(`/members?${params}`)
+    // Ajouter seulement les filtres non vides
+    if (filters.q) params.q = filters.q
+    if (filters.city) params.city = filters.city
+    if (filters.imageRights !== null && filters.imageRights !== '') params.imageRights = filters.imageRights
+    if (filters.status) params.status = filters.status
+
+    const queryString = new URLSearchParams(params).toString()
+    console.log('Paramètres envoyés:', params) // Debug
+    console.log('URL de requête:', `/members?${queryString}`) // Debug
+    const payload = await api.getData<Member[]>(`/members?${queryString}`)
     console.log('Payload reçu:', payload) // Debug
     members.value = payload
     // TODO: Gérer la pagination quand le backend l'implémentera
@@ -584,8 +621,8 @@ const loadCourses = async () => {
 const resetFilters = () => {
   filters.q = ''
   filters.city = ''
-  filters.imageRights = ''
-  filters.status = ''
+  filters.imageRights = null
+  filters.status = null
   currentPage.value = 1
   loadMembers()
 }
@@ -639,9 +676,9 @@ const resetForm = () => {
     imageRights: false,
     enrolledCourses: [],
     registrationDate: '',
-    annualFeePaymentMethod: '',
+    annualFeePaymentMethod: null,
     annualFeeAmount: 60,
-    membershipPaymentMethod: '',
+    membershipPaymentMethod: null,
     membershipFeeAmount: 20,
     status: 'pré-inscrit',
   })
@@ -661,8 +698,8 @@ const fillForm = (member: Member) => {
     imageRights: member.imageRights,
     enrolledCourses: member.enrolledCourses.map(c => c._id),
     registrationDate: member.registrationDate?.split('T')[0] || '',
-    annualFeePaymentMethod: member.annualFeePaymentMethod || '',
-    membershipPaymentMethod: member.membershipPaymentMethod || '',
+    annualFeePaymentMethod: member.annualFeePaymentMethod || null,
+    membershipPaymentMethod: member.membershipPaymentMethod || null,
     status: member.status || 'pré-inscrit',
   })
 }
@@ -728,6 +765,35 @@ const deleteMember = async () => {
   }
 }
 
+// Computed properties pour les date pickers
+const formattedBirthDate = computed(() => {
+  if (!formData.birthDate) return ''
+  return new Date(formData.birthDate).toLocaleDateString('fr-FR')
+})
+
+const formattedRegistrationDate = computed(() => {
+  if (!formData.registrationDate) return ''
+  return new Date(formData.registrationDate).toLocaleDateString('fr-FR')
+})
+
+// Date maximale pour la naissance (aujourd'hui)
+const maxBirthDate = computed(() => {
+  return new Date().toISOString().split('T')[0]
+})
+
+// Date maximale pour l'inscription (aujourd'hui)
+const maxRegistrationDate = computed(() => {
+  return new Date().toISOString().split('T')[0]
+})
+
+// Computed property pour les dates de chèques
+const formattedChequeDate = computed(() => {
+  return newCheques.value.map(cheque => {
+    if (!cheque.issuedAt) return ''
+    return new Date(cheque.issuedAt).toLocaleDateString('fr-FR')
+  })
+})
+
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('fr-FR')
 }
@@ -780,7 +846,8 @@ watch(currentPage, () => {
   loadMembers()
 })
 
-watch(filters, () => {
+watch(filters, (newFilters) => {
+  console.log('Watcher filters déclenché:', newFilters) // Debug
   currentPage.value = 1
   loadMembers()
 }, { deep: true })

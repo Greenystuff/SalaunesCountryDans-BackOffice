@@ -247,8 +247,8 @@ const images = ref<GalleryImage[]>([])
 // Filtres
 const search = ref('')
 const filters = ref({
-  category: '',
-  isActive: ''
+  category: null,
+  isActive: null
 })
 
 // Contrôleur d'annulation pour les requêtes
@@ -259,7 +259,7 @@ const imageForm = ref({
   title: '',
   description: '',
   altText: '',
-  category: '',
+  category: null,
   tagsString: '',
   order: 0,
   isActive: true
@@ -270,7 +270,7 @@ const initialFormState = ref({
   title: '',
   description: '',
   altText: '',
-  category: '',
+  category: null,
   tagsString: '',
   order: 0,
   isActive: true

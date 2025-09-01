@@ -157,7 +157,15 @@
                   <h4 class="periods-title">Créneau</h4>
                 </div>
                 <div class="period-grid">
-                  <VTextField v-model="dateInput" type="date" label="Date" />
+                  <VMenu v-model="showDatePicker" :close-on-content-click="false" transition="scale-transition"
+                    offset-y>
+                    <template #activator="{ props }">
+                      <VTextField v-model="formattedDateInput" label="Date" prepend-inner-icon="mdi-calendar" readonly
+                        v-bind="props" />
+                    </template>
+                    <VDatePicker v-model="dateInput" :min="minCourseDate" :max="maxCourseDate"
+                      @update:model-value="showDatePicker = false" />
+                  </VMenu>
                   <VTextField v-model="startTime" type="time" label="Heure début" />
                   <VTextField v-model="endTime" type="time" label="Heure fin" />
                   <VSelect v-model="form.recurrence" :items="recurrenceOptions" label="Récurrence" />
@@ -220,6 +228,7 @@ const courses = ref([])
  *  ---------------------------- */
 const dialog = reactive({ open: false, mode: 'create' }) // 'create' | 'edit'
 const formRef = ref(null)
+const showDatePicker = ref(false)
 
 /** ----------------------------
  *  Modale de gestion de journée
@@ -240,6 +249,22 @@ const form = reactive({
 const dateInput = ref(toISODate(new Date()))
 const startTime = ref('18:30')
 const endTime = ref('19h:15')
+
+// Computed properties pour le date picker
+const formattedDateInput = computed(() => {
+  if (!dateInput.value) return ''
+  return new Date(dateInput.value).toLocaleDateString('fr-FR')
+})
+
+// Date minimale pour un cours (pas de restriction)
+const minCourseDate = computed(() => {
+  return undefined
+})
+
+// Date maximale pour un cours (pas de restriction)
+const maxCourseDate = computed(() => {
+  return undefined
+})
 
 
 /** ----------------------------
