@@ -409,7 +409,7 @@ interface NewCheque {
   ibanLast4?: string
   remitBatch?: string
   issuedAt?: string
-  status?: string
+  status: 'emis' | 'recu' | 'remis' | 'credite' | 'rejete' | 'retourne'
   imageUrl?: string
   notes?: string
 }
@@ -513,7 +513,7 @@ const closeChequeModal = () => {
   editingCheque.value = null
 }
 
-const saveCheque = (chequeData: any) => {
+const saveCheque = (chequeData: NewCheque) => {
   if (editingChequeIndex.value >= 0) {
     // Modification
     newCheques.value[editingChequeIndex.value] = chequeData

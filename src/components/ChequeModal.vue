@@ -71,7 +71,7 @@ interface ChequeData {
   ibanLast4?: string
   remitBatch?: string
   issuedAt?: string
-  status?: string
+  status: 'emis' | 'recu' | 'remis' | 'credite' | 'rejete' | 'retourne'
   imageUrl?: string
   notes?: string
 }
@@ -96,7 +96,7 @@ const saving = ref(false)
 const showDatePicker = ref(false)
 
 // Form data
-const form = reactive({
+const form = reactive<ChequeData & { _id: string }>({
   _id: '',
   amount: 0,
   purpose: 'autre',
@@ -168,7 +168,7 @@ const fillForm = (cheque: ChequeData) => {
     ibanLast4: cheque.ibanLast4 || '',
     remitBatch: cheque.remitBatch || '',
     issuedAt: cheque.issuedAt ? cheque.issuedAt.split('T')[0] : '',
-    status: cheque.status || 'emis',
+    status: cheque.status,
     imageUrl: cheque.imageUrl || '',
     notes: cheque.notes || '',
   })
