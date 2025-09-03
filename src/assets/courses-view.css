@@ -11,7 +11,7 @@
   box-sizing: border-box;
 }
 
-/* ===== CARTE ===== */
+/* ===== CARTE PRINCIPALE ===== */
 .main-card {
   border-radius: 16px !important;
   overflow: hidden;
@@ -31,7 +31,7 @@
     135deg,
     rgba(var(--v-theme-primary), 0.04),
     rgba(var(--v-theme-primary), 0.02) 45%,
-    rgba(var(--v-theme-surface), 1) 100%
+    rgb(var(--v-theme-surface) 1) 100%
   );
   border-bottom: 1px solid rgba(var(--v-theme-outline), 0.08);
 }
@@ -48,14 +48,26 @@
   color: rgb(var(--v-theme-on-surface));
 }
 
+/* Règle plus spécifique pour surcharger */
+.header-content .main-title {
+  color: rgb(var(--v-theme-on-surface)) !important;
+}
+
 .subtitle {
   margin: 0;
   max-width: 720px;
-  color: rgba(var(--v-theme-on-surface), 0.7);
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.8;
   line-height: 1.6;
 }
 
-/* ===== BARRE D’OUTILS ===== */
+/* Règle plus spécifique pour surcharger */
+.header-content .subtitle {
+  color: rgb(var(--v-theme-on-surface)) !important;
+  opacity: 0.8;
+}
+
+/* ===== BARRE D'OUTILS ===== */
 .toolbar {
   display: grid;
   grid-template-columns: 1.2fr 0.8fr 0.8fr auto;
@@ -69,16 +81,62 @@
   min-width: 0;
 }
 
+/* Styles spécifiques pour les inputs et v-select de la toolbar */
+.toolbar .v-field {
+  background: rgb(var(--v-theme-surface-variant));
+  border: 1px solid rgba(var(--v-theme-outline), 0.2);
+  border-radius: 8px;
+}
+
+.toolbar .v-field:hover {
+  border-color: rgba(var(--v-theme-primary), 0.4);
+}
+
+.toolbar .v-field--focused {
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 2px rgba(var(--v-theme-primary), 0.1);
+}
+
+.toolbar .v-field__input {
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.toolbar .v-field__label {
+  color: rgba(var(--v-theme-on-surface), 0.7);
+}
+
+.toolbar .v-field__label--floating {
+  color: rgb(var(--v-theme-primary));
+}
+
+/* Style pour le bouton de réinitialisation */
+.toolbar .v-btn--variant-tonal {
+  background: rgba(var(--v-theme-primary), 0.1);
+  color: rgb(var(--v-theme-primary));
+  border: 1px solid rgba(var(--v-theme-primary), 0.2);
+}
+
+.toolbar .v-btn--variant-tonal:hover {
+  background: rgba(var(--v-theme-primary), 0.15);
+  border-color: rgba(var(--v-theme-primary), 0.3);
+}
+
 /* ===== CALENDRIER ===== */
 .calendar-section {
   background: rgb(var(--v-theme-surface));
 }
 
 .calendar-wrapper {
+  background: rgb(var(--v-theme-surface));
   padding: 20px 24px 24px;
 }
 
-/* v-calendar (scopé naturellement par les classes internes) */
+/* Mode sombre */
+[data-v-theme='dark'] .calendar-wrapper {
+  background: rgb(var(--v-theme-surface));
+}
+
+/* Configuration v-calendar */
 .custom-calendar {
   width: 100%;
   height: 100%;
@@ -91,41 +149,88 @@
   font-family: inherit !important;
 }
 
-/* --- Barre de nav du calendrier : centrage + anti-clipping --- */
+/* Fond du calendrier */
+.vc-container,
+.vc-weeks,
+.vc-week {
+  background: transparent !important;
+}
+
+/* Cibler spécifiquement le composant VCalendar */
+.custom-calendar,
+.custom-calendar .vc-container,
+.custom-calendar .vc-weeks,
+.custom-calendar .vc-week {
+  background: transparent !important;
+}
+
+/* Mode sombre - fond du calendrier */
+[data-v-theme='dark'] .vc-container,
+[data-v-theme='dark'] .vc-weeks,
+[data-v-theme='dark'] .vc-week,
+[data-v-theme='dark'] .custom-calendar,
+[data-v-theme='dark'] .custom-calendar .vc-container,
+[data-v-theme='dark'] .custom-calendar .vc-weeks,
+[data-v-theme='dark'] .custom-calendar .vc-week {
+  background: transparent !important;
+}
+
+/* Header du calendrier simplifié */
 .custom-calendar .vc-header {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  height: 48px;
-  padding: 0 8px;
-  margin: 0;
-  box-sizing: border-box;
-
   background: rgba(var(--v-theme-primary), 0.08);
   border: 1px solid rgba(var(--v-theme-outline), 0.06);
   border-radius: 12px;
-  overflow: visible; /* ne pas rogner le titre */
+  padding: 8px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  position: relative;
 }
 
-/* Boutons/flèches */
-.custom-calendar .vc-header .vc-arrow,
-.custom-calendar .vc-header button {
+/* Flèches de navigation */
+.custom-calendar .vc-header .vc-arrow {
   width: 32px;
   height: 32px;
-  display: inline-flex;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+  display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-}
-.custom-calendar .vc-header .vc-arrow:hover,
-.custom-calendar .vc-header button:hover {
-  background: rgba(var(--v-theme-on-surface), 0.06);
-  cursor: pointer;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
   z-index: 2;
 }
 
+.custom-calendar .vc-header .vc-arrow:hover {
+  background: rgba(var(--v-theme-on-surface), 0.06);
+}
+
+.custom-calendar .vc-header .vc-arrow:first-child {
+  left: 8px;
+}
+
+.custom-calendar .vc-header .vc-arrow:last-child {
+  right: 8px;
+}
+
+/* Titre du calendrier */
+.custom-calendar .vc-title {
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 1.1rem;
+  margin: 0;
+  line-height: 1;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 1;
+}
+
+/* Grille des semaines */
 .vc-weeks {
   padding: 12px 2px 2px;
 }
@@ -137,41 +242,52 @@
   margin: 0 0 8px 0;
 }
 
+/* Jours du calendrier */
 .vc-day {
-  background: rgba(var(--v-theme-on-surface), 0.04);
+  background: rgb(var(--v-theme-surface));
   border-radius: 12px;
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
-    background 0.18s ease;
-  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  border: 1px solid rgb(var(--v-theme-outline));
   min-height: 85px;
   cursor: pointer;
   overflow: visible;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .vc-day:hover {
   background: rgba(var(--v-theme-primary), 0.08);
-  border-color: rgba(var(--v-theme-primary), 0.16);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transform: translateY(-1px);
 }
 
 .vc-day.is-today {
-  background: linear-gradient(
-    135deg,
-    rgba(var(--v-theme-primary), 0.12),
-    rgba(var(--v-theme-primary), 0.06)
-  );
-  border-color: rgba(var(--v-theme-primary), 0.35);
+  background: rgb(var(--v-theme-primary-container));
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 2px 6px rgba(var(--v-theme-primary), 0.15);
 }
 
 .vc-day.is-not-in-month {
-  opacity: 0.5;
-  background: rgba(var(--v-theme-on-surface), 0.02);
+  opacity: 0.4;
+  background: rgb(var(--v-theme-surface-dim));
+  border-color: rgb(var(--v-theme-outline));
+  border-style: dashed;
 }
 
-/* Contenu du jour + pastilles d'événements */
+/* Mode sombre - ajustements spécifiques */
+[data-v-theme='dark'] .vc-day {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+[data-v-theme='dark'] .vc-day:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-v-theme='dark'] .vc-day.is-today {
+  box-shadow: 0 2px 6px rgba(var(--v-theme-primary), 0.2);
+}
+
+/* Contenu des jours */
 .vc-day-content {
   display: flex;
   flex-direction: column;
@@ -187,15 +303,34 @@
 }
 
 .vc-day-content:hover {
-  background: rgba(var(--v-theme-primary), 0.04);
+  background: rgba(var(--v-theme-primary), 0.12);
   border-radius: 8px;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+/* Mode sombre */
+[data-v-theme='dark'] .vc-day-content:hover {
+  background: rgba(var(--v-theme-primary), 0.15);
+  color: rgb(var(--v-theme-on-surface));
 }
 
 .vc-day-label {
   font-weight: 600;
   font-size: 0.95rem;
   color: rgb(var(--v-theme-on-surface));
-  margin-top: 2px;
+  margin-top: 3px;
+  transition: color 0.2s ease;
+}
+
+/* Mode sombre */
+[data-v-theme='dark'] .vc-day-label {
+  color: rgb(var(--v-theme-on-surface));
+}
+
+/* Texte sur fond primaire (jour actuel) */
+.vc-day.is-today .vc-day-label {
+  color: rgb(var(--v-theme-on-primary-container));
+  font-weight: 700;
 }
 
 .vc-day-content-wrapper {
@@ -210,7 +345,7 @@
   padding: 2px;
 }
 
-/* Wrapper pour les dots */
+/* Points d'événements */
 .vc-day-dots-wrapper {
   display: flex;
   flex-wrap: wrap;
@@ -220,7 +355,6 @@
   padding: 2px;
 }
 
-/* Style des dots */
 .vc-day-dot {
   width: 8px;
   height: 8px;
@@ -236,16 +370,30 @@
   z-index: 10;
 }
 
+/* Couleurs des dots par niveau */
+.vc-day-dot[data-level='Débutant'] {
+  background: rgb(var(--v-theme-level-debutant));
+}
+
+.vc-day-dot[data-level='Novice'] {
+  background: rgb(var(--v-theme-level-novice));
+}
+
+.vc-day-dot[data-level='Intermédiaire'] {
+  background: rgb(var(--v-theme-level-intermediaire));
+}
+
 /* Compteur d'événements */
 .vc-day-events-count {
   font-size: 0.6rem;
   font-weight: 600;
-  color: rgba(var(--v-theme-on-surface), 0.7);
+  color: rgba(var(--v-theme-on-surface), 0.6);
   text-align: center;
   margin-top: 2px;
   line-height: 1;
 }
 
+/* Éléments d'événements dans les jours */
 .vc-day-content-item {
   width: 100%;
   min-height: 20px;
@@ -269,29 +417,32 @@
   z-index: 20;
 }
 
-/* Couleurs par niveau (pastilles) */
+/* Couleurs par niveau */
 .vc-day-content-item[data-level='Débutant'] {
-  background: linear-gradient(135deg, #10b981, #059669);
-  color: white;
-}
-.vc-day-content-item[data-level='Novice'] {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  color: white;
-}
-.vc-day-content-item[data-level='Intermédiaire'] {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
+  background: linear-gradient(
+    135deg,
+    rgb(var(--v-theme-level-debutant)),
+    rgb(var(--v-theme-level-debutant-dark))
+  );
   color: white;
 }
 
-/* Couleurs des dots par niveau */
-.vc-day-dot[data-level='Débutant'] {
-  background: #10b981;
+.vc-day-content-item[data-level='Novice'] {
+  background: linear-gradient(
+    135deg,
+    rgb(var(--v-theme-level-novice)),
+    rgb(var(--v-theme-level-novice-dark))
+  );
+  color: white;
 }
-.vc-day-dot[data-level='Novice'] {
-  background: #3b82f6;
-}
-.vc-day-dot[data-level='Intermédiaire'] {
-  background: #f59e0b;
+
+.vc-day-content-item[data-level='Intermédiaire'] {
+  background: linear-gradient(
+    135deg,
+    rgb(var(--v-theme-level-intermediaire)),
+    rgb(var(--v-theme-level-intermediaire-dark))
+  );
+  color: white;
 }
 
 /* Éléments internes des événements */
@@ -323,7 +474,10 @@
   line-height: 1;
 }
 
-/* ===== LISTE À VENIR ===== */
+/* ===== MODE SOMBRE DU CALENDRIER ===== */
+/* Les règles pour le mode sombre sont maintenant définies avec [data-v-theme='dark'] */
+
+/* ===== LISTE DES ÉVÉNEMENTS ===== */
 .list-section {
   padding: 8px 20px 24px;
 }
@@ -342,24 +496,34 @@
   color: rgb(var(--v-theme-on-surface));
 }
 
+/* Tableau des événements */
 .events-table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0 6px;
 }
 
+.events-table thead {
+  background: rgba(var(--v-theme-primary), 0.06);
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
+}
+
 .events-table thead th {
   text-align: left;
   font-weight: 600;
   font-size: 0.9rem;
-  color: rgba(var(--v-theme-on-surface), 0.75);
-  padding: 8px 10px;
+  color: rgb(var(--v-theme-on-surface));
+  padding: 12px 10px;
+  background: rgba(var(--v-theme-primary), 0.08);
+  border-bottom: 1px solid rgba(var(--v-theme-outline), 0.1);
 }
 
 .events-table tbody tr {
   background: rgba(var(--v-theme-on-surface), 0.03);
-  border: 1px solid rgba(var(--v-theme-outline), 0.06);
+  border: 1px solid rgba(var(--v-theme-outline), 0.08);
   border-radius: 10px;
+  transition: all 0.2s ease;
 }
 
 .events-table tbody tr td {
@@ -371,9 +535,24 @@
   width: 96px;
 }
 
+/* Colonne des actions */
+.events-table tbody tr td.actions {
+  width: 120px;
+  text-align: center;
+}
+
+.actions-wrapper {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
 .hover-row:hover {
-  background: rgba(var(--v-theme-primary), 0.06);
-  border-color: rgba(var(--v-theme-primary), 0.16);
+  background: rgba(var(--v-theme-primary), 0.08) !important;
+  border-color: rgba(var(--v-theme-primary), 0.2) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(var(--v-theme-primary), 0.1);
 }
 
 .empty-row {
@@ -382,17 +561,27 @@
   padding: 22px 0 !important;
 }
 
+/* ===== PAGINATION ===== */
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(var(--v-theme-outline), 0.08);
+}
+
 .title-cell {
   display: inline-flex;
   align-items: center;
   gap: 10px;
 }
+
 .title-cell .title {
   font-weight: 600;
   color: rgb(var(--v-theme-on-surface));
 }
 
-/* ===== DIALOGUE ===== */
+/* ===== DIALOGUE D'ÉVÉNEMENT ===== */
 .event-dialog .dialog-title {
   display: flex;
   align-items: center;
@@ -460,6 +649,7 @@
   .toolbar {
     grid-template-columns: 1fr 1fr 1fr auto;
   }
+
   .period-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -470,20 +660,25 @@
     flex-direction: column;
     align-items: stretch;
   }
+
   .toolbar {
     grid-template-columns: 1fr;
   }
+
   .calendar-wrapper {
     padding: 16px;
   }
+
   .events-table thead {
     display: none;
   }
+
   .events-table tbody tr td {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 6px;
   }
+
   .events-table tbody tr td.actions {
     grid-template-columns: auto auto;
     justify-content: end;
@@ -494,80 +689,8 @@
   .courses-container {
     padding: 14px;
   }
+
   .header-title {
     padding: 18px;
   }
-}
-
-/* === FIX: v-calendar header — répartir flèches + titre correctement === */
-
-/* Header en grid 3 colonnes */
-.custom-calendar .vc-header,
-.custom-calendar .vc-header.is-lg {
-  display: grid !important;
-  grid-template-columns: auto 1fr auto !important;
-  align-items: center !important;
-  justify-items: center !important;
-  position: relative !important;
-  z-index: 10 !important;
-}
-
-/* Aplatir les wrappers de flèches */
-.custom-calendar .vc-header .vc-arrows,
-.custom-calendar .vc-header .vc-nav,
-.custom-calendar .vc-header .vc-controls {
-  display: contents !important;
-}
-
-/* Flèches positionnées */
-.custom-calendar .vc-header .vc-arrow {
-  grid-row: 1 !important;
-  width: 32px !important;
-  height: 32px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  border-radius: 8px !important;
-  position: relative !important;
-  z-index: 11 !important;
-  pointer-events: auto !important;
-  cursor: pointer !important;
-}
-.custom-calendar .vc-header .vc-arrow:first-of-type {
-  grid-column: 1 !important;
-  justify-self: start !important;
-}
-.custom-calendar .vc-header .vc-arrow:last-of-type {
-  grid-column: 3 !important;
-  justify-self: end !important;
-}
-
-/* Titre centré et cliquable */
-.custom-calendar .vc-title,
-.custom-calendar .vc-header .vc-title {
-  position: absolute !important;
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  max-width: calc(100% - 112px) !important;
-  padding: 0 8px !important;
-  text-align: center !important;
-  width: fit-content !important;
-  margin: 0 !important;
-  line-height: 1.2 !important;
-  font-weight: 600 !important;
-  color: rgb(var(--v-theme-on-surface)) !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  pointer-events: auto !important;
-  z-index: 12 !important;
-}
-
-/* Empêcher le recouvrement */
-.custom-calendar .vc-weeks,
-.custom-calendar .vc-pane,
-.custom-calendar .vc-grid {
-  position: relative !important;
-  z-index: 0 !important;
 }

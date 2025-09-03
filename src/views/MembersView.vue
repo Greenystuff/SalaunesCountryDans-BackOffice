@@ -34,57 +34,8 @@
         </VBtn>
       </div>
 
-      <!-- STATISTIQUES -->
-      <div class="stats-section" v-if="stats">
-        <VRow>
-          <VCol cols="12" sm="6" md="3">
-            <VCard variant="outlined" class="stat-card">
-              <VCardText class="text-center">
-                <div class="stat-number">{{ stats.totalMembers }}</div>
-                <div class="stat-label">Total membres</div>
-              </VCardText>
-            </VCard>
-          </VCol>
-          <VCol cols="12" sm="6" md="3">
-            <VCard variant="outlined" class="stat-card">
-              <VCardText class="text-center">
-                <div class="stat-number">{{ stats.membersWithImageRights }}</div>
-                <div class="stat-label">Avec droit à l'image</div>
-              </VCardText>
-            </VCard>
-          </VCol>
-          <VCol cols="12" sm="6" md="3">
-            <VCard variant="outlined" class="stat-card">
-              <VCardText class="text-center">
-                <div class="stat-number">{{ stats.ageDistribution?.[0]?.count || 0 }}</div>
-                <div class="stat-label">18-24 ans</div>
-              </VCardText>
-            </VCard>
-          </VCol>
-          <VCol cols="12" sm="6" md="3">
-            <VCard variant="outlined" class="stat-card">
-              <VCardText class="text-center">
-                <div class="stat-number">{{ stats.membersByCity?.[0]?.count || 0 }}</div>
-                <div class="stat-label">Top ville</div>
-              </VCardText>
-            </VCard>
-          </VCol>
-        </VRow>
-      </div>
-
-      <VDivider />
-
-      <!-- LISTE DES MEMBRES -->
+      <!-- TABLEAU DES MEMBRES -->
       <div class="list-section">
-        <div class="list-header">
-          <h3 class="list-title">Liste des membres</h3>
-          <div class="list-actions">
-            <VBtn variant="text" density="comfortable" @click="loadMembers">
-              Actualiser
-            </VBtn>
-          </div>
-        </div>
-
         <VTable class="members-table">
           <thead>
             <tr>
@@ -121,9 +72,16 @@
                 </VChip>
               </td>
               <td>
-                <VChip v-if="member.enrolledCourses?.length" color="primary" size="small">
-                  {{ member.enrolledCourses.length }} cours
-                </VChip>
+                <div v-if="member.enrolledCourses?.length" class="courses-summary">
+                  <VChip color="primary" size="small" class="mb-1">
+                    {{ member.enrolledCourses.length }} cours
+                  </VChip>
+                  <div v-if="getUpcomingCourses(member.enrolledCourses).length" class="next-course">
+                    <small class="text-success">
+                      Prochain: {{ getUpcomingCourses(member.enrolledCourses)[0].title }}
+                    </small>
+                  </div>
+                </div>
                 <span v-else class="text-muted">Aucun</span>
               </td>
               <td class="col-actions">
@@ -141,6 +99,46 @@
         <div class="pagination-wrapper" v-if="pagination && pagination.pages > 1">
           <VPagination v-model="currentPage" :length="pagination.pages" :total-visible="7" />
         </div>
+      </div>
+
+      <VDivider />
+
+      <!-- STATISTIQUES -->
+      <div class="stats-section" v-if="stats">
+        <VRow>
+          <VCol cols="12" sm="6" md="3">
+            <VCard variant="outlined" class="stat-card">
+              <VCardText class="text-center">
+                <div class="stat-number">{{ stats.totalMembers }}</div>
+                <div class="stat-label">Total membres</div>
+              </VCardText>
+            </VCard>
+          </VCol>
+          <VCol cols="12" sm="6" md="3">
+            <VCard variant="outlined" class="stat-card">
+              <VCardText class="text-center">
+                <div class="stat-number">{{ stats.membersWithImageRights }}</div>
+                <div class="stat-label">Avec droit à l'image</div>
+              </VCardText>
+            </VCard>
+          </VCol>
+          <VCol cols="12" sm="6" md="3">
+            <VCard variant="outlined" class="stat-card">
+              <VCardText class="text-center">
+                <div class="stat-number">{{ stats.ageDistribution?.[0]?.count || 0 }}</div>
+                <div class="stat-label">18-24 ans</div>
+              </VCardText>
+            </VCard>
+          </VCol>
+          <VCol cols="12" sm="6" md="3">
+            <VCard variant="outlined" class="stat-card">
+              <VCardText class="text-center">
+                <div class="stat-number">{{ stats.membersByCity?.[0]?.count || 0 }}</div>
+                <div class="stat-label">Top ville</div>
+              </VCardText>
+            </VCard>
+          </VCol>
+        </VRow>
       </div>
     </VCard>
 
@@ -268,13 +266,13 @@
               <!-- Section chèques -->
               <VCol cols="12">
                 <VDivider class="my-3" />
-                <!-- Nouveau membre: liste locale de chèques à créer -->
+                <!-- Nouveau membre: utilisation du même composant de modale -->
                 <template v-if="!editingMember">
                   <div class="d-flex justify-space-between align-center mb-2">
                     <h5 class="text-subtitle-1 m-0">Chèques (nouveau membre)</h5>
-                    <VBtn size="small" color="primary" prepend-icon="mdi-plus" @click="addNewCheque">Ajouter</VBtn>
+                    <VBtn size="small" color="primary" prepend-icon="mdi-plus" @click="openChequeModal">Ajouter</VBtn>
                   </div>
-                  <VTable density="compact">
+                  <VTable density="compact" v-if="newCheques.length > 0">
                     <thead>
                       <tr>
                         <th scope="col">Montant</th>
@@ -287,40 +285,22 @@
                     </thead>
                     <tbody>
                       <tr v-for="(c, idx) in newCheques" :key="idx">
-                        <td style="width:120px">
-                          <VTextField v-model.number="c.amount" type="number" min="0.01" step="0.01" density="compact"
-                            hide-details />
-                        </td>
-                        <td style="width:160px">
-                          <VSelect v-model="c.purpose" :items="purposeItems" density="compact" hide-details />
-                        </td>
-                        <td style="width:160px">
-                          <VTextField v-model="c.bankName" density="compact" hide-details />
-                        </td>
-                        <td style="width:160px">
-                          <VTextField v-model="c.checkNumber" density="compact" hide-details />
-                        </td>
-                        <td style="width:160px">
-                          <VMenu v-model="showChequeDatePicker[idx]" :close-on-content-click="false"
-                            transition="scale-transition" offset-y>
-                            <template #activator="{ props }">
-                              <VTextField v-model="formattedChequeDate[idx]" prepend-inner-icon="mdi-calendar"
-                                density="compact" hide-details readonly v-bind="props" />
-                            </template>
-                            <VDatePicker v-model="c.issuedAt" :max="maxChequeDate"
-                              @update:model-value="showChequeDatePicker[idx] = false" />
-                          </VMenu>
-                        </td>
+                        <td>{{ c.amount?.toFixed(2) || '0.00' }} €</td>
+                        <td>{{ c.purpose || '-' }}</td>
+                        <td>{{ c.bankName || '-' }}</td>
+                        <td>{{ c.checkNumber || '-' }}</td>
+                        <td>{{ c.issuedAt ? formatDate(c.issuedAt) : '-' }}</td>
                         <td class="text-right">
+                          <VBtn icon="mdi-pencil" size="small" variant="text" @click="editCheque(idx)" />
                           <VBtn icon="mdi-delete" size="small" variant="text" color="error"
-                            @click="removeNewCheque(idx)" />
+                            @click="removeCheque(idx)" />
                         </td>
-                      </tr>
-                      <tr v-if="newCheques.length === 0">
-                        <td colspan="6" class="text-medium-emphasis text-center">Aucun chèque à ajouter</td>
                       </tr>
                     </tbody>
                   </VTable>
+                  <div v-else class="text-center text-medium-emphasis py-4">
+                    Aucun chèque ajouté
+                  </div>
                 </template>
                 <!-- Membre existant: gestionnaire complet -->
                 <ChequesManager v-else :member-id="editingMember._id" />
@@ -339,78 +319,11 @@
     </VDialog>
 
     <!-- MODAL DÉTAILS -->
-    <VDialog v-model="showViewModal" max-width="600px">
-      <VCard v-if="viewingMember">
-        <VCardTitle>
-          Détails du membre
-        </VCardTitle>
-        <VCardText>
-          <VRow>
-            <VCol cols="12" md="6">
-              <strong>Nom complet:</strong><br>
-              {{ viewingMember.firstName }} {{ viewingMember.lastName }}
-            </VCol>
-            <VCol cols="12" md="6">
-              <strong>Email:</strong><br>
-              {{ viewingMember.email }}
-            </VCol>
-            <VCol cols="12" md="6">
-              <strong>Date de naissance:</strong><br>
-              {{ formatDate(viewingMember.birthDate) }} ({{ viewingMember.age }} ans)
-            </VCol>
-            <VCol cols="12" md="6">
-              <strong>Droit à l'image:</strong><br>
-              <VChip :color="viewingMember.imageRights ? 'success' : 'warning'" size="small">
-                {{ viewingMember.imageRights ? 'Oui' : 'Non' }}
-              </VChip>
-            </VCol>
-            <VCol cols="12">
-              <strong>Adresse:</strong><br>
-              {{ viewingMember.address }}<br>
-              {{ viewingMember.postalCode }} {{ viewingMember.city }}
-            </VCol>
-            <VCol cols="12" md="6">
-              <strong>Téléphone domicile:</strong><br>
-              {{ viewingMember.homePhone || 'Non renseigné' }}
-            </VCol>
-            <VCol cols="12" md="6">
-              <strong>Téléphone portable:</strong><br>
-              {{ viewingMember.mobilePhone || 'Non renseigné' }}
-            </VCol>
-            <VCol cols="12" v-if="viewingMember.enrolledCourses?.length">
-              <strong>Cours inscrits:</strong><br>
-              <VChip v-for="course in viewingMember.enrolledCourses" :key="course._id" color="primary" size="small"
-                class="ma-1">
-                {{ course.title }} ({{ course.level }})
-              </VChip>
-            </VCol>
-            <VCol cols="12" v-if="viewingMember.registrationDate">
-              <strong>Date d'inscription:</strong><br>
-              {{ formatDate(viewingMember.registrationDate) }}
-            </VCol>
-            <VCol cols="12" v-if="viewingMember.annualFeePaymentMethod">
-              <strong>Paiement cotisation:</strong><br>
-              {{ viewingMember.annualFeePaymentMethod }}
-            </VCol>
-            <VCol cols="12" v-if="viewingMember.membershipPaymentMethod">
-              <strong>Paiement adhésion:</strong><br>
-              {{ viewingMember.membershipPaymentMethod }}
-            </VCol>
-            <VCol cols="12" v-if="viewingMember.checkDeposits?.length">
-              <strong>Chèques déposés:</strong><br>
-              <div v-for="check in viewingMember.checkDeposits" :key="check.depositDate" class="ma-1">
-                {{ check.amount }}€ - {{ formatDate(check.depositDate) }}
-              </div>
-            </VCol>
-          </VRow>
-        </VCardText>
-        <VCardActions>
-          <VSpacer />
-          <VBtn variant="text" @click="showViewModal = false">Fermer</VBtn>
-          <VBtn color="primary" @click="editFromView">Modifier</VBtn>
-        </VCardActions>
-      </VCard>
-    </VDialog>
+    <MemberDetailsModal v-model="showViewModal" :member="viewingMember" @edit="openEdit" />
+
+    <!-- MODAL CHÈQUE RÉUTILISABLE -->
+    <ChequeModal v-model="showChequeModal" :cheque="editingCheque" :editing="editingChequeIndex !== -1"
+      @save="saveCheque" @close="closeChequeModal" />
 
     <!-- MODAL SUPPRESSION -->
     <VDialog v-model="showDeleteModal" max-width="400px">
@@ -436,6 +349,8 @@
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useApi } from '@/services/api'
 import ChequesManager from '@/components/ChequesManager.vue'
+import MemberDetailsModal from '@/components/MemberDetailsModal.vue'
+import ChequeModal from '@/components/ChequeModal.vue'
 
 // Types
 interface Member {
@@ -485,16 +400,32 @@ const loading = ref(false)
 const saving = ref(false)
 const deleting = ref(false)
 // Chèques ajoutés pour un nouveau membre avant création
-type NewCheque = { amount: number; purpose: 'cotisation' | 'adhesion' | 'autre'; bankName?: string; checkNumber?: string; issuedAt?: string }
+interface NewCheque {
+  _id?: string
+  amount: number
+  purpose: string
+  checkNumber?: string
+  bankName?: string
+  ibanLast4?: string
+  remitBatch?: string
+  issuedAt?: string
+  status?: string
+  imageUrl?: string
+  notes?: string
+}
 const newCheques = ref<NewCheque[]>([])
 
 // Modals
 const showModal = ref(false)
 const showViewModal = ref(false)
 const showDeleteModal = ref(false)
+const showChequeModal = ref(false)
 const showBirthDatePicker = ref(false)
 const showRegistrationDatePicker = ref(false)
-const showChequeDatePicker = ref<boolean[]>([])
+const editingChequeIndex = ref(-1)
+const editingCheque = ref<NewCheque | null>(null)
+
+// Variables supprimées : activeTab (maintenant dans le composant MemberDetailsModal)
 const maxChequeDate = computed(() => new Date().toISOString().split('T')[0])
 
 // Form data
@@ -521,6 +452,8 @@ const formData = reactive({
   membershipFeeAmount: 20,
   status: 'pré-inscrit' as 'pré-inscrit' | 'inscrit' | 'actif' | 'inactif',
 })
+
+
 
 // Filtres
 const filters = reactive({
@@ -561,10 +494,36 @@ const purposeItems = [
   { title: 'Autre', value: 'autre' },
 ]
 
-const addNewCheque = () => {
-  newCheques.value.push({ amount: 0, purpose: 'autre' })
+// Gestion des chèques avec le composant ChequeModal
+const openChequeModal = () => {
+  editingChequeIndex.value = -1
+  editingCheque.value = null
+  showChequeModal.value = true
 }
-const removeNewCheque = (idx: number) => {
+
+const editCheque = (index: number) => {
+  editingChequeIndex.value = index
+  editingCheque.value = newCheques.value[index]
+  showChequeModal.value = true
+}
+
+const closeChequeModal = () => {
+  showChequeModal.value = false
+  editingChequeIndex.value = -1
+  editingCheque.value = null
+}
+
+const saveCheque = (chequeData: any) => {
+  if (editingChequeIndex.value >= 0) {
+    // Modification
+    newCheques.value[editingChequeIndex.value] = chequeData
+  } else {
+    // Ajout
+    newCheques.value.push(chequeData)
+  }
+}
+
+const removeCheque = (idx: number) => {
   newCheques.value.splice(idx, 1)
 }
 
@@ -588,11 +547,10 @@ const loadMembers = async () => {
     const queryString = new URLSearchParams(params).toString()
     console.log('Paramètres envoyés:', params) // Debug
     console.log('URL de requête:', `/members?${queryString}`) // Debug
-    const payload = await api.getData<Member[]>(`/members?${queryString}`)
-    console.log('Payload reçu:', payload) // Debug
-    members.value = payload
-    // TODO: Gérer la pagination quand le backend l'implémentera
-    pagination.value = null
+    const response = await api.get<any>(`/members?${queryString}`)
+    console.log('Réponse complète reçue:', response) // Debug
+    members.value = response.data || []
+    pagination.value = (response as any).pagination || null
   } catch (error) {
     console.error('Erreur lors du chargement des membres:', error)
   } finally {
@@ -649,12 +607,7 @@ const openDelete = (member: Member) => {
   showDeleteModal.value = true
 }
 
-const editFromView = () => {
-  if (viewingMember.value) {
-    openEdit(viewingMember.value)
-    showViewModal.value = false
-  }
-}
+// Fonction editFromView supprimée : maintenant gérée par le composant MemberDetailsModal
 
 const closeModal = () => {
   showModal.value = false
@@ -682,6 +635,8 @@ const resetForm = () => {
     membershipFeeAmount: 20,
     status: 'pré-inscrit',
   })
+  // Réinitialiser aussi les chèques
+  newCheques.value = []
 }
 
 const fillForm = (member: Member) => {
@@ -728,7 +683,12 @@ const saveMember = async () => {
               purpose: c.purpose,
               bankName: c.bankName,
               checkNumber: c.checkNumber,
+              ibanLast4: c.ibanLast4,
+              remitBatch: c.remitBatch,
               issuedAt: c.issuedAt ? new Date(c.issuedAt).toISOString() : undefined,
+              status: c.status || 'emis',
+              imageUrl: c.imageUrl,
+              notes: c.notes,
             }
             await api.postData(`/members/${memberId}/checks`, chequeData)
           } catch (chequeError) {
@@ -786,13 +746,7 @@ const maxRegistrationDate = computed(() => {
   return new Date().toISOString().split('T')[0]
 })
 
-// Computed property pour les dates de chèques
-const formattedChequeDate = computed(() => {
-  return newCheques.value.map(cheque => {
-    if (!cheque.issuedAt) return ''
-    return new Date(cheque.issuedAt).toLocaleDateString('fr-FR')
-  })
-})
+
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('fr-FR')
@@ -816,6 +770,29 @@ const getStatusLabel = (status: string) => {
     case 'inactif': return 'Inactif'
     default: return status
   }
+}
+
+const getLevelColor = (level: string) => {
+  switch (level) {
+    case 'Débutant': return 'success'
+    case 'Novice': return 'warning'
+    case 'Intermédiaire': return 'error'
+    default: return 'primary'
+  }
+}
+
+const getUpcomingCourses = (courses: any[]) => {
+  const now = new Date()
+  return courses
+    .filter(course => new Date(course.start) > now)
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+}
+
+const getPastCourses = (courses: any[]) => {
+  const now = new Date()
+  return courses
+    .filter(course => new Date(course.start) <= now)
+    .sort((a, b) => new Date(b.start).getTime() - new Date(a.start).getTime())
 }
 
 // Computed pour déterminer si le statut doit être géré automatiquement (booléen strict)
@@ -860,150 +837,6 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.members-container {
-  padding: 20px;
-}
-
-.main-card {
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.header-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px;
-}
-
-.header-content .main-title {
-  font-size: 28px;
-  font-weight: 600;
-  margin: 0 0 8px 0;
-  color: var(--v-primary-base);
-}
-
-.header-content .subtitle {
-  font-size: 16px;
-  color: var(--v-text-secondary);
-  margin: 0;
-}
-
-.toolbar {
-  display: flex;
-  gap: 16px;
-  padding: 16px 24px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.toolbar-item {
-  min-width: 200px;
-}
-
-.stats-section {
-  padding: 16px 24px;
-}
-
-.stat-card {
-  text-align: center;
-  border-radius: 8px;
-}
-
-.stat-number {
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--v-primary-base);
-  margin-bottom: 8px;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: var(--v-text-secondary);
-}
-
-.list-section {
-  padding: 24px;
-}
-
-.list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.list-title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.members-table {
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.members-table th {
-  background-color: var(--v-surface-variant);
-  font-weight: 600;
-  text-transform: uppercase;
-  font-size: 12px;
-  letter-spacing: 0.5px;
-}
-
-.hover-row:hover {
-  background-color: var(--v-surface-variant);
-}
-
-.member-name {
-  font-weight: 500;
-}
-
-.col-actions {
-  width: 120px;
-  text-align: center;
-  vertical-align: middle;
-}
-
-.actions-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 4px;
-}
-
-.pagination-wrapper {
-  display: flex;
-  justify-content: center;
-  margin-top: 24px;
-}
-
-.text-muted {
-  color: var(--v-text-disabled);
-}
-
-@media (max-width: 768px) {
-  .header-title {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
-
-  .toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .toolbar-item {
-    min-width: auto;
-  }
-
-  .list-header {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
-}
+<style>
+@import '@/assets/members-view.css';
 </style>

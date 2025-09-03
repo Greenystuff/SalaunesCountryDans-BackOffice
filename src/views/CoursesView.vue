@@ -36,7 +36,8 @@
       <div class="calendar-section">
         <div class="calendar-wrapper">
           <!-- Composant Calendar de v-calendar -->
-          <VCalendar class="custom-calendar" :first-day-of-week="1" :min-weeks="5" :locale="'fr'" :expanded="true">
+          <VCalendar class="custom-calendar" is-expanded :first-day-of-week="2" :min-weeks="5" :locale="'fr'"
+            title-position="center" trim-weeks>
             <template #day-content="{ day }">
               <div class="vc-day-content" @click="onDayClick(day)">
                 <div class="vc-day-label">{{ day.day }}</div>
@@ -106,13 +107,20 @@
                     {{ item.level }}
                   </VChip>
                   <span class="title">{{ item.title }}</span>
+                  <VChip v-if="item.recurrence && item.recurrence !== 'Aucune'"
+                    :color="item.recurrence === 'Hebdomadaire' ? 'success' : item.recurrence === 'Toutes les 2 semaines' ? 'info' : 'warning'"
+                    size="x-small" variant="flat" class="ml-2">
+                    {{ item.recurrence }}
+                  </VChip>
                 </div>
               </td>
               <td>{{ item.teacher || '—' }}</td>
               <td>{{ item.location || '—' }}</td>
               <td class="actions">
-                <VBtn icon="mdi-pencil" variant="text" @click="openEdit(item)" />
-                <VBtn icon="mdi-delete" variant="text" color="error" @click="remove(item._id)" />
+                <div class="actions-wrapper">
+                  <VBtn icon="mdi-pencil" variant="text" @click="openEdit(item)" />
+                  <VBtn icon="mdi-delete" variant="text" color="error" @click="remove(item._id)" />
+                </div>
               </td>
             </tr>
             <tr v-if="!upcoming.length && !loading">
@@ -123,6 +131,11 @@
             </tr>
           </tbody>
         </VTable>
+
+        <!-- Pagination -->
+        <div class="pagination-wrapper" v-if="pagination && pagination.pages > 1">
+          <VPagination v-model="currentPage" :length="pagination.pages" :total-visible="7" />
+        </div>
       </div>
     </VCard>
 
@@ -192,13 +205,13 @@
     </VDialog>
 
     <!-- MODALE DE GESTION DE JOURNÉE -->
-    <DayManagementModal v-model="dayModal.open" :selected-date="selectedDate" :events="filtered"
+    <DayManagementModal v-model="dayModal.open" :selected-date="selectedDate" :events="eventsForSelectedDate"
       @add-course="openCreate" @edit-course="openEdit" @delete-course="remove" />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import DayManagementModal from '@/components/DayManagementModal.vue'
 import { apiService } from '@/services/api'
 
@@ -222,6 +235,10 @@ const abortController = ref(null)
 
 // Données des cours depuis l'API
 const courses = ref([])
+
+// Variables de pagination
+const currentPage = ref(1)
+const pagination = ref(null)
 
 /** ----------------------------
  *  Sélection / form dialog
@@ -336,10 +353,65 @@ const filtered = computed(() => {
 
 const upcoming = computed(() => {
   const now = new Date()
-  return [...filtered.value]
-    .filter(c => new Date(c.end) >= now)
+  const upcomingCourses = []
+
+  // Traiter chaque cours filtré
+  filtered.value.forEach(course => {
+    if (course.recurrence === 'Aucune') {
+      // Cours ponctuel : l'ajouter s'il est à venir
+      if (new Date(course.end) >= now) {
+        upcomingCourses.push(course)
+      }
+    } else {
+      // Cours récurrent : vérifier s'il y a au moins une occurrence à venir
+      const courseStart = new Date(course.start)
+      const courseEnd = new Date(course.end)
+      const duration = courseEnd.getTime() - courseStart.getTime()
+
+      // Calculer la prochaine occurrence
+      let nextOccurrence = new Date(courseStart)
+      const today = new Date()
+
+      // Trouver la prochaine occurrence à partir d'aujourd'hui
+      while (nextOccurrence < today) {
+        switch (course.recurrence) {
+          case 'Hebdomadaire':
+            nextOccurrence.setDate(nextOccurrence.getDate() + 7)
+            break
+          case 'Toutes les 2 semaines':
+            nextOccurrence.setDate(nextOccurrence.getDate() + 14)
+            break
+          case 'Mensuelle':
+            nextOccurrence.setMonth(nextOccurrence.getMonth() + 1)
+            break
+        }
+      }
+
+      // Si la prochaine occurrence est dans le futur, ajouter le cours
+      if (nextOccurrence >= today) {
+        // Créer une version modifiée du cours avec la prochaine occurrence
+        const upcomingCourse = {
+          ...course,
+          nextOccurrence: nextOccurrence,
+          // Utiliser la prochaine occurrence pour le tri et l'affichage
+          start: nextOccurrence,
+          end: new Date(nextOccurrence.getTime() + duration)
+        }
+        upcomingCourses.push(upcomingCourse)
+      }
+    }
+  })
+
+  // Trier par date de début et limiter à 20 éléments
+  return upcomingCourses
     .sort((a, b) => new Date(a.start) - new Date(b.start))
     .slice(0, 20)
+})
+
+// Événements pour la date sélectionnée dans la modale
+const eventsForSelectedDate = computed(() => {
+  if (!selectedDate.value) return []
+  return coursesOnDate(selectedDate.value)
 })
 
 /** Calendrier : sessions du jour (affichage des pastilles) */
@@ -414,13 +486,31 @@ const loadCourses = async () => {
     loading.value = true
     error.value = null
 
-    const response = await apiService.get('/courses', {
+    // Construire les paramètres de requête
+    const params = {
+      page: currentPage.value.toString(),
+      limit: '20',
+    }
+
+    // Ajouter les filtres non vides
+    if (filters.q) params.q = filters.q
+    if (filters.level) params.level = filters.level
+    if (filters.teacher) params.teacher = filters.teacher
+
+    const queryString = new URLSearchParams(params).toString()
+    console.log('Paramètres envoyés pour les cours:', params) // Debug
+    console.log('URL de requête cours:', `/courses?${queryString}`) // Debug
+
+    const response = await apiService.get(`/courses?${queryString}`, {
       signal: abortController.value.signal
     })
+
+    console.log('Réponse complète reçue pour les cours:', response) // Debug
 
     // Vérifier que le composant est toujours monté avant de traiter la réponse
     if (isComponentMounted.value) {
       courses.value = response.data || []
+      pagination.value = response.pagination || null
     }
   } catch (error) {
     // Ne pas afficher l'erreur si la requête a été annulée ou si le composant n'est plus monté
@@ -443,6 +533,8 @@ function resetFilters() {
   filters.q = ''
   filters.level = null
   filters.teacher = null
+  currentPage.value = 1
+  loadCourses()
 }
 
 function openCreate(baseDate) {
@@ -563,6 +655,20 @@ function timeRange(item) {
 
 // État pour éviter les requêtes inutiles
 const isComponentMounted = ref(false)
+
+// Watchers pour la pagination et les filtres
+watch(currentPage, () => {
+  if (isComponentMounted.value) {
+    loadCourses()
+  }
+})
+
+watch(filters, () => {
+  if (isComponentMounted.value) {
+    currentPage.value = 1
+    loadCourses()
+  }
+}, { deep: true })
 
 // Charger les cours au montage
 onMounted(() => {

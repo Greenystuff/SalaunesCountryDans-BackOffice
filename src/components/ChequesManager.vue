@@ -32,6 +32,7 @@
               </template>
               <VList density="compact">
                 <VListItem @click="openEdit(item)">Modifier</VListItem>
+                <VListItem @click="quickStatus(item, 'recu')">Marquer reçu</VListItem>
                 <VListItem @click="quickStatus(item, 'remis')">Marquer remis</VListItem>
                 <VListItem @click="quickStatus(item, 'credite')">Marquer crédité</VListItem>
                 <VListItem @click="quickStatus(item, 'rejete')">Marquer rejeté</VListItem>
@@ -47,61 +48,9 @@
       </tbody>
     </VTable>
 
-    <!-- Modale CRUD -->
-    <VDialog v-model="showModal" max-width="600px">
-      <VCard>
-        <VCardTitle class="d-flex justify-space-between align-center">
-          <span>{{ editing ? 'Modifier un chèque' : 'Ajouter un chèque' }}</span>
-          <VBtn icon="mdi-close" variant="text" size="small" @click="close" />
-        </VCardTitle>
-        <VCardText>
-          <VRow dense>
-            <VCol cols="12" md="6">
-              <VTextField v-model.number="form.amount" label="Montant (€)" type="number" min="0.01" step="0.01"
-                required />
-            </VCol>
-            <VCol cols="12" md="6">
-              <VSelect v-model="form.purpose" :items="purposeItems" label="Objet" />
-            </VCol>
-            <VCol cols="12" md="6">
-              <VTextField v-model="form.checkNumber" label="N° chèque" />
-            </VCol>
-            <VCol cols="12" md="6">
-              <VTextField v-model="form.bankName" label="Banque" />
-            </VCol>
-            <VCol cols="12" md="6">
-              <VTextField v-model="form.ibanLast4" label="IBAN (4 derniers)" maxlength="4" />
-            </VCol>
-            <VCol cols="12" md="6">
-              <VTextField v-model="form.remitBatch" label="Remise n°" />
-            </VCol>
-            <VCol cols="12" md="6">
-              <VMenu v-model="showDatePicker" :close-on-content-click="false" transition="scale-transition" offset-y>
-                <template #activator="{ props }">
-                  <VTextField v-model="formattedIssuedAt" label="Date d'émission" prepend-inner-icon="mdi-calendar"
-                    readonly v-bind="props" />
-                </template>
-                <VDatePicker v-model="form.issuedAt" :max="maxIssuedAt" @update:model-value="showDatePicker = false" />
-              </VMenu>
-            </VCol>
-            <VCol cols="12" md="6">
-              <VSelect v-model="form.status" :items="statusItems" label="Statut" />
-            </VCol>
-            <VCol cols="12">
-              <VTextField v-model="form.imageUrl" label="URL du scan (optionnel)" />
-            </VCol>
-            <VCol cols="12">
-              <VTextarea v-model="form.notes" label="Notes" rows="2" auto-grow />
-            </VCol>
-          </VRow>
-        </VCardText>
-        <VCardActions>
-          <VSpacer />
-          <VBtn variant="text" @click="close">Annuler</VBtn>
-          <VBtn color="primary" :loading="saving" @click="save">{{ editing ? 'Enregistrer' : 'Ajouter' }}</VBtn>
-        </VCardActions>
-      </VCard>
-    </VDialog>
+    <!-- Modale CRUD réutilisable -->
+    <ChequeModal v-model="showModal" :cheque="editingCheque" :editing="editing" :member-id="memberId" @save="saveCheque"
+      @close="closeModal" />
 
     <!-- Confirm delete -->
     <VDialog v-model="showDelete" max-width="420">
@@ -119,13 +68,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useApi } from '@/services/api'
+import ChequeModal from './ChequeModal.vue'
 
 interface Cheque {
   _id?: string
   amount: number
-  purpose: 'cotisation' | 'adhesion' | 'autre'
+  purpose: string
   checkNumber?: string
   bankName?: string
   ibanLast4?: string
@@ -133,7 +83,7 @@ interface Cheque {
   depositedAt?: string
   creditedAt?: string
   bouncedAt?: string
-  status: 'recu' | 'remis' | 'credite' | 'rejete' | 'retourne'
+  status: 'emis' | 'recu' | 'remis' | 'credite' | 'rejete' | 'retourne'
   remitBatch?: string
   imageUrl?: string
   notes?: string
@@ -145,48 +95,19 @@ const api = useApi()
 const cheques = ref<Cheque[]>([])
 const showModal = ref(false)
 const showDelete = ref(false)
-const saving = ref(false)
-const showDatePicker = ref(false)
 const deleting = ref(false)
 const editing = ref(false)
+const editingCheque = ref<Cheque | null>(null)
 const currentId = ref<string | null>(null)
 
-const form = reactive<Cheque>({
-  amount: 0,
-  purpose: 'autre',
-  status: 'recu',
-})
 
-const purposeItems = [
-  { title: 'Cotisation', value: 'cotisation' },
-  { title: 'Adhésion', value: 'adhesion' },
-  { title: 'Autre', value: 'autre' },
-]
-const statusItems = [
-  { title: 'Reçu', value: 'recu' },
-  { title: 'Remis', value: 'remis' },
-  { title: 'Crédité', value: 'credite' },
-  { title: 'Rejeté', value: 'rejete' },
-  { title: 'Retourné', value: 'retourne' },
-]
-
-// Computed properties pour le date picker
-const formattedIssuedAt = computed(() => {
-  if (!form.issuedAt) return ''
-  return new Date(form.issuedAt).toLocaleDateString('fr-FR')
-})
-
-// Date maximale pour l'émission (aujourd'hui)
-const maxIssuedAt = computed(() => {
-  return new Date().toISOString().split('T')[0]
-})
 
 const formatDate = (d: string) => new Date(d).toLocaleDateString('fr-FR')
 const statusColor = (s: Cheque['status']) => ({
-  recu: 'warning', remis: 'info', credite: 'success', rejete: 'error', retourne: 'error',
+  emis: 'info', recu: 'warning', remis: 'info', credite: 'success', rejete: 'error', retourne: 'error',
 } as const)[s]
 const statusLabel = (s: Cheque['status']) => ({
-  recu: 'Reçu', remis: 'Remis', credite: 'Crédité', rejete: 'Rejeté', retourne: 'Retourné',
+  emis: 'Émis', recu: 'Reçu', remis: 'Remis', credite: 'Crédité', rejete: 'Rejeté', retourne: 'Retourné',
 } as const)[s]
 
 const fetchCheques = async () => {
@@ -196,30 +117,32 @@ const fetchCheques = async () => {
 
 const openCreate = () => {
   editing.value = false
-  currentId.value = null
-  Object.assign(form, { amount: 0, purpose: 'autre', status: 'recu', checkNumber: '', bankName: '', ibanLast4: '', issuedAt: '', remitBatch: '', imageUrl: '', notes: '' })
+  editingCheque.value = null
   showModal.value = true
 }
+
 const openEdit = (item: Cheque) => {
   editing.value = true
-  currentId.value = item._id || null
-  Object.assign(form, { ...item, issuedAt: item.issuedAt ? item.issuedAt.substring(0, 10) : '' })
+  editingCheque.value = { ...item }
   showModal.value = true
 }
-const close = () => { showModal.value = false }
 
-const save = async () => {
+const closeModal = () => {
+  showModal.value = false
+  editing.value = false
+  editingCheque.value = null
+}
+
+const saveCheque = async (chequeData: Cheque) => {
   try {
-    saving.value = true
-    if (editing.value && currentId.value) {
-      await api.putData<Cheque>(`/members/${props.memberId}/checks/${currentId.value}`, form)
+    if (editing.value && editingCheque.value?._id) {
+      await api.putData<Cheque>(`/members/${props.memberId}/checks/${editingCheque.value._id}`, chequeData)
     } else {
-      await api.postData<Cheque>(`/members/${props.memberId}/checks`, form)
+      await api.postData<Cheque>(`/members/${props.memberId}/checks`, chequeData)
     }
-    showModal.value = false
-    fetchCheques()
-  } finally {
-    saving.value = false
+    await fetchCheques()
+  } catch (error) {
+    console.error('Erreur lors de la sauvegarde du chèque:', error)
   }
 }
 

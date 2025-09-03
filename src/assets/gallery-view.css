@@ -1,0 +1,120 @@
+/* ===================================
+   STYLES POUR LA VUE GALLERYVIEW
+   =================================== */
+
+/* Container principal */
+.gallery-container {
+  padding: 24px;
+}
+
+/* Ajout d'espacement pour le contenu principal - Exclusion des cartes d'images */
+.gallery-container > .v-card:not(.gallery-image-card) {
+  border-radius: 16px !important;
+  overflow: hidden;
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-outline), 0.12);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
+}
+
+.gallery-container .v-card-title {
+  padding: 28px 32px 20px;
+  background: linear-gradient(
+    135deg,
+    rgba(var(--v-theme-primary), 0.04),
+    rgba(var(--v-theme-primary), 0.02) 45%,
+    rgb(var(--v-theme-surface)) 100%
+  );
+  border-bottom: 1px solid rgba(var(--v-theme-outline), 0.08);
+}
+
+/* Espacement pour la section des filtres */
+.gallery-container .v-row.mb-6 {
+  padding: 16px 24px;
+  margin: 0;
+  background: rgba(var(--v-theme-primary), 0.02);
+  border-bottom: 1px solid rgba(var(--v-theme-outline), 0.06);
+}
+
+/* Espacement pour la grille des images */
+.gallery-container .v-row:not(.mb-6) {
+  padding: 24px;
+  margin: 0;
+}
+
+/* Les styles des cartes d'images sont maintenant dans le composant GalleryImageCard.vue */
+
+/* Espacement du formulaire */
+.form-spacing .v-field {
+  margin-bottom: 16px;
+}
+
+.form-spacing .v-field:last-child {
+  margin-bottom: 0;
+}
+
+/* Styles pour les champs de filtres */
+.gallery-container .v-text-field .v-field,
+.gallery-container .v-select .v-field {
+  background: rgb(var(--v-theme-surface-variant));
+  border-radius: 8px;
+}
+
+.gallery-container .v-text-field .v-field:hover,
+.gallery-container .v-select .v-field:hover {
+  border-color: rgba(var(--v-theme-primary), 0.4);
+}
+
+.gallery-container .v-text-field .v-field--focused,
+.gallery-container .v-select .v-field--focused {
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 2px rgba(var(--v-theme-primary), 0.1);
+}
+
+/* Correction des placeholders et labels flottants */
+.gallery-container .v-field__field {
+  --v-field-padding-top: 8px;
+}
+
+.gallery-container .v-field__input {
+  min-height: 40px;
+  padding-top: var(--v-field-padding-top);
+}
+
+.gallery-container .v-field__prepend-inner {
+  padding-top: var(--v-field-padding-top);
+}
+
+.gallery-container .v-field__field .v-label {
+  top: 8px;
+  opacity: 0.7;
+}
+
+.gallery-container .v-field__field .v-label--floating {
+  top: 6px;
+  font-size: 12px;
+  transform: translateY(-16px) scale(0.75);
+  background: rgb(var(--v-theme-surface-variant));
+  padding: 0 4px;
+  margin-left: -4px;
+  color: rgb(var(--v-theme-primary));
+  opacity: 1;
+}
+
+/* Responsive pour la vue galerie */
+@media (max-width: 600px) {
+  .gallery-container {
+    padding: 16px;
+  }
+
+  .gallery-container .v-card-title {
+    padding: 20px 24px 16px;
+  }
+
+  .gallery-container .v-row.mb-6 {
+    padding: 12px 16px;
+  }
+
+  .gallery-container .v-row:not(.mb-6) {
+    padding: 16px;
+  }
+}

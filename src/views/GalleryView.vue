@@ -37,88 +37,7 @@
           <!-- Grille des images -->
           <v-row v-if="!loading && filteredImages.length > 0">
             <v-col v-for="image in filteredImages" :key="image._id" cols="12" sm="6" md="4" lg="3">
-              <v-card class="modern-image-card h-100" :elevation="0" :hover="true">
-                <!-- Overlay avec dégradé pour l'image -->
-                <div class="image-overlay">
-                  <v-img :src="image.imageUrl" :alt="image.altText || image.title" height="240"
-                    :cover="isPortrait(image)" :contain="!isPortrait(image)" class="card-image"
-                    :class="{ 'portrait-image': isPortrait(image), 'landscape-image': !isPortrait(image) }">
-                    <template #placeholder>
-                      <div class="d-flex align-center justify-center fill-height">
-                        <v-progress-circular indeterminate color="white" />
-                      </div>
-                    </template>
-
-                    <!-- Overlay dégradé en bas de l'image -->
-                    <div class="image-gradient-overlay"></div>
-
-                    <!-- Badges flottants sur l'image -->
-                    <div class="floating-badges">
-                      <v-chip v-if="image.category" :color="getCategoryColor(image.category)" size="small"
-                        variant="flat" class="floating-chip">
-                        {{ image.category }}
-                      </v-chip>
-                      <v-chip :color="image.isActive ? 'success' : 'error'" size="small" variant="flat"
-                        class="floating-chip">
-                        {{ image.isActive ? 'Active' : 'Inactive' }}
-                      </v-chip>
-                    </div>
-
-                    <!-- Actions flottantes -->
-                    <div class="floating-actions">
-                      <v-btn icon="mdi-pencil" size="small" variant="tonal" color="white" class="action-btn"
-                        @click="openDialog(image)" />
-                      <v-btn icon="mdi-delete" size="small" variant="tonal" color="error" class="action-btn"
-                        @click="deleteImage(image)" />
-                    </div>
-                  </v-img>
-                </div>
-
-                <!-- Contenu sous l'image -->
-                <div class="card-content">
-                  <!-- Section texte (titre + description) -->
-                  <div class="text-section">
-                    <h3 class="card-title">
-                      {{ image.title }}
-                    </h3>
-
-                    <p v-if="image.description" class="card-description">
-                      {{ image.description.length > 200 ? image.description.substring(0, 200) + '...' :
-                        image.description }}
-                    </p>
-
-                    <!-- Tags avec design moderne -->
-                    <div v-if="image.tags && image.tags.length > 0" class="tags-container">
-                      <v-chip v-for="tag in image.tags.slice(0, 3)" :key="tag" size="x-small" variant="outlined"
-                        class="modern-tag">
-                        {{ tag }}
-                      </v-chip>
-                      <v-chip v-if="image.tags.length > 3" size="x-small" variant="outlined" class="modern-tag">
-                        +{{ image.tags.length - 3 }}
-                      </v-chip>
-                    </div>
-                  </div>
-
-                  <!-- Section caractéristiques techniques (en bas) -->
-                  <div class="tech-section">
-                    <div class="tech-info">
-                      <div v-if="image.width && image.height" class="tech-item">
-                        <v-icon :icon="isPortrait(image) ? 'mdi-phone-portrait' : 'mdi-monitor'" size="14"
-                          :color="isPortrait(image) ? 'primary' : 'secondary'" />
-                        <span>{{ image.width }} × {{ image.height }}</span>
-                      </div>
-                      <div v-if="image.fileSize" class="tech-item">
-                        <v-icon icon="mdi-file" size="14" color="grey" />
-                        <span>{{ formatFileSize(image.fileSize) }}</span>
-                      </div>
-                      <div v-if="image.mimeType" class="tech-item">
-                        <v-icon icon="mdi-image" size="14" color="grey" />
-                        <span>{{ image.mimeType.split('/')[1]?.toUpperCase() }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </v-card>
+              <GalleryImageCard :image="image" @edit="openDialog" @delete="deleteImage" />
             </v-col>
           </v-row>
 
@@ -211,6 +130,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { apiService } from '@/services/api'
+import GalleryImageCard from '@/components/GalleryImageCard.vue'
 
 interface GalleryImage {
   _id: string
@@ -248,7 +168,7 @@ const images = ref<GalleryImage[]>([])
 const search = ref('')
 const filters = ref({
   category: null,
-  isActive: null
+  isActive: '' // Valeur par défaut pour "Toutes"
 })
 
 // Contrôleur d'annulation pour les requêtes
@@ -308,7 +228,7 @@ const filteredImages = computed(() => {
   }
 
   // Filtre par statut
-  if (filters.value.isActive !== '') {
+  if (filters.value.isActive !== '' && filters.value.isActive !== null) {
     filtered = filtered.filter(image => image.isActive.toString() === filters.value.isActive)
   }
 
@@ -345,9 +265,19 @@ const isSaveButtonDisabled = computed((): boolean => {
   return !isValid || (isEditing && !hasChangesValue)
 })
 
+// Protection contre les appels multiples
+const isLoadingImages = ref(false)
+
 // Méthodes
 const loadImages = async () => {
+  // Protection contre les appels multiples
+  if (isLoadingImages.value) {
+    return
+  }
+
   try {
+    isLoadingImages.value = true
+
     // Annuler la requête précédente si elle existe
     if (abortController.value) {
       abortController.value.abort()
@@ -363,11 +293,13 @@ const loadImages = async () => {
     images.value = (response.data as GalleryImage[]) || []
   } catch (error: any) {
     // Ne pas afficher l'erreur si la requête a été annulée
-    if (error.name !== 'AbortError') {
+    if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
       console.error('Erreur lors du chargement des images:', error)
     }
+    // Les erreurs d'annulation sont normales lors du démontage/remontage du composant
   } finally {
     loading.value = false
+    isLoadingImages.value = false
   }
 }
 
@@ -529,38 +461,11 @@ const deleteImage = async (image: GalleryImage) => {
 const clearFilters = () => {
   search.value = ''
   filters.value.category = null
-  filters.value.isActive = null
+  filters.value.isActive = '' // Retour à "Toutes"
 }
 
-const getCategoryColor = (category: string) => {
-  const colors: Record<string, string> = {
-    'Événements': 'primary',
-    'Cours': 'success',
-    'Compétitions': 'warning',
-    'Portraits': 'info',
-    'Lieux': 'purple',
-    'Autres': 'grey'
-  }
-  return colors[category] || 'grey'
-}
-
-const formatFileSize = (bytes: number) => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-}
-
-// Fonction pour détecter si une image est en portrait
-const isPortrait = (image: GalleryImage): boolean => {
-  if (image.width && image.height) {
-    return image.height > image.width
-  }
-  // Si les dimensions ne sont pas disponibles, on suppose que c'est en paysage
-  // car la plupart des photos sont en paysage
-  return false
-}
+// Les fonctions getCategoryColor, formatFileSize et isPortrait
+// sont maintenant dans le composant GalleryImageCard
 
 // Charger les images au montage
 onMounted(() => {
@@ -581,205 +486,6 @@ onUnmounted(() => {
 })
 </script>
 
-<style scoped>
-/* Cartes modernes */
-.modern-image-card {
-  border-radius: 16px !important;
-  overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background: rgb(var(--v-theme-surface));
-  border: 2px solid rgba(var(--v-theme-on-surface), 0.15);
-  box-shadow: 0 2px 8px rgba(var(--v-theme-shadow-key-umbra-opacity), var(--v-theme-shadow-key-umbra-opacity), var(--v-theme-shadow-key-umbra-opacity), 0.1);
-}
-
-.modern-image-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 20px 40px rgba(var(--v-theme-shadow-key-umbra-opacity), var(--v-theme-shadow-key-umbra-opacity), var(--v-theme-shadow-key-umbra-opacity), 0.3);
-  border-color: rgb(var(--v-theme-primary));
-  border-width: 2px;
-}
-
-/* Container de l'image */
-.image-overlay {
-  position: relative;
-  overflow: hidden;
-}
-
-.card-image {
-  border-radius: 16px 16px 0 0 !important;
-  transition: transform 0.3s ease;
-}
-
-.modern-image-card:hover .card-image {
-  transform: scale(1.05);
-}
-
-/* Overlay dégradé sur l'image */
-.image-gradient-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.7) 100%);
-  pointer-events: none;
-}
-
-/* Badges flottants */
-.floating-badges {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  display: flex;
-  gap: 8px;
-  z-index: 2;
-}
-
-.floating-chip {
-  backdrop-filter: blur(10px);
-  background: rgb(var(--v-theme-surface)) !important;
-  border: 2px solid rgba(var(--v-theme-on-surface), 0.2);
-  box-shadow: 0 4px 16px rgba(var(--v-theme-shadow-key-umbra-opacity), var(--v-theme-shadow-key-umbra-opacity), var(--v-theme-shadow-key-umbra-opacity), 0.25);
-  font-weight: 600;
-  color: rgb(var(--v-theme-on-surface)) !important;
-}
-
-/* Actions flottantes */
-.floating-actions {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  display: flex;
-  gap: 8px;
-  z-index: 2;
-  opacity: 0;
-  transform: translateY(-10px);
-  transition: all 0.3s ease;
-}
-
-.modern-image-card:hover .floating-actions {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.action-btn {
-  backdrop-filter: blur(10px);
-  background: rgb(var(--v-theme-surface)) !important;
-  border: 1px solid rgb(var(--v-theme-outline));
-  box-shadow: 0 4px 16px rgba(var(--v-theme-shadow-key-umbra-opacity), var(--v-theme-shadow-key-umbra-opacity), var(--v-theme-shadow-key-umbra-opacity), 0.25);
-  color: rgb(var(--v-theme-on-surface)) !important;
-}
-
-/* Contenu de la carte */
-.card-content {
-  padding: 20px;
-  background: rgb(var(--v-theme-surface));
-  min-height: 220px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-/* Section texte (titre + description) */
-.text-section {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.card-title {
-  font-size: 1.1rem;
-  font-weight: 700;
-  margin-bottom: 8px;
-  color: rgb(var(--v-theme-on-surface));
-  line-height: 1.3;
-}
-
-.card-description {
-  font-size: 0.875rem;
-  color: rgba(var(--v-theme-on-surface), 0.7);
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Tags modernes */
-.tags-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-
-.modern-tag {
-  background: rgba(var(--v-theme-primary), 0.1) !important;
-  border: 1px solid rgba(var(--v-theme-primary), 0.2) !important;
-  color: rgb(var(--v-theme-primary)) !important;
-  backdrop-filter: blur(5px);
-}
-
-/* Section caractéristiques techniques */
-.tech-section {
-  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.1);
-  padding-top: 12px;
-}
-
-/* Informations techniques */
-.tech-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.tech-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  color: rgba(var(--v-theme-on-surface), 0.6);
-}
-
-/* Gestion de l'orientation des images */
-.portrait-image {
-  object-fit: cover;
-}
-
-.landscape-image {
-  object-fit: contain;
-}
-
-/* Espacement du formulaire */
-.form-spacing .v-field {
-  margin-bottom: 16px;
-}
-
-.form-spacing .v-field:last-child {
-  margin-bottom: 0;
-}
-
-/* Responsive */
-@media (max-width: 600px) {
-  .modern-image-card {
-    border-radius: 12px !important;
-  }
-
-  .card-image {
-    border-radius: 12px 16px 0 0 !important;
-  }
-
-  .floating-badges,
-  .floating-actions {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Container principal */
-.gallery-container {
-  padding: 24px;
-}
+<style>
+@import '@/assets/gallery-view.css';
 </style>

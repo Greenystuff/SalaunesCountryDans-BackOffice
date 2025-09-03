@@ -11,64 +11,66 @@
           </v-card-title>
 
           <!-- Barre de recherche et filtres -->
-          <v-card-text class="filters-section">
-            <v-row>
-              <v-col cols="12" md="4">
+          <div class="filters-section">
+            <v-row class="ma-0">
+              <v-col cols="12" md="4" class="py-1">
                 <v-text-field v-model="search" prepend-inner-icon="mdi-magnify" label="Rechercher une danse..."
-                  variant="outlined" density="compact" clearable />
+                  variant="outlined" density="compact" clearable hide-details />
               </v-col>
-              <v-col cols="12" md="2">
+              <v-col cols="12" md="2" class="py-1">
                 <v-select v-model="filters.level" :items="levelOptions" label="Niveau" variant="outlined"
-                  density="compact" clearable />
+                  density="compact" clearable hide-details />
               </v-col>
 
-              <v-col cols="12" md="2">
+              <v-col cols="12" md="2" class="py-1">
                 <v-btn variant="outlined" @click="clearFilters" prepend-icon="mdi-filter-remove">
                   Effacer les filtres
                 </v-btn>
               </v-col>
             </v-row>
-          </v-card-text>
+          </div>
 
           <!-- Tableau des danses -->
-          <v-data-table :headers="headers" :items="filteredDances" :search="search"
-            :sort-by="[{ key: 'dateSortable', order: 'desc' }]" class="dances-table elevation-1" density="compact"
-            height="400">
-            <!-- Colonne Nom -->
-            <template #item.name="{ item }">
-              <span class="font-weight-medium">{{ formatName(item.name) }}</span>
-            </template>
+          <div class="table-container">
+            <v-data-table :headers="headers" :items="filteredDances" :search="search"
+              :sort-by="[{ key: 'dateSortable', order: 'desc' }]" class="dances-table elevation-1" density="compact"
+              height="500" fixed-header>
+              <!-- Colonne Nom -->
+              <template #item.name="{ item }">
+                <span class="font-weight-medium">{{ formatName(item.name) }}</span>
+              </template>
 
-            <!-- Colonne Niveau -->
-            <template #item.level="{ item }">
-              <v-chip :color="getLevelColor(item.level)" size="small" variant="flat">
-                {{ item.level }}
-              </v-chip>
-            </template>
+              <!-- Colonne Niveau -->
+              <template #item.level="{ item }">
+                <v-chip :color="getLevelColor(item.level)" size="small" variant="flat" class="level-chip">
+                  {{ item.level }}
+                </v-chip>
+              </template>
 
-            <!-- Colonne Date -->
-            <template #item.dateSortable="{ item }">
-              {{ item.dateDisplay || formatDate(item.date) }}
-            </template>
+              <!-- Colonne Date -->
+              <template #item.dateSortable="{ item }">
+                {{ item.dateDisplay || formatDate(item.date) }}
+              </template>
 
-            <!-- Colonne Liens -->
-            <template #item.links="{ item }">
-              <div class="d-flex gap-2">
-                <v-btn v-if="item.youtubeLink1" :href="item.youtubeLink1" target="_blank" icon="mdi-youtube"
-                  size="small" color="red" variant="text" />
-                <v-btn v-if="item.youtubeLink2" :href="item.youtubeLink2" target="_blank" icon="mdi-youtube"
-                  size="small" color="red" variant="text" />
-                <v-btn v-if="item.pdfUrl" :href="item.pdfUrl" target="_blank" icon="mdi-file-pdf-box" size="small"
-                  color="red" variant="text" />
-              </div>
-            </template>
+              <!-- Colonne Liens -->
+              <template #item.links="{ item }">
+                <div class="d-flex gap-2">
+                  <v-btn v-if="item.youtubeLink1" :href="item.youtubeLink1" target="_blank" icon="mdi-youtube"
+                    size="small" color="red" variant="text" />
+                  <v-btn v-if="item.youtubeLink2" :href="item.youtubeLink2" target="_blank" icon="mdi-youtube"
+                    size="small" color="red" variant="text" />
+                  <v-btn v-if="item.pdfUrl" :href="item.pdfUrl" target="_blank" icon="mdi-file-pdf-box" size="small"
+                    color="red" variant="text" />
+                </div>
+              </template>
 
-            <!-- Colonne Actions -->
-            <template #item.actions="{ item }">
-              <v-btn icon="mdi-pencil" size="small" variant="text" color="primary" @click="openDialog(item)" />
-              <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="confirmDelete(item)" />
-            </template>
-          </v-data-table>
+              <!-- Colonne Actions -->
+              <template #item.actions="{ item }">
+                <v-btn icon="mdi-pencil" size="small" variant="text" color="primary" @click="openDialog(item)" />
+                <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="confirmDelete(item)" />
+              </template>
+            </v-data-table>
+          </div>
         </v-card>
       </v-col>
     </v-row>
@@ -130,8 +132,8 @@
           </v-card-title>
           <v-card-text class="pa-4 stats-progress">
             <div class="d-flex align-center mb-3" v-for="(count, level) in levelStats" :key="level">
-              <div class="d-flex align-center me-3" style="width: 120px;">
-                <v-chip :color="getLevelColor(level)" size="small" variant="flat" class="me-2">
+              <div class="d-flex align-center me-3" style="width: 150px;">
+                <v-chip :color="getLevelColor(level)" size="small" variant="flat" class="me-2 level-chip">
                   {{ level }}
                 </v-chip>
                 <span class="text-body-2">{{ count }}</span>
@@ -156,21 +158,21 @@
                 <v-icon color="red" class="me-2">mdi-youtube</v-icon>
                 <span>Vidéos YouTube</span>
               </div>
-              <v-chip color="red" size="small" variant="flat">{{ videosCount }}</v-chip>
+              <v-chip color="red" size="small" variant="flat" class="level-chip">{{ videosCount }}</v-chip>
             </div>
             <div class="d-flex align-center justify-space-between mb-3">
               <div class="d-flex align-center">
                 <v-icon color="red" class="me-2">mdi-file-pdf-box</v-icon>
                 <span>Documents PDF</span>
               </div>
-              <v-chip color="red" size="small" variant="flat">{{ pdfsCount }}</v-chip>
+              <v-chip color="red" size="small" variant="flat" class="level-chip">{{ pdfsCount }}</v-chip>
             </div>
             <div class="d-flex align-center justify-space-between">
               <div class="d-flex align-center">
                 <v-icon color="primary" class="me-2">mdi-calendar</v-icon>
                 <span>Ajoutées ce mois</span>
               </div>
-              <v-chip color="primary" size="small" variant="flat">{{ thisMonthCount }}</v-chip>
+              <v-chip color="primary" size="small" variant="flat" class="level-chip">{{ thisMonthCount }}</v-chip>
             </div>
           </v-card-text>
         </v-card>
@@ -418,9 +420,9 @@ const maxDanceDate = computed(() => {
 // Méthodes
 const getLevelColor = (level: string) => {
   switch (level) {
-    case 'Débutant': return 'green'
-    case 'Novice': return 'blue'
-    case 'Intermédiaire': return 'orange'
+    case 'Débutant': return 'success'
+    case 'Novice': return 'info'
+    case 'Intermédiaire': return 'warning'
     default: return 'grey'
   }
 }
