@@ -1,79 +1,80 @@
 <template>
   <div class="dances-container">
-    <v-row>
-      <v-col cols="12">
-        <v-card>
-          <v-card-title class="d-flex align-center justify-space-between">
-            <span>Gestion des Danses</span>
-            <v-btn color="primary" prepend-icon="mdi-plus" @click="openDialog()">
-              Ajouter une danse
-            </v-btn>
-          </v-card-title>
+    <VCard class="main-card">
 
-          <!-- Barre de recherche et filtres -->
-          <div class="filters-section">
-            <v-row class="ma-0">
-              <v-col cols="12" md="4" class="py-1">
-                <v-text-field v-model="search" prepend-inner-icon="mdi-magnify" label="Rechercher une danse..."
-                  variant="outlined" density="compact" clearable hide-details />
-              </v-col>
-              <v-col cols="12" md="2" class="py-1">
-                <v-select v-model="filters.level" :items="levelOptions" label="Niveau" variant="outlined"
-                  density="compact" clearable hide-details />
-              </v-col>
+      <!-- HEADER -->
+      <div class="header-title">
+        <div class="header-content">
+          <h1 class="main-title">Gestion des Danses</h1>
+          <p class="subtitle">
+            Gérez le répertoire des danses, leurs niveaux et caractéristiques.
+          </p>
+        </div>
+        <div class="header-actions">
+          <VBtn color="primary" prepend-icon="mdi-plus" @click="openDialog()">
+            Ajouter une danse
+          </VBtn>
+        </div>
+      </div>
 
-              <v-col cols="12" md="2" class="py-1">
-                <v-btn variant="outlined" @click="clearFilters" prepend-icon="mdi-filter-remove">
-                  Effacer les filtres
-                </v-btn>
-              </v-col>
-            </v-row>
-          </div>
+      <VDivider />
 
-          <!-- Tableau des danses -->
-          <div class="table-container">
-            <v-data-table :headers="headers" :items="filteredDances" :search="search"
-              :sort-by="[{ key: 'dateSortable', order: 'desc' }]" class="dances-table elevation-1" density="compact"
-              height="500" fixed-header>
-              <!-- Colonne Nom -->
-              <template #item.name="{ item }">
-                <span class="font-weight-medium">{{ formatName(item.name) }}</span>
-              </template>
+      <!-- BARRE D'OUTILS / FILTRES -->
+      <div class="toolbar">
+        <VTextField v-model="search" placeholder="Rechercher une danse..." variant="solo" density="comfortable"
+          hide-details clearable prepend-inner-icon="mdi-magnify" class="toolbar-item" />
+        <VSelect v-model="filters.level" :items="levelOptions" label="Niveau" variant="solo" hide-details clearable
+          class="toolbar-item" />
+        <VBtn class="toolbar-item" variant="tonal" @click="clearFilters">
+          Réinitialiser
+        </VBtn>
+      </div>
 
-              <!-- Colonne Niveau -->
-              <template #item.level="{ item }">
-                <v-chip :color="getLevelColor(item.level)" size="small" variant="flat" class="level-chip">
-                  {{ item.level }}
-                </v-chip>
-              </template>
+      <!-- CONTENU PRINCIPAL -->
+      <div class="dances-content">
+        <!-- Tableau des danses -->
+        <div class="table-container">
+          <v-data-table :headers="headers" :items="filteredDances" :search="search"
+            :sort-by="[{ key: 'dateSortable', order: 'desc' }]" class="dances-table elevation-1" density="compact"
+            height="500" fixed-header>
+            <!-- Colonne Nom -->
+            <template #item.name="{ item }">
+              <span class="font-weight-medium">{{ formatName(item.name) }}</span>
+            </template>
 
-              <!-- Colonne Date -->
-              <template #item.dateSortable="{ item }">
-                {{ item.dateDisplay || formatDate(item.date) }}
-              </template>
+            <!-- Colonne Niveau -->
+            <template #item.level="{ item }">
+              <v-chip :color="getLevelColor(item.level)" size="small" variant="flat" class="level-chip">
+                {{ item.level }}
+              </v-chip>
+            </template>
 
-              <!-- Colonne Liens -->
-              <template #item.links="{ item }">
-                <div class="d-flex gap-2">
-                  <v-btn v-if="item.youtubeLink1" :href="item.youtubeLink1" target="_blank" icon="mdi-youtube"
-                    size="small" color="red" variant="text" />
-                  <v-btn v-if="item.youtubeLink2" :href="item.youtubeLink2" target="_blank" icon="mdi-youtube"
-                    size="small" color="red" variant="text" />
-                  <v-btn v-if="item.pdfUrl" :href="item.pdfUrl" target="_blank" icon="mdi-file-pdf-box" size="small"
-                    color="red" variant="text" />
-                </div>
-              </template>
+            <!-- Colonne Date -->
+            <template #item.dateSortable="{ item }">
+              {{ item.dateDisplay || formatDate(item.date) }}
+            </template>
 
-              <!-- Colonne Actions -->
-              <template #item.actions="{ item }">
-                <v-btn icon="mdi-pencil" size="small" variant="text" color="primary" @click="openDialog(item)" />
-                <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="confirmDelete(item)" />
-              </template>
-            </v-data-table>
-          </div>
-        </v-card>
-      </v-col>
-    </v-row>
+            <!-- Colonne Liens -->
+            <template #item.links="{ item }">
+              <div class="d-flex gap-2">
+                <v-btn v-if="item.youtubeLink1" :href="item.youtubeLink1" target="_blank" icon="mdi-youtube"
+                  size="small" color="red" variant="text" />
+                <v-btn v-if="item.youtubeLink2" :href="item.youtubeLink2" target="_blank" icon="mdi-youtube"
+                  size="small" color="red" variant="text" />
+                <v-btn v-if="item.pdfUrl" :href="item.pdfUrl" target="_blank" icon="mdi-file-pdf-box" size="small"
+                  color="red" variant="text" />
+              </div>
+            </template>
+
+            <!-- Colonne Actions -->
+            <template #item.actions="{ item }">
+              <v-btn icon="mdi-pencil" size="small" variant="text" color="primary" @click="openDialog(item)" />
+              <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="confirmDelete(item)" />
+            </template>
+          </v-data-table>
+        </div>
+      </div>
+    </VCard>
 
     <!-- Section des statistiques -->
     <v-row class="mt-6">

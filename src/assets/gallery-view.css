@@ -5,10 +5,13 @@
 /* Container principal */
 .gallery-container {
   padding: 24px;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* Ajout d'espacement pour le contenu principal - Exclusion des cartes d'images */
-.gallery-container > .v-card:not(.gallery-image-card) {
+/* ===== CARTE PRINCIPALE ===== */
+.main-card {
   border-radius: 16px !important;
   overflow: hidden;
   background: rgb(var(--v-theme-surface));
@@ -16,8 +19,13 @@
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
 }
 
-.gallery-container .v-card-title {
-  padding: 28px 32px 20px;
+/* ===== HEADER ===== */
+.header-title {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 28px 32px;
   background: linear-gradient(
     135deg,
     rgba(var(--v-theme-primary), 0.04),
@@ -27,23 +35,63 @@
   border-bottom: 1px solid rgba(var(--v-theme-outline), 0.08);
 }
 
-/* Neutraliser l'héritage de font-size de v-card-title pour les boutons */
-.gallery-container .v-card-title .v-btn {
-  font-size: 0.875rem !important;
-  font-weight: 500 !important;
+.header-content {
+  flex: 1;
 }
 
-/* Espacement pour la section des filtres */
-.gallery-container .v-row.mb-6 {
-  padding: 16px 24px;
+.header-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+.main-title {
+  margin: 0 0 6px 0;
+  font-weight: 700;
+  font-size: clamp(1.75rem, 2.4vw, 2.5rem);
+  letter-spacing: -0.01em;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+/* Règle plus spécifique pour surcharger */
+.header-content .main-title {
+  color: rgb(var(--v-theme-on-surface)) !important;
+}
+
+.subtitle {
   margin: 0;
-  background: rgba(var(--v-theme-primary), 0.02);
+  max-width: 720px;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.8;
+  line-height: 1.6;
+}
+
+/* Règle plus spécifique pour surcharger */
+.header-content .subtitle {
+  color: rgb(var(--v-theme-on-surface)) !important;
+  opacity: 0.8;
+}
+
+/* ===== BARRE D'OUTILS ===== */
+.toolbar {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr 0.8fr auto;
+  gap: 12px;
+  padding: 16px 20px;
+  align-items: center;
   border-bottom: 1px solid rgba(var(--v-theme-outline), 0.06);
 }
 
-/* Espacement pour la grille des images */
-.gallery-container .v-row:not(.mb-6) {
-  padding: 24px;
+.toolbar-item {
+  min-width: 0;
+}
+
+/* ===== CONTENU PRINCIPAL ===== */
+.gallery-content {
+  padding: 24px 32px;
+}
+
+.gallery-content .v-row {
   margin: 0;
 }
 

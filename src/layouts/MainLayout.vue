@@ -11,10 +11,10 @@
           </v-avatar>
         </template>
 
-        <v-list-item-title v-if="!rail">
+        <v-list-item-title v-if="!rail && showUserText">
           {{ userStore.fullName || 'Utilisateur' }}
         </v-list-item-title>
-        <v-list-item-subtitle v-if="!rail">
+        <v-list-item-subtitle v-if="!rail && showUserText">
           {{ userStore.user?.email || 'user@example.com' }}
         </v-list-item-subtitle>
 
@@ -35,7 +35,7 @@
         <div class="pa-2">
           <v-btn block color="error" variant="outlined" :prepend-icon="rail ? undefined : 'mdi-logout'" @click="logout">
             <v-icon v-if="rail" class="mx-auto">mdi-logout</v-icon>
-            <span v-if="!rail">Déconnexion</span>
+            <span v-if="!rail && showUserText">Déconnexion</span>
           </v-btn>
         </div>
       </template>
@@ -99,6 +99,7 @@ const userStore = useUserStore()
 
 const drawer = ref(true)
 const rail = ref(false)
+const showUserText = ref(true) // Contrôle l'affichage du texte utilisateur
 
 // Gestion responsive du drawer
 const isMobile = ref(false)
@@ -169,6 +170,19 @@ const logout = async () => {
   await userStore.logout()
   router.push('/login')
 }
+
+// Gérer l'affichage du texte avec délai selon l'état du rail
+watch(rail, (newRail) => {
+  if (newRail) {
+    // Rail activé (mode compact) -> masquer immédiatement le texte
+    showUserText.value = false
+  } else {
+    // Rail désactivé (mode étendu) -> attendre que l'animation se termine avant d'afficher le texte
+    setTimeout(() => {
+      showUserText.value = true
+    }, 250) // Délai pour laisser l'animation du drawer se terminer
+  }
+}, { immediate: true })
 
 // Précharger l'avatar quand l'utilisateur se connecte
 watch(() => userStore.isAdmin, (isAdmin) => {
