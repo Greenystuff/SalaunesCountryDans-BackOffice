@@ -27,6 +27,12 @@
   border-bottom: 1px solid rgba(var(--v-theme-outline), 0.08);
 }
 
+/* Neutraliser l'héritage de font-size de v-card-title pour les boutons */
+.gallery-container .v-card-title .v-btn {
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+}
+
 /* Espacement pour la section des filtres */
 .gallery-container .v-row.mb-6 {
   padding: 16px 24px;
@@ -101,13 +107,32 @@
 }
 
 /* Responsive pour la vue galerie */
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   .gallery-container {
     padding: 16px;
   }
 
+  /* Header mobile - passage en colonne */
   .gallery-container .v-card-title {
-    padding: 20px 24px 16px;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 16px;
+    padding: 16px 20px;
+  }
+
+  /* Titre mobile - exclure les boutons */
+  .gallery-container .v-card-title > span {
+    font-size: 1.5rem !important;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  /* Bouton mobile pleine largeur */
+  .gallery-container .v-card-title .v-btn {
+    width: 100%;
+    justify-content: center;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
   }
 
   .gallery-container .v-row.mb-6 {

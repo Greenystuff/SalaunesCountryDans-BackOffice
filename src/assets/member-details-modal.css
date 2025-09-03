@@ -70,19 +70,19 @@
   align-items: center;
 }
 
-.header-actions {
+.member-header .header-actions {
   position: absolute;
   top: 16px;
   right: 16px;
   z-index: 2;
 }
 
-.header-actions .v-btn {
+.member-header .header-actions .v-btn {
   color: rgba(var(--v-theme-on-primary), 0.8);
   transition: all 0.2s ease;
 }
 
-.header-actions .v-btn:hover {
+.member-header .header-actions .v-btn:hover {
   color: rgb(var(--v-theme-on-primary));
   background: rgba(255, 255, 255, 0.1);
   transform: scale(1.1);
