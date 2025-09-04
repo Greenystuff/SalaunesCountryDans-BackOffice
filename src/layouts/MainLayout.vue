@@ -55,8 +55,11 @@
 
       <v-spacer />
 
+      <!-- Centre de notifications -->
+      <NotificationCenter />
+
       <!-- Statut WebSocket -->
-      <WebSocketStatus />
+      <WebSocketStatus class="ml-3" />
 
       <!-- Bouton de changement de thème -->
       <v-btn class="ml-3" icon @click="toggleTheme">
@@ -105,6 +108,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import GlobalNotifications from '@/components/GlobalNotifications.vue'
 import WebSocketStatus from '@/components/WebSocketStatus.vue'
+import NotificationCenter from '@/components/NotificationCenter.vue'
 
 const theme = useTheme()
 const router = useRouter()

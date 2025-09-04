@@ -8,6 +8,7 @@ import GalleryView from '@/views/GalleryView.vue'
 import MembersView from '@/views/MembersView.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import SettingsView from '@/views/SettingsView.vue'
+import NotificationsView from '@/views/NotificationsView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -87,6 +88,16 @@ const router = createRouter({
       meta: {
         requiresAuth: true,
         title: 'Paramètres',
+        isUserPage: true,
+      },
+    },
+    {
+      path: '/notifications',
+      name: 'notifications',
+      component: NotificationsView,
+      meta: {
+        requiresAuth: true,
+        title: 'Centre de notifications',
         isUserPage: true,
       },
     },

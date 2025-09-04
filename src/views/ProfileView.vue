@@ -369,7 +369,7 @@ const changePassword = async () => {
         confirmPassword: ''
       }
 
-      showSuccess('Mot de passe modifié avec succès')
+      showSuccess(response.message || 'Un email de validation vous a été envoyé. Vérifiez votre boîte de réception.')
     } else {
       showError('Erreur lors du changement de mot de passe')
     }

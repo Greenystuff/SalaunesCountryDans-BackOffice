@@ -1,0 +1,5 @@
+User-Agent: *
+Disallow: /
+
+# TEMPORAIRE : Blocage pour le développement
+# À enlever lors de la mise en production
