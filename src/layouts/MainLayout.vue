@@ -164,7 +164,7 @@ const menuItems = [
 const avatarSrc = computed(() => {
   // Priorité : avatar personnalisé > avatar par défaut selon le rôle
   return (userStore.user as any)?.avatar ||
-    (userStore.isAdmin ? '/images/avatar.jpg' : 'https://randomuser.me/api/portraits/men/85.jpg')
+    (userStore.isAdmin ? '/images/avatar.svg' : 'https://randomuser.me/api/portraits/men/85.jpg')
 })
 
 // Détecter si nous sommes sur une page utilisateur
@@ -176,7 +176,7 @@ const isUserPage = computed(() => {
 const preloadAvatar = () => {
   if (userStore.isAdmin) {
     const img = new Image()
-    img.src = '/images/avatar.jpg'
+    img.src = '/images/avatar.svg'
   }
 }
 

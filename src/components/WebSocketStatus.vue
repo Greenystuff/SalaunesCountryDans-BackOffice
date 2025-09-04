@@ -14,7 +14,7 @@
         <v-icon :color="statusColor" class="me-2">
           {{ statusIcon }}
         </v-icon>
-        Connexion Site Vitrine
+        Connexion Système
       </v-card-title>
 
       <v-card-text>

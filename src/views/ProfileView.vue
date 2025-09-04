@@ -238,7 +238,7 @@ const passwordData = ref({
 
 // Avatar source
 const avatarSrc = computed(() => {
-  return userStore.user?.avatar || (userStore.isAdmin ? '/images/avatar.jpg' : 'https://randomuser.me/api/portraits/men/85.jpg')
+  return userStore.user?.avatar || (userStore.isAdmin ? '/images/avatar.svg' : 'https://randomuser.me/api/portraits/men/85.jpg')
 })
 
 // Validation du changement de mot de passe
