@@ -2,6 +2,7 @@ import 'vuetify/styles'
 import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
+import { fr } from 'vuetify/locale'
 import '@mdi/font/css/materialdesignicons.css'
 
 const vuetify = createVuetify({
@@ -9,6 +10,7 @@ const vuetify = createVuetify({
   directives,
   locale: {
     locale: 'fr',
+    messages: { fr },
   },
   theme: {
     defaultTheme: 'light',
