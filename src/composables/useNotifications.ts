@@ -45,6 +45,29 @@ export const useNotifications = () => {
   const showNotification = (config: NotificationConfig) => {
     const id = ++notificationIdCounter
 
+    // Limiter le nombre de notifications simultanées (max 3)
+    const MAX_NOTIFICATIONS = 3
+
+    // Si on dépasse la limite, supprimer les plus anciennes du même type
+    const sameTypeNotifications = notifications.value.filter(
+      (n) => n.type === (config.type || 'info'),
+    )
+    if (sameTypeNotifications.length >= MAX_NOTIFICATIONS) {
+      // Supprimer la plus ancienne du même type
+      const oldestSameType = sameTypeNotifications[0]
+      if (oldestSameType) {
+        hideNotification(oldestSameType.id)
+      }
+    }
+
+    // Si on a trop de notifications au total, supprimer la plus ancienne
+    if (notifications.value.length >= MAX_NOTIFICATIONS) {
+      const oldest = notifications.value[0]
+      if (oldest) {
+        hideNotification(oldest.id)
+      }
+    }
+
     const notification = {
       id,
       show: true,
@@ -91,18 +114,48 @@ export const useNotifications = () => {
     }, 300)
   }
 
-  // Raccourcis pour les types courants
-  const showSuccess = (message: string, timeout?: number) =>
-    showNotification({ message, type: 'success', timeout })
+  // Raccourcis pour les types courants avec dédoublonnage
+  const showSuccess = (message: string, timeout?: number) => {
+    // Éviter les doublons de messages de succès identiques
+    const existingSuccess = notifications.value.find(
+      (n) => n.type === 'success' && n.message === message,
+    )
+    if (existingSuccess) {
+      return existingSuccess.id
+    }
+    return showNotification({ message, type: 'success', timeout })
+  }
 
-  const showError = (message: string, persistent?: boolean) =>
-    showNotification({ message, type: 'error', persistent })
+  const showError = (message: string, persistent?: boolean) => {
+    // Éviter les doublons d'erreurs identiques
+    const existingError = notifications.value.find(
+      (n) => n.type === 'error' && n.message === message,
+    )
+    if (existingError) {
+      return existingError.id
+    }
+    return showNotification({ message, type: 'error', persistent })
+  }
 
-  const showWarning = (message: string, timeout?: number) =>
-    showNotification({ message, type: 'warning', timeout })
+  const showWarning = (message: string, timeout?: number) => {
+    // Éviter les doublons d'avertissements identiques
+    const existingWarning = notifications.value.find(
+      (n) => n.type === 'warning' && n.message === message,
+    )
+    if (existingWarning) {
+      return existingWarning.id
+    }
+    return showNotification({ message, type: 'warning', timeout })
+  }
 
-  const showInfo = (message: string, timeout?: number) =>
-    showNotification({ message, type: 'info', timeout })
+  const showInfo = (message: string, timeout?: number) => {
+    // Éviter les doublons d'infos identiques
+    const existingInfo = notifications.value.find((n) => n.type === 'info' && n.message === message)
+    if (existingInfo) {
+      return existingInfo.id
+    }
+    return showNotification({ message, type: 'info', timeout })
+  }
 
   /**
    * Afficher une notification avec action(s)

@@ -179,8 +179,8 @@
                     <VDatePicker v-model="dateInput" :min="minCourseDate" :max="maxCourseDate"
                       @update:model-value="showDatePicker = false" />
                   </VMenu>
-                  <VTextField v-model="startTime" type="time" label="Heure début" />
-                  <VTextField v-model="endTime" type="time" label="Heure fin" />
+                  <VTextField v-model="startTime" type="time" label="Heure début" required />
+                  <VTextField v-model="endTime" type="time" label="Heure fin" required />
                   <VSelect v-model="form.recurrence" :items="recurrenceOptions" label="Récurrence" />
                 </div>
               </div>
@@ -214,12 +214,16 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import DayManagementModal from '@/components/DayManagementModal.vue'
 import { apiService } from '@/services/api'
+import { useNotifications } from '@/composables/useNotifications'
 
 /** ----------------------------
  *  Données & constantes
  *  ---------------------------- */
 const levelOptions = ['Débutant', 'Novice', 'Intermédiaire']
 const recurrenceOptions = ['Aucune', 'Hebdomadaire', 'Toutes les 2 semaines', 'Mensuelle']
+
+// Notifications
+const { showSuccess, showError, showWarning } = useNotifications()
 
 const filters = reactive({
   q: '',
@@ -517,6 +521,7 @@ const loadCourses = async () => {
     if (error.name !== 'AbortError' && isComponentMounted.value) {
       console.error('❌ Erreur lors du chargement des cours:', error)
       error.value = error.message
+      showError('Erreur lors du chargement des cours. Veuillez réessayer.')
     }
   } finally {
     // Ne mettre à jour loading que si le composant est toujours monté
@@ -578,17 +583,51 @@ function onDayClick(day) {
 
 async function save() {
   try {
-    saving.value = true
+    // Validations côté client
+    if (!form.title.trim()) {
+      showError('Le titre du cours est requis')
+      return
+    }
+
+    if (!form.level) {
+      showError('Le niveau est requis')
+      return
+    }
+
+    if (!dateInput.value) {
+      showError('La date est requise')
+      return
+    }
+
+    if (!startTime.value || !endTime.value) {
+      showError('Les heures de début et de fin sont requises')
+      return
+    }
 
     const start = composeDate(dateInput.value, startTime.value)
     const end = composeDate(dateInput.value, endTime.value)
 
+    // Validation de la cohérence des heures
+    if (start >= end) {
+      showError('L\'heure de fin doit être postérieure à l\'heure de début')
+      return
+    }
+
+    // Validation de la durée (pas plus de 8 heures)
+    const durationHours = (end - start) / (1000 * 60 * 60)
+    if (durationHours > 8) {
+      showError('La durée du cours ne peut pas dépasser 8 heures')
+      return
+    }
+
+    saving.value = true
+
     const courseData = {
-      title: form.title,
-      description: form.description,
+      title: form.title.trim(),
+      description: form.description ? form.description.trim() : '',
       level: form.level,
-      teacher: form.teacher,
-      location: form.location,
+      teacher: form.teacher ? form.teacher.trim() : '',
+      location: form.location ? form.location.trim() : '',
       start: start.toISOString(),
       end: end.toISOString(),
       recurrence: form.recurrence
@@ -596,8 +635,10 @@ async function save() {
 
     if (dialog.mode === 'edit' && form._id) {
       await apiService.put(`/courses/${form._id}`, courseData)
+      showSuccess('Cours modifié avec succès')
     } else {
       await apiService.post('/courses', courseData)
+      showSuccess('Cours créé avec succès')
     }
 
     // Recharger les données seulement si le composant est toujours monté
@@ -608,6 +649,27 @@ async function save() {
   } catch (error) {
     console.error('❌ Erreur lors de la sauvegarde:', error)
     error.value = error.message
+
+    // Gestion des erreurs spécifiques
+    if (error.response?.data?.message) {
+      const errorMessage = error.response.data.message
+
+      if (errorMessage.includes('titre') || errorMessage.includes('title')) {
+        showError('Le titre du cours est requis')
+      } else if (errorMessage.includes('conflit') || errorMessage.includes('conflict')) {
+        showError('Il existe déjà un cours à ce créneau')
+      } else if (errorMessage.includes('date') || errorMessage.includes('time')) {
+        showError('Les dates et heures ne sont pas valides')
+      } else if (errorMessage.includes('duplicate') || errorMessage.includes('existe')) {
+        showError('Ce cours existe déjà')
+      } else {
+        showError(`Erreur: ${errorMessage}`)
+      }
+    } else if (error.message) {
+      showError(`Erreur lors de la sauvegarde: ${error.message}`)
+    } else {
+      showError('Erreur inconnue lors de la sauvegarde du cours')
+    }
   } finally {
     saving.value = false
   }
@@ -622,17 +684,40 @@ async function remove(id) {
     // Si c'est une occurrence virtuelle, extraire l'ID du cours original
     const courseId = id.includes('_') ? id.split('_')[0] : id
 
+    // Trouver le cours pour obtenir son nom pour la notification
+    const courseToDelete = courses.value.find(c => c._id === courseId)
+    const courseName = courseToDelete ? courseToDelete.title : 'le cours'
+
     await apiService.delete(`/courses/${courseId}`)
+
     // Recharger les données seulement si le composant est toujours monté
     if (isComponentMounted.value) {
       await loadCourses()
       if (dialog.open && dialog.mode === 'edit' && form._id === courseId) {
         dialog.open = false
       }
+      showSuccess(`Cours "${courseName}" supprimé avec succès`)
     }
   } catch (error) {
     console.error('❌ Erreur lors de la suppression:', error)
     error.value = error.message
+
+    // Gestion des erreurs spécifiques
+    if (error.response?.data?.message) {
+      const errorMessage = error.response.data.message
+
+      if (errorMessage.includes('utilisé') || errorMessage.includes('référence')) {
+        showError('Impossible de supprimer ce cours car il est référencé par des membres')
+      } else if (errorMessage.includes('non trouvé') || errorMessage.includes('not found')) {
+        showError('Ce cours n\'existe plus')
+      } else {
+        showError(`Erreur: ${errorMessage}`)
+      }
+    } else if (error.message) {
+      showError(`Erreur lors de la suppression: ${error.message}`)
+    } else {
+      showError('Erreur inconnue lors de la suppression du cours')
+    }
   }
 }
 

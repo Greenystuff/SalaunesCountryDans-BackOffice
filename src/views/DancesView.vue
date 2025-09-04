@@ -248,8 +248,8 @@
                       <v-card-text class="pt-4">
                         <v-file-input v-model="pdfFile" accept=".pdf" label="Sélectionner un fichier PDF"
                           variant="outlined" prepend-icon="mdi-file-upload" hint="Taille maximale : 10 MB"
-                          persistent-hint
-                          :rules="[v => !v || v.size <= 10 * 1024 * 1024 || 'Fichier trop volumineux']" />
+                          persistent-hint @change="handlePdfValidation"
+                          :rules="[v => !v || (v.size <= 10 * 1024 * 1024 && v.type === 'application/pdf') || 'PDF invalide ou trop volumineux (max 10MB)']" />
                       </v-card-text>
                     </v-window-item>
                   </v-window>
@@ -286,6 +286,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { apiService } from '@/services/api'
+import { useNotifications } from '@/composables/useNotifications'
 
 interface Dance {
   _id: string
@@ -311,6 +312,7 @@ interface DanceForm {
 
 // Services
 const api = apiService
+const { showSuccess, showError, showWarning } = useNotifications()
 
 // Données réactives
 const dances = ref<Dance[]>([])
@@ -559,6 +561,7 @@ const loadDances = async () => {
     // Ne pas afficher l'erreur si la requête a été annulée
     if (error.name !== 'AbortError') {
       console.error('❌ Erreur lors du chargement des danses:', error)
+      showError('Erreur lors du chargement des danses. Veuillez réessayer.')
     }
   } finally {
     loading.value = false
@@ -653,6 +656,26 @@ const handlePdfModeChange = (mode: unknown) => {
   }
 }
 
+// Validation du fichier PDF côté client
+const handlePdfValidation = (file: File | File[] | null) => {
+  if (file && file instanceof File) {
+    // Vérifier le type
+    if (file.type !== 'application/pdf') {
+      showError('Le fichier sélectionné n\'est pas un PDF valide')
+      pdfFile.value = null
+      return
+    }
+
+    // Vérifier la taille (10MB max)
+    const maxSize = 10 * 1024 * 1024
+    if (file.size > maxSize) {
+      showError('Le fichier PDF est trop volumineux (maximum 10MB)')
+      pdfFile.value = null
+      return
+    }
+  }
+}
+
 // Fonction pour formater une date française en format YYYY-MM-DD pour l'input date
 const formatDateForInput = (dateStr: string): string => {
   // Si c'est déjà au format YYYY-MM-DD, le retourner
@@ -684,8 +707,21 @@ const saveDance = async () => {
   try {
     let uploadedPdfFile: string | null = null;
 
-    // Si un fichier PDF est sélectionné, l'uploader d'abord
+    // Validation du fichier PDF avant upload
     if (pdfFile.value) {
+      // Vérifier la taille (10MB max)
+      const maxSize = 10 * 1024 * 1024
+      if (pdfFile.value.size > maxSize) {
+        showError('Le fichier PDF est trop volumineux (maximum 10MB)')
+        return
+      }
+
+      // Vérifier le type
+      if (pdfFile.value.type !== 'application/pdf') {
+        showError('Le fichier sélectionné n\'est pas un PDF valide')
+        return
+      }
+
       const formData = new FormData();
       formData.append('pdf', pdfFile.value);
       formData.append('danceName', danceForm.value.name);
@@ -698,8 +734,25 @@ const saveDance = async () => {
         }
       } catch (uploadError: any) {
         console.error('❌ Erreur lors de l\'upload du PDF:', uploadError);
+
+        if (uploadError.response?.data?.message) {
+          showError(`Erreur upload PDF: ${uploadError.response.data.message}`)
+        } else {
+          showError('Erreur lors de l\'upload du fichier PDF')
+        }
         return;
       }
+    }
+
+    // Validation des URLs YouTube
+    if (danceForm.value.youtubeLink1 && !isValidYoutubeUrl(danceForm.value.youtubeLink1)) {
+      showError('Le premier lien YouTube n\'est pas valide')
+      return
+    }
+
+    if (danceForm.value.youtubeLink2 && !isValidYoutubeUrl(danceForm.value.youtubeLink2)) {
+      showError('Le second lien YouTube n\'est pas valide')
+      return
     }
 
     // Préparer les données à envoyer
@@ -720,9 +773,11 @@ const saveDance = async () => {
     if (editingDance.value) {
       // Modifier une danse existante
       await api.put(`/dances/${editingDance.value._id}`, danceData)
+      showSuccess('Danse modifiée avec succès')
     } else {
       // Ajouter une nouvelle danse
       await api.post('/dances', danceData)
+      showSuccess('Danse ajoutée avec succès')
     }
 
     // Recharger les danses
@@ -731,8 +786,27 @@ const saveDance = async () => {
     editingDance.value = null
     pdfFile.value = null // Réinitialiser le fichier
     pdfMode.value = 'url' // Reset to URL mode
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Erreur lors de la sauvegarde:', error)
+
+    // Gestion des erreurs spécifiques
+    if (error.response?.data?.message) {
+      const errorMessage = error.response.data.message
+
+      if (errorMessage.includes('nom') || errorMessage.includes('name')) {
+        showError('Le nom de la danse est requis')
+      } else if (errorMessage.includes('duplicate') || errorMessage.includes('existe')) {
+        showError('Cette danse existe déjà')
+      } else if (errorMessage.includes('niveau') || errorMessage.includes('level')) {
+        showError('Le niveau est requis')
+      } else {
+        showError(`Erreur: ${errorMessage}`)
+      }
+    } else if (error.message) {
+      showError(`Erreur lors de la sauvegarde: ${error.message}`)
+    } else {
+      showError('Erreur inconnue lors de la sauvegarde de la danse')
+    }
   }
 }
 
@@ -758,12 +832,25 @@ const confirmDelete = (dance: Dance) => {
 const deleteDance = async () => {
   if (danceToDelete.value) {
     try {
+      const danceName = danceToDelete.value.name
+
       await api.delete(`/dances/${danceToDelete.value._id}`)
       await loadDances() // Recharger les danses
+
       deleteDialog.value = false
       danceToDelete.value = null
-    } catch (error) {
+
+      showSuccess(`Danse "${danceName}" supprimée avec succès`)
+    } catch (error: any) {
       console.error('❌ Erreur lors de la suppression:', error)
+
+      if (error.response?.data?.message) {
+        showError(`Erreur: ${error.response.data.message}`)
+      } else if (error.message) {
+        showError(`Erreur lors de la suppression: ${error.message}`)
+      } else {
+        showError('Erreur inconnue lors de la suppression de la danse')
+      }
     }
   }
 }

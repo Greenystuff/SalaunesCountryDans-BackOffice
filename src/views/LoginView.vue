@@ -25,7 +25,9 @@
             Se connecter
           </v-btn>
 
-          <v-alert v-if="errorMessage" type="error" variant="tonal" class="mb-4">
+          <!-- Alerte uniquement pour les erreurs critiques nécessitant une attention particulière -->
+          <v-alert v-if="errorMessage" type="error" variant="tonal" class="mb-4" closable
+            @click:close="errorMessage = ''">
             {{ errorMessage }}
           </v-alert>
 
@@ -37,6 +39,9 @@
         </v-form>
       </v-card-text>
     </v-card>
+
+    <!-- Notifications globales -->
+    <GlobalNotifications />
   </div>
 </template>
 
@@ -44,9 +49,12 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useNotifications } from '@/composables/useNotifications'
+import GlobalNotifications from '@/components/GlobalNotifications.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
+const { showSuccess, showError, showInfo } = useNotifications()
 
 const email = ref('')
 const password = ref('')
@@ -67,23 +75,60 @@ const passwordRules = [
 const handleLogin = async () => {
   errorMessage.value = ''
 
+  // Validation côté client
   if (!email.value || !password.value) {
-    errorMessage.value = 'Veuillez remplir tous les champs'
+    showError('Veuillez remplir tous les champs')
     return
   }
 
-  const result = await userStore.login(email.value, password.value)
+  if (!/.+@.+\..+/.test(email.value)) {
+    showError('L\'adresse email n\'est pas valide')
+    return
+  }
 
-  if (result.success) {
-    router.push('/dashboard')
-  } else {
-    errorMessage.value = result.error || 'Erreur de connexion'
+  if (password.value.length < 6) {
+    showError('Le mot de passe doit contenir au moins 6 caractères')
+    return
+  }
+
+  try {
+    const result = await userStore.login(email.value, password.value)
+
+    if (result.success) {
+      showSuccess('Connexion réussie ! Redirection en cours...')
+
+      // Petite pause pour que l'utilisateur voie la notification de succès
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 1000)
+    } else {
+      // Gestion des erreurs spécifiques
+      const error = result.error || 'Erreur de connexion'
+
+      if (error.includes('email') || error.includes('utilisateur') || error.includes('user')) {
+        showError('Adresse email non reconnue')
+      } else if (error.includes('mot de passe') || error.includes('password') || error.includes('incorrect')) {
+        showError('Mot de passe incorrect')
+      } else if (error.includes('compte') && error.includes('bloqué')) {
+        showError('Compte temporairement bloqué. Réessayez plus tard.')
+        errorMessage.value = error // Afficher aussi dans le v-alert pour les erreurs critiques
+      } else if (error.includes('réseau') || error.includes('network') || error.includes('timeout')) {
+        showError('Problème de connexion. Vérifiez votre connexion internet.')
+      } else if (error.includes('serveur') || error.includes('server') || error.includes('500')) {
+        showError('Erreur serveur temporaire. Veuillez réessayer.')
+      } else {
+        showError(error)
+      }
+    }
+  } catch (error: any) {
+    console.error('Erreur lors de la connexion:', error)
+    showError('Erreur de connexion inattendue. Veuillez réessayer.')
   }
 }
 
 const forgotPassword = () => {
   // TODO: Implémenter la récupération de mot de passe
-  console.log('Mot de passe oublié')
+  showInfo('Fonctionnalité de récupération de mot de passe à venir. Contactez un administrateur.')
 }
 </script>
 

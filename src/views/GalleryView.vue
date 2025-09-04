@@ -133,6 +133,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { apiService } from '@/services/api'
+import { useNotifications } from '@/composables/useNotifications'
 import GalleryImageCard from '@/components/GalleryImageCard.vue'
 
 interface GalleryImage {
@@ -156,6 +157,7 @@ interface GalleryImage {
 }
 
 // État
+const { showSuccess, showError, showWarning } = useNotifications()
 const loading = ref(false)
 const saving = ref(false)
 const dialog = ref(false)
@@ -298,6 +300,7 @@ const loadImages = async () => {
     // Ne pas afficher l'erreur si la requête a été annulée
     if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
       console.error('Erreur lors du chargement des images:', error)
+      showError('Erreur lors du chargement des images. Veuillez réessayer.')
     }
     // Les erreurs d'annulation sont normales lors du démontage/remontage du composant
   } finally {
@@ -392,12 +395,32 @@ const handleImageChange = (file: File | File[] | null) => {
 
   if (file && file instanceof File) {
     // Vérifier que c'est bien une image
-    if (file.type.startsWith('image/')) {
-      imagePreview.value = URL.createObjectURL(file)
-    } else {
+    if (!file.type.startsWith('image/')) {
+      imageFile.value = null
       imagePreview.value = null
-      console.warn('Le fichier sélectionné n\'est pas une image')
+      showError('Le fichier sélectionné n\'est pas une image valide')
+      return
     }
+
+    // Vérifier la taille (10MB max)
+    const maxSize = 10 * 1024 * 1024 // 10MB
+    if (file.size > maxSize) {
+      imageFile.value = null
+      imagePreview.value = null
+      showError('L\'image est trop volumineuse (maximum 10MB)')
+      return
+    }
+
+    // Formats supportés
+    const supportedFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!supportedFormats.includes(file.type)) {
+      imageFile.value = null
+      imagePreview.value = null
+      showError('Format non supporté. Utilisez JPEG, PNG ou WebP')
+      return
+    }
+
+    imagePreview.value = URL.createObjectURL(file)
   } else {
     imagePreview.value = null
   }
@@ -416,10 +439,12 @@ const saveImage = async () => {
       delete updateData.tagsString
 
       await apiService.put(`/gallery/${editingImage.value._id}`, updateData)
+      showSuccess('Image modifiée avec succès')
     } else {
       // Mode création
       if (!imageFile.value) {
-        throw new Error('Aucune image sélectionnée')
+        showError('Aucune image sélectionnée')
+        return
       }
 
       const formData = new FormData()
@@ -433,14 +458,33 @@ const saveImage = async () => {
       formData.append('isActive', imageForm.value.isActive.toString())
 
       await apiService.post('/gallery/upload', formData)
+      showSuccess('Image ajoutée avec succès')
     }
 
     await loadImages()
     closeDialog()
   } catch (error: any) {
-    // Ne pas afficher l'erreur si la requête a été annulée
+    console.error('Erreur lors de la sauvegarde:', error)
+
+    // Gestion des erreurs spécifiques
     if (error.name !== 'AbortError') {
-      console.error('Erreur lors de la sauvegarde:', error)
+      if (error.response?.data?.message) {
+        const errorMessage = error.response.data.message
+
+        if (errorMessage.includes('file size') || errorMessage.includes('taille')) {
+          showError('Fichier trop volumineux. Réduisez la taille de l\'image.')
+        } else if (errorMessage.includes('format') || errorMessage.includes('type')) {
+          showError('Format d\'image non supporté')
+        } else if (errorMessage.includes('titre') || errorMessage.includes('title')) {
+          showError('Le titre est requis')
+        } else {
+          showError(`Erreur: ${errorMessage}`)
+        }
+      } else if (error.message) {
+        showError(`Erreur lors de la sauvegarde: ${error.message}`)
+      } else {
+        showError('Erreur inconnue lors de la sauvegarde de l\'image')
+      }
     }
   } finally {
     saving.value = false
@@ -452,10 +496,19 @@ const deleteImage = async (image: GalleryImage) => {
     try {
       await apiService.delete(`/gallery/${image._id}`)
       await loadImages()
+      showSuccess(`Image "${image.title}" supprimée avec succès`)
     } catch (error: any) {
+      console.error('Erreur lors de la suppression:', error)
+
       // Ne pas afficher l'erreur si la requête a été annulée
       if (error.name !== 'AbortError') {
-        console.error('Erreur lors de la suppression:', error)
+        if (error.response?.data?.message) {
+          showError(`Erreur: ${error.response.data.message}`)
+        } else if (error.message) {
+          showError(`Erreur lors de la suppression: ${error.message}`)
+        } else {
+          showError('Erreur inconnue lors de la suppression de l\'image')
+        }
       }
     }
   }

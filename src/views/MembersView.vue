@@ -125,7 +125,7 @@
           <VCol cols="12" sm="6" md="3">
             <VCard variant="outlined" class="stat-card">
               <VCardText class="text-center">
-                <div class="stat-number">{{ stats.ageDistribution?.[0]?.count || 0 }}</div>
+                <div class="stat-number">{{ getAgeGroupCount('18-24') }}</div>
                 <div class="stat-label">18-24 ans</div>
               </VCardText>
             </VCard>
@@ -348,6 +348,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useApi } from '@/services/api'
+import { useNotifications } from '@/composables/useNotifications'
 import ChequesManager from '@/components/ChequesManager.vue'
 import MemberDetailsModal from '@/components/MemberDetailsModal.vue'
 import ChequeModal from '@/components/ChequeModal.vue'
@@ -391,6 +392,7 @@ interface Stats {
 
 // État réactif
 const api = useApi()
+const { showSuccess, showError, showWarning } = useNotifications()
 const members = ref<Member[]>([])
 const courses = ref<Course[]>([])
 const stats = ref<Stats | null>(null)
@@ -551,8 +553,9 @@ const loadMembers = async () => {
     console.log('Réponse complète reçue:', response) // Debug
     members.value = response.data || []
     pagination.value = (response as any).pagination || null
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur lors du chargement des membres:', error)
+    showError('Erreur lors du chargement des membres. Veuillez réessayer.')
   } finally {
     loading.value = false
   }
@@ -671,11 +674,15 @@ const saveMember = async () => {
 
     if (editingMember.value) {
       await api.put(`/members/${editingMember.value._id}`, memberData)
+      showSuccess('Membre modifié avec succès')
     } else {
       const created = await api.postData<any>('/members', memberData)
+
       // Créer les chèques saisis localement si présents
       if (created?._id && newCheques.value.length > 0) {
         const memberId = created._id
+        let chequeErrors = 0
+
         for (const c of newCheques.value) {
           try {
             const chequeData = {
@@ -693,16 +700,42 @@ const saveMember = async () => {
             await api.postData(`/members/${memberId}/checks`, chequeData)
           } catch (chequeError) {
             console.error('Erreur création chèque:', chequeError)
+            chequeErrors++
           }
         }
+
+        if (chequeErrors > 0) {
+          showWarning(`Membre créé, mais ${chequeErrors} chèque(s) n'ont pas pu être ajoutés`)
+        } else {
+          showSuccess('Membre et chèques créés avec succès')
+        }
+      } else {
+        showSuccess('Membre créé avec succès')
       }
     }
 
     closeModal()
     loadMembers()
     loadStats()
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur lors de la sauvegarde:', error)
+
+    // Gestion des erreurs spécifiques
+    if (error.response?.data?.message) {
+      const errorMessage = error.response.data.message
+
+      if (errorMessage.includes('email') && errorMessage.includes('existe')) {
+        showError('Cet email est déjà utilisé par un autre membre')
+      } else if (errorMessage.includes('duplicate') || errorMessage.includes('E11000')) {
+        showError('Ces informations sont déjà utilisées par un autre membre')
+      } else {
+        showError(`Erreur: ${errorMessage}`)
+      }
+    } else if (error.message) {
+      showError(`Erreur lors de la sauvegarde: ${error.message}`)
+    } else {
+      showError('Erreur inconnue lors de la sauvegarde du membre')
+    }
   } finally {
     saving.value = false
   }
@@ -713,13 +746,26 @@ const deleteMember = async () => {
 
   try {
     deleting.value = true
+    const memberName = `${deletingMember.value.firstName} ${deletingMember.value.lastName}`
+
     await api.delete(`/members/${deletingMember.value._id}`)
+
     showDeleteModal.value = false
     deletingMember.value = null
     loadMembers()
     loadStats()
-  } catch (error) {
+
+    showSuccess(`Membre "${memberName}" supprimé avec succès`)
+  } catch (error: any) {
     console.error('Erreur lors de la suppression:', error)
+
+    if (error.response?.data?.message) {
+      showError(`Erreur: ${error.response.data.message}`)
+    } else if (error.message) {
+      showError(`Erreur lors de la suppression: ${error.message}`)
+    } else {
+      showError('Erreur inconnue lors de la suppression du membre')
+    }
   } finally {
     deleting.value = false
   }
@@ -793,6 +839,13 @@ const getPastCourses = (courses: any[]) => {
   return courses
     .filter(course => new Date(course.start) <= now)
     .sort((a, b) => new Date(b.start).getTime() - new Date(a.start).getTime())
+}
+
+// Méthode pour récupérer le nombre de membres d'une tranche d'âge spécifique
+const getAgeGroupCount = (ageGroup: string) => {
+  if (!stats.value?.ageDistribution) return 0
+  const group = stats.value.ageDistribution.find(item => item._id === ageGroup)
+  return group?.count || 0
 }
 
 // Computed pour déterminer si le statut doit être géré automatiquement (booléen strict)
