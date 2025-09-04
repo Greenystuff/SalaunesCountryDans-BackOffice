@@ -153,6 +153,7 @@ onUnmounted(() => {
   cursor: pointer;
   font-size: 0.75rem;
   height: 24px;
+  margin-left: 10px;
 }
 
 .gap-2 {
