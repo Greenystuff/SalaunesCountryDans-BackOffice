@@ -6,6 +6,8 @@ import CoursesView from '@/views/CoursesView.vue'
 import DancesView from '@/views/DancesView.vue'
 import GalleryView from '@/views/GalleryView.vue'
 import MembersView from '@/views/MembersView.vue'
+import ProfileView from '@/views/ProfileView.vue'
+import SettingsView from '@/views/SettingsView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -66,6 +68,26 @@ const router = createRouter({
       meta: {
         requiresAuth: true,
         title: 'Gestion des membres',
+      },
+    },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: ProfileView,
+      meta: {
+        requiresAuth: true,
+        title: 'Mon Profil',
+        isUserPage: true,
+      },
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: SettingsView,
+      meta: {
+        requiresAuth: true,
+        title: 'Paramètres',
+        isUserPage: true,
       },
     },
   ],

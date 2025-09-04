@@ -26,9 +26,15 @@
 
       <v-divider />
 
+      <!-- Navigation normale ou bouton retour selon le type de page -->
       <v-list density="compact" nav>
-        <v-list-item v-for="item in menuItems" :key="item.title" :prepend-icon="item.icon" :title="item.title"
-          :to="item.to" :value="item.title" />
+        <template v-if="isUserPage">
+          <v-list-item prepend-icon="mdi-arrow-left" title="Retour" @click="goBackToNavigation" />
+        </template>
+        <template v-else>
+          <v-list-item v-for="item in menuItems" :key="item.title" :prepend-icon="item.icon" :title="item.title"
+            :to="item.to" :value="item.title" />
+        </template>
       </v-list>
 
       <template v-slot:append>
@@ -49,8 +55,11 @@
 
       <v-spacer />
 
+      <!-- Statut WebSocket -->
+      <WebSocketStatus />
+
       <!-- Bouton de changement de thème -->
-      <v-btn icon @click="toggleTheme">
+      <v-btn class="ml-3" icon @click="toggleTheme">
         <v-icon>
           {{ theme.global.current.value.dark ? 'mdi-weather-sunny' : 'mdi-weather-night' }}
         </v-icon>
@@ -67,9 +76,9 @@
           </v-btn>
         </template>
 
-        <v-list>
-          <v-list-item prepend-icon="mdi-account" title="Profil" value="profile" />
-          <v-list-item prepend-icon="mdi-cog" title="Paramètres" value="settings" />
+        <v-list class="user-menu">
+          <v-list-item prepend-icon="mdi-account" title="Profil" value="profile" @click="goToProfile" />
+          <v-list-item prepend-icon="mdi-cog" title="Paramètres" value="settings" @click="goToSettings" />
           <v-divider />
           <v-list-item prepend-icon="mdi-logout" title="Déconnexion" value="logout" @click="logout" />
         </v-list>
@@ -82,6 +91,9 @@
         <RouterView />
       </div>
     </v-main>
+
+    <!-- Notifications globales -->
+    <GlobalNotifications />
   </v-app>
 </template>
 
@@ -91,6 +103,8 @@ import { RouterView, useRoute } from 'vue-router'
 import { useTheme } from 'vuetify'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import GlobalNotifications from '@/components/GlobalNotifications.vue'
+import WebSocketStatus from '@/components/WebSocketStatus.vue'
 
 const theme = useTheme()
 const router = useRouter()
@@ -148,7 +162,14 @@ const menuItems = [
 ]
 
 const avatarSrc = computed(() => {
-  return userStore.isAdmin ? '/images/avatar.jpg' : 'https://randomuser.me/api/portraits/men/85.jpg'
+  // Priorité : avatar personnalisé > avatar par défaut selon le rôle
+  return (userStore.user as any)?.avatar ||
+    (userStore.isAdmin ? '/images/avatar.jpg' : 'https://randomuser.me/api/portraits/men/85.jpg')
+})
+
+// Détecter si nous sommes sur une page utilisateur
+const isUserPage = computed(() => {
+  return route.meta.isUserPage === true
 })
 
 // Précharger l'image personnalisée
@@ -169,6 +190,18 @@ const toggleTheme = () => {
 const logout = async () => {
   await userStore.logout()
   router.push('/login')
+}
+
+const goToProfile = () => {
+  router.push('/profile')
+}
+
+const goToSettings = () => {
+  router.push('/settings')
+}
+
+const goBackToNavigation = () => {
+  router.push('/dashboard')
 }
 
 // Gérer l'affichage du texte avec délai selon l'état du rail
@@ -248,4 +281,8 @@ onMounted(() => {
 }
 
 /* Responsive design - Vuetify gère automatiquement */
+
+.user-menu {
+  border: 1px solid rgb(var(--v-theme-outline));
+}
 </style>

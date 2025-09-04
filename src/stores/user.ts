@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authService, type User } from '@/services/api'
+import type { UserProfile } from '@/services/userService'
+import { globalWebSocket } from '@/composables/useWebSocket'
 
 export const useUserStore = defineStore('user', () => {
   const user = ref<User | null>(null)
@@ -24,6 +26,11 @@ export const useUserStore = defineStore('user', () => {
         token.value = response.data.token
         localStorage.setItem('token', response.data.token)
 
+        // Se connecter au WebSocket après une authentification réussie
+        setTimeout(() => {
+          globalWebSocket.connect()
+        }, 100) // Petit délai pour s'assurer que le token est bien défini
+
         return { success: true }
       } else {
         return { success: false, error: response.message || 'Erreur de connexion' }
@@ -38,6 +45,9 @@ export const useUserStore = defineStore('user', () => {
 
   const logout = async () => {
     try {
+      // Déconnecter le WebSocket avant la déconnexion API
+      globalWebSocket.disconnect()
+
       // Appeler l'API de déconnexion
       await authService.logout()
     } catch (error) {
@@ -58,6 +68,14 @@ export const useUserStore = defineStore('user', () => {
 
       if (response.success && response.data) {
         user.value = response.data.user
+
+        // Se connecter au WebSocket si pas encore connecté
+        if (!globalWebSocket.isConnected.value && token.value) {
+          setTimeout(() => {
+            globalWebSocket.connect()
+          }, 100)
+        }
+
         return true
       } else {
         logout()
@@ -86,6 +104,12 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  const updateUser = (userData: Partial<UserProfile>) => {
+    if (user.value) {
+      user.value = { ...user.value, ...userData }
+    }
+  }
+
   return {
     user,
     token,
@@ -97,5 +121,6 @@ export const useUserStore = defineStore('user', () => {
     logout,
     checkAuth,
     refreshToken,
+    updateUser,
   }
 })

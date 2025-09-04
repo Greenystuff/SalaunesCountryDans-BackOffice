@@ -14,6 +14,8 @@ export interface LoginResponse {
     email: string
     firstName: string
     lastName: string
+    phone?: string
+    avatar?: string
     role: string
     lastLogin: string
   }
@@ -26,6 +28,8 @@ export interface User {
   email: string
   firstName: string
   lastName: string
+  phone?: string
+  avatar?: string
   role: string
   lastLogin: string
   createdAt?: string
