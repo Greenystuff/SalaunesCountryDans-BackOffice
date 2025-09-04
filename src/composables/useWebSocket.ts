@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, type Ref } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useNotifications } from '@/composables/useNotifications'
 
@@ -38,10 +38,10 @@ const reconnectDelay = ref(1000)
 
 // État des connexions
 interface SocketState {
-  isConnected: boolean
-  isConnecting: boolean
-  lastError: string | null
-  reconnectAttempts: number
+  isConnected: Ref<boolean>
+  isConnecting: Ref<boolean>
+  lastError: Ref<string | null>
+  reconnectAttempts: Ref<number>
 }
 
 interface WebSocketHooks {
@@ -49,7 +49,7 @@ interface WebSocketHooks {
   disconnect: () => void
   send: (type: string, data?: any) => void
   on: (eventType: string, callback: (data: any) => void) => void
-  off: (eventType: string) => void
+  off: (eventType: string, callback?: (data: any) => void) => void
   ping: () => void
   requestData: (entity: string) => void
   markUserActive: () => void
@@ -66,10 +66,10 @@ export function useWebSocket(): SocketState & WebSocketHooks {
   // État computed
   const state = computed(
     (): SocketState => ({
-      isConnected: isConnected.value,
-      isConnecting: isConnecting.value,
-      lastError: lastError.value,
-      reconnectAttempts: reconnectAttempts.value,
+      isConnected,
+      isConnecting,
+      lastError,
+      reconnectAttempts,
     }),
   )
 
@@ -346,16 +346,16 @@ function getGlobalInstance() {
 
 export const globalWebSocket = {
   // Propriétés réactives avec getter explicite
-  get isConnected() {
+  get isConnected(): Ref<boolean> {
     return getGlobalInstance().isConnected
   },
-  get isConnecting() {
+  get isConnecting(): Ref<boolean> {
     return getGlobalInstance().isConnecting
   },
-  get lastError() {
+  get lastError(): Ref<string | null> {
     return getGlobalInstance().lastError
   },
-  get reconnectAttempts() {
+  get reconnectAttempts(): Ref<number> {
     return getGlobalInstance().reconnectAttempts
   },
 

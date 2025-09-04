@@ -26,7 +26,7 @@
             </v-chip>
           </div>
 
-          <div v-if="websocket.reconnectAttempts > 0" class="d-flex justify-space-between align-center">
+          <div v-if="websocket.reconnectAttempts.value > 0" class="d-flex justify-space-between align-center">
             <span class="text-body-2">Tentatives :</span>
             <span class="text-body-2">{{ websocket.reconnectAttempts }}/5</span>
           </div>
@@ -94,7 +94,8 @@ const websocket = globalWebSocket
 const statusIcon = computed(() => {
   if (websocket.isConnecting.value) return 'mdi-wifi-sync'
   if (websocket.isConnected.value) return 'mdi-wifi'
-  if (websocket.lastError.value) return 'mdi-wifi-alert'
+  const error = websocket.lastError?.value || websocket.lastError
+  if (error) return 'mdi-wifi-alert'
   return 'mdi-wifi-off'
 })
 
@@ -102,7 +103,8 @@ const statusIcon = computed(() => {
 const statusColor = computed(() => {
   if (websocket.isConnecting.value) return 'warning'
   if (websocket.isConnected.value) return 'success'
-  if (websocket.lastError.value) return 'error'
+  const error = websocket.lastError?.value || websocket.lastError
+  if (error) return 'error'
   return 'grey'
 })
 
@@ -110,13 +112,15 @@ const statusColor = computed(() => {
 const statusText = computed(() => {
   if (websocket.isConnecting.value) return 'Connexion...'
   if (websocket.isConnected.value) return 'Connecté'
-  if (websocket.lastError.value) return 'Erreur'
+  const error = websocket.lastError?.value || websocket.lastError
+  if (error) return 'Erreur'
   return 'Déconnecté'
 })
 
 // Computed pour l'affichage conditionnel de l'erreur
 const hasError = computed(() => {
-  return websocket.lastError.value && websocket.lastError.value.trim() !== ''
+  const error = websocket.lastError?.value || websocket.lastError
+  return error && typeof error === 'string' && error.trim() !== ''
 })
 
 // Informations de debug
