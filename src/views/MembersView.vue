@@ -140,6 +140,57 @@
           </VCol>
         </VRow>
       </div>
+
+      <VDivider />
+
+      <!-- GESTION DU RÈGLEMENT INTÉRIEUR -->
+      <div class="rules-section">
+        <div class="d-flex justify-space-between align-center mb-4">
+          <div>
+            <h3 class="text-h6 mb-1">Règlement Intérieur</h3>
+            <p class="text-caption text-medium-emphasis mb-0">
+              Gérez le document officiel du règlement intérieur du club
+            </p>
+          </div>
+          <VBtn color="primary" prepend-icon="mdi-file-upload" @click="openRulesUploadModal" :disabled="uploadingRules">
+            Uploader nouveau règlement
+          </VBtn>
+        </div>
+
+        <div v-if="activeRules" class="current-rules-card">
+          <VCard variant="outlined">
+            <VCardText>
+              <div class="d-flex align-center justify-space-between">
+                <div class="flex-grow-1">
+                  <div class="d-flex align-center mb-2">
+                    <VIcon icon="mdi-file-pdf-box" color="error" class="mr-2" />
+                    <span class="text-h6">{{ activeRules.title }}</span>
+                    <VChip color="success" size="small" class="ml-2">Actuel</VChip>
+                  </div>
+                  <div class="text-caption text-medium-emphasis mb-2">
+                    Version {{ activeRules.version }} • Uploadé le {{ formatDate(activeRules.uploadDate) }}
+                    <span v-if="activeRules.uploadedBy"> par {{ activeRules.uploadedBy.firstName }} {{
+                      activeRules.uploadedBy.lastName }}</span>
+                  </div>
+                  <div v-if="activeRules.description" class="text-body-2 mb-2">
+                    {{ activeRules.description }}
+                  </div>
+                  <div class="text-caption">
+                    Taille: {{ formatFileSize(activeRules.fileSize) }}
+                  </div>
+                </div>
+                <div class="d-flex flex-column ga-2">
+                  <VBtn icon="mdi-download" variant="outlined" size="small" @click="downloadRules(activeRules)" />
+                  <VBtn icon="mdi-history" variant="outlined" size="small" @click="openRulesHistoryModal" />
+                </div>
+              </div>
+            </VCardText>
+          </VCard>
+        </div>
+        <VAlert v-else type="warning" variant="tonal" class="mb-4">
+          Aucun règlement intérieur n'est actuellement défini pour le club.
+        </VAlert>
+      </div>
     </VCard>
 
     <!-- MODAL CRÉATION/ÉDITION -->
@@ -342,6 +393,103 @@
         </VCardActions>
       </VCard>
     </VDialog>
+
+    <!-- MODAL UPLOAD RÈGLEMENT INTÉRIEUR -->
+    <VDialog v-model="showRulesUploadModal" max-width="600px" persistent>
+      <VCard>
+        <VCardTitle class="d-flex justify-space-between align-center">
+          <span>Uploader un nouveau règlement intérieur</span>
+          <VBtn icon="mdi-close" variant="text" size="small" @click="closeRulesUploadModal" />
+        </VCardTitle>
+        <VCardText class="pa-4">
+          <VForm ref="rulesForm" @submit.prevent="uploadRules">
+            <VRow dense>
+              <VCol cols="12">
+                <VAlert type="info" variant="tonal" density="compact" class="mb-4">
+                  Le nouveau règlement sera automatiquement défini comme actuel et remplacera l'ancien.
+                </VAlert>
+              </VCol>
+
+              <VCol cols="12" md="6">
+                <VTextField v-model="rulesFormData.version" label="Version *" required variant="outlined"
+                  density="compact" placeholder="ex: 2024.1" />
+              </VCol>
+
+              <VCol cols="12" md="6">
+                <VTextField v-model="rulesFormData.title" label="Titre" variant="outlined" density="compact"
+                  placeholder="Règlement Intérieur" />
+              </VCol>
+
+              <VCol cols="12">
+                <VTextarea v-model="rulesFormData.description" label="Description (optionnelle)" variant="outlined"
+                  density="compact" rows="3" placeholder="Description des modifications ou ajouts..." />
+              </VCol>
+
+              <VCol cols="12">
+                <VFileInput v-model="rulesFormData.file" label="Fichier PDF *" variant="outlined" density="compact"
+                  accept=".pdf" show-size required prepend-icon="mdi-file-pdf-box" :error-messages="rulesFileError" />
+              </VCol>
+            </VRow>
+          </VForm>
+        </VCardText>
+        <VCardActions class="pa-4">
+          <VSpacer />
+          <VBtn variant="text" @click="closeRulesUploadModal" :disabled="uploadingRules">Annuler</VBtn>
+          <VBtn color="primary" @click="uploadRules" :loading="uploadingRules">
+            Uploader
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- MODAL HISTORIQUE RÈGLEMENT INTÉRIEUR -->
+    <VDialog v-model="showRulesHistoryModal" max-width="800px">
+      <VCard>
+        <VCardTitle class="d-flex justify-space-between align-center">
+          <span>Historique des règlements intérieurs</span>
+          <VBtn icon="mdi-close" variant="text" size="small" @click="showRulesHistoryModal = false" />
+        </VCardTitle>
+        <VCardText class="pa-4">
+          <div v-if="rulesHistory.length > 0">
+            <VCard v-for="rules in rulesHistory" :key="rules._id" variant="outlined" class="mb-3">
+              <VCardText>
+                <div class="d-flex align-center justify-space-between">
+                  <div class="flex-grow-1">
+                    <div class="d-flex align-center mb-2">
+                      <VIcon icon="mdi-file-pdf-box" color="error" class="mr-2" />
+                      <span class="font-weight-medium">{{ rules.title }}</span>
+                      <VChip v-if="rules.isActive" color="success" size="small" class="ml-2">Actuel</VChip>
+                      <VChip v-else color="default" size="small" class="ml-2">Archive</VChip>
+                    </div>
+                    <div class="text-caption text-medium-emphasis mb-1">
+                      Version {{ rules.version }} • {{ formatDate(rules.uploadDate) }}
+                      <span v-if="rules.uploadedBy"> par {{ rules.uploadedBy.firstName }} {{ rules.uploadedBy.lastName
+                        }}</span>
+                    </div>
+                    <div v-if="rules.description" class="text-body-2 mb-1">
+                      {{ rules.description }}
+                    </div>
+                    <div class="text-caption">
+                      {{ formatFileSize(rules.fileSize) }}
+                    </div>
+                  </div>
+                  <div class="d-flex flex-column ga-2">
+                    <VBtn icon="mdi-download" variant="outlined" size="small" @click="downloadRules(rules)" />
+                    <VBtn v-if="!rules.isActive" icon="mdi-check" variant="outlined" size="small" color="success"
+                      @click="setActiveRules(rules)" title="Définir comme actuel" />
+                    <VBtn v-if="!rules.isActive" icon="mdi-delete" variant="outlined" size="small" color="error"
+                      @click="deleteRulesVersion(rules)" title="Supprimer cette version" />
+                  </div>
+                </div>
+              </VCardText>
+            </VCard>
+          </div>
+          <VAlert v-else type="info" variant="tonal">
+            Aucun historique de règlement intérieur disponible.
+          </VAlert>
+        </VCardText>
+      </VCard>
+    </VDialog>
   </div>
 </template>
 
@@ -375,6 +523,24 @@ interface Member {
   primaryPhone?: string
   status?: 'pré-inscrit' | 'inscrit' | 'actif' | 'inactif'
   intendedTrialDate?: string
+}
+
+interface InternalRules {
+  _id: string
+  title: string
+  version: string
+  description?: string
+  pdfFile: string
+  fileSize: number
+  uploadDate: string
+  isActive: boolean
+  uploadedBy?: {
+    _id: string
+    firstName: string
+    lastName: string
+    email: string
+  }
+  pdfUrl?: string
 }
 
 interface Course {
@@ -417,6 +583,12 @@ interface NewCheque {
 }
 const newCheques = ref<NewCheque[]>([])
 
+// Variables pour les règlements intérieurs
+const activeRules = ref<InternalRules | null>(null)
+const rulesHistory = ref<InternalRules[]>([])
+const uploadingRules = ref(false)
+const rulesFileError = ref<string>('')
+
 // Modals
 const showModal = ref(false)
 const showViewModal = ref(false)
@@ -426,6 +598,8 @@ const showBirthDatePicker = ref(false)
 const showRegistrationDatePicker = ref(false)
 const editingChequeIndex = ref(-1)
 const editingCheque = ref<NewCheque | null>(null)
+const showRulesUploadModal = ref(false)
+const showRulesHistoryModal = ref(false)
 
 // Variables supprimées : activeTab (maintenant dans le composant MemberDetailsModal)
 const maxChequeDate = computed(() => new Date().toISOString().split('T')[0])
@@ -455,7 +629,13 @@ const formData = reactive({
   status: 'pré-inscrit' as 'pré-inscrit' | 'inscrit' | 'actif' | 'inactif',
 })
 
-
+// Form data pour les règlements intérieurs
+const rulesFormData = reactive({
+  title: 'Règlement Intérieur',
+  version: '',
+  description: '',
+  file: null as File[] | null
+})
 
 // Filtres
 const filters = reactive({
@@ -871,6 +1051,192 @@ watch([() => formData.annualFeePaymentMethod, () => formData.annualFeeAmount,
   }
 )
 
+// Méthodes pour les règlements intérieurs
+const loadActiveRules = async () => {
+  try {
+    const response = await api.getData<InternalRules>('/internal-rules/active')
+    activeRules.value = response
+  } catch (error: any) {
+    if (error.response?.status !== 404) {
+      console.error('Erreur lors du chargement du règlement actif:', error)
+    }
+    activeRules.value = null
+  }
+}
+
+const loadRulesHistory = async () => {
+  try {
+    const response = await api.getData<InternalRules[]>('/internal-rules')
+    rulesHistory.value = response
+  } catch (error: any) {
+    console.error('Erreur lors du chargement de l\'historique des règlements:', error)
+    rulesHistory.value = []
+  }
+}
+
+const formatFileSize = (bytes: number) => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+const openRulesUploadModal = () => {
+  // Réinitialiser le formulaire
+  Object.assign(rulesFormData, {
+    title: 'Règlement Intérieur',
+    version: '',
+    description: '',
+    file: null
+  })
+  rulesFileError.value = ''
+  showRulesUploadModal.value = true
+}
+
+const closeRulesUploadModal = () => {
+  showRulesUploadModal.value = false
+  Object.assign(rulesFormData, {
+    title: 'Règlement Intérieur',
+    version: '',
+    description: '',
+    file: null
+  })
+  rulesFileError.value = ''
+}
+
+const openRulesHistoryModal = async () => {
+  showRulesHistoryModal.value = true
+  await loadRulesHistory()
+}
+
+const uploadRules = async () => {
+  try {
+    rulesFileError.value = ''
+
+    // Validation
+    if (!rulesFormData.version) {
+      showError('Veuillez saisir une version')
+      return
+    }
+
+    if (!rulesFormData.file) {
+      rulesFileError.value = 'Veuillez sélectionner un fichier PDF'
+      return
+    }
+
+    // Gérer le cas où file est un array ou un seul fichier
+    let file
+    if (Array.isArray(rulesFormData.file)) {
+      if (rulesFormData.file.length === 0) {
+        rulesFileError.value = 'Veuillez sélectionner un fichier PDF'
+        return
+      }
+      file = rulesFormData.file[0]
+    } else {
+      file = rulesFormData.file
+    }
+
+    if (!file) {
+      rulesFileError.value = 'Fichier invalide'
+      return
+    }
+
+    if (file.type !== 'application/pdf') {
+      rulesFileError.value = 'Seuls les fichiers PDF sont acceptés'
+      return
+    }
+
+    if (file.size > 10 * 1024 * 1024) { // 10MB
+      rulesFileError.value = 'Le fichier ne peut pas dépasser 10MB'
+      return
+    }
+
+    uploadingRules.value = true
+
+    // Préparer les données pour l'upload
+    const formData = new FormData()
+    formData.append('pdf', file)
+    formData.append('version', rulesFormData.version)
+    formData.append('title', rulesFormData.title)
+    if (rulesFormData.description) {
+      formData.append('description', rulesFormData.description)
+    }
+
+    const response = await api.postFormData<InternalRules>('/internal-rules/upload', formData)
+
+    activeRules.value = response
+    showSuccess('Règlement intérieur uploadé avec succès')
+    closeRulesUploadModal()
+
+    // Recharger l'historique si le modal est ouvert
+    if (showRulesHistoryModal.value) {
+      await loadRulesHistory()
+    }
+
+  } catch (error: any) {
+    console.error('Erreur lors de l\'upload du règlement:', error)
+
+    if (error.response?.data?.message) {
+      showError(error.response.data.message)
+    } else {
+      showError('Erreur lors de l\'upload du règlement intérieur')
+    }
+  } finally {
+    uploadingRules.value = false
+  }
+}
+
+const downloadRules = async (rules: InternalRules) => {
+  try {
+    const response = await api.getData<{ downloadUrl: string, filename: string }>(`/internal-rules/${rules._id}/download`)
+
+    // Ouvrir le lien de téléchargement dans un nouvel onglet
+    window.open(response.downloadUrl, '_blank')
+  } catch (error: any) {
+    console.error('Erreur lors du téléchargement:', error)
+    showError('Erreur lors du téléchargement du règlement')
+  }
+}
+
+const setActiveRules = async (rules: InternalRules) => {
+  try {
+    await api.postData(`/internal-rules/${rules._id}/set-active`, {})
+
+    showSuccess(`Règlement version ${rules.version} défini comme actuel`)
+
+    // Recharger les données
+    await loadActiveRules()
+    await loadRulesHistory()
+  } catch (error: any) {
+    console.error('Erreur lors de la définition du règlement actif:', error)
+    showError('Erreur lors de la mise à jour du règlement actif')
+  }
+}
+
+const deleteRulesVersion = async (rules: InternalRules) => {
+  if (!confirm(`Êtes-vous sûr de vouloir supprimer la version ${rules.version} du règlement intérieur ? Cette action est irréversible.`)) {
+    return
+  }
+
+  try {
+    await api.delete(`/internal-rules/${rules._id}`)
+
+    showSuccess(`Version ${rules.version} supprimée avec succès`)
+
+    // Recharger l'historique
+    await loadRulesHistory()
+  } catch (error: any) {
+    console.error('Erreur lors de la suppression:', error)
+
+    if (error.response?.data?.message) {
+      showError(error.response.data.message)
+    } else {
+      showError('Erreur lors de la suppression du règlement')
+    }
+  }
+}
+
 // Watchers
 watch(currentPage, () => {
   loadMembers()
@@ -887,6 +1253,7 @@ onMounted(() => {
   loadMembers()
   loadStats()
   loadCourses()
+  loadActiveRules()
 })
 </script>
 

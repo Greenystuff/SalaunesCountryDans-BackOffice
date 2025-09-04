@@ -695,4 +695,107 @@
   .checks-list {
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   }
+
+  /* Règlement intérieur responsive */
+  .rules-section {
+    padding: 20px 16px;
+  }
+
+  .rules-section .d-flex.justify-space-between {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start !important;
+  }
+
+  .current-rules-card .d-flex.align-center.justify-space-between {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start !important;
+  }
+
+  .current-rules-card .d-flex.flex-column.ga-2 {
+    flex-direction: row;
+    gap: 8px;
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+/* ===== SECTION RÈGLEMENT INTÉRIEUR ===== */
+.rules-section {
+  padding: 28px 32px;
+  background: rgba(var(--v-theme-primary), 0.02);
+}
+
+.rules-section h3 {
+  color: rgb(var(--v-theme-on-surface));
+  font-weight: 600;
+  font-size: 1.125rem;
+}
+
+.rules-section .text-caption {
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+.current-rules-card .v-card {
+  background: rgb(var(--v-theme-surface));
+  border: 1px solid rgba(var(--v-theme-outline), 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border-radius: 12px !important;
+}
+
+.current-rules-card .v-card-text {
+  padding: 20px !important;
+}
+
+.current-rules-card .text-h6 {
+  color: rgb(var(--v-theme-on-surface));
+  font-weight: 600;
+}
+
+.current-rules-card .text-caption {
+  color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+.current-rules-card .text-body-2 {
+  color: rgba(var(--v-theme-on-surface), 0.8);
+}
+
+/* Boutons d'action dans la carte du règlement */
+.current-rules-card .v-btn {
+  border-radius: 8px !important;
+}
+
+.current-rules-card .v-btn--variant-outlined {
+  border-color: rgba(var(--v-theme-outline), 0.2);
+}
+
+.current-rules-card .v-btn--variant-outlined:hover {
+  background: rgba(var(--v-theme-primary), 0.04);
+  border-color: rgb(var(--v-theme-primary));
+}
+
+/* Historique des règlements */
+.rules-history-card .v-card {
+  border-radius: 8px !important;
+  border: 1px solid rgba(var(--v-theme-outline), 0.12);
+}
+
+.rules-history-card .font-weight-medium {
+  color: rgb(var(--v-theme-on-surface));
+}
+
+/* Modal d'upload */
+.v-dialog .v-card .v-file-input {
+  border-radius: 8px;
+}
+
+.v-dialog .v-card .v-file-input .v-field {
+  border-radius: 8px !important;
+}
+
+/* Alertes dans les modals */
+.v-dialog .v-alert {
+  border-radius: 8px !important;
+  font-size: 0.875rem;
 }

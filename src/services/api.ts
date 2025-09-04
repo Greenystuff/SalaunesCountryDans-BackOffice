@@ -141,6 +141,12 @@ class ApiService {
     return res?.data as T
   }
 
+  // Méthode spécialisée pour l'upload de fichiers avec FormData
+  async postFormData<T>(url: string, formData: FormData, config?: any): Promise<T> {
+    const res = await this.post<T>(url, formData, config)
+    return res?.data as T
+  }
+
   // Méthode pour faire des requêtes PUT
   async put<T>(url: string, data?: any, config?: any): Promise<ApiResponse<T>> {
     try {
@@ -227,6 +233,7 @@ export const useApi = () => {
     // Payload-only helpers
     getData: apiService.getData.bind(apiService),
     postData: apiService.postData.bind(apiService),
+    postFormData: apiService.postFormData.bind(apiService),
     putData: apiService.putData.bind(apiService),
     deleteData: apiService.deleteData.bind(apiService),
     patchData: apiService.patchData.bind(apiService),
