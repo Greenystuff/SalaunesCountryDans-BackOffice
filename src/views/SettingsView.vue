@@ -127,6 +127,11 @@
               <v-switch v-model="settings.logActivities" @update:model-value="saveSettings"
                 label="Journaliser les activités" hint="Enregistrer vos actions dans les journaux de sécurité"
                 persistent-hint inset color="primary" class="mt-2" />
+
+              <v-switch v-model="settings.strictPaymentValidation" @update:model-value="saveSettings"
+                label="Validation stricte des paiements"
+                hint="Empêcher le statut 'inscrit' tant que les montants de cotisation (60€) et adhésion (20€) ne sont pas saisis"
+                persistent-hint inset color="primary" class="mt-2" />
             </v-card-text>
             <v-card-actions class="px-6 pb-4">
               <v-btn @click="clearUserData" color="error" variant="outlined" prepend-icon="mdi-delete-alert">
@@ -230,7 +235,8 @@ const settings = ref({
   compressExports: false,
   sessionTimeout: 60,
   twoFactorEnabled: false,
-  logActivities: true
+  logActivities: true,
+  strictPaymentValidation: true
 })
 
 // Options pour les sélecteurs
@@ -321,7 +327,8 @@ const resetToDefaults = () => {
         compressExports: false,
         sessionTimeout: 60,
         twoFactorEnabled: false,
-        logActivities: true
+        logActivities: true,
+        strictPaymentValidation: true
       }
 
       themePreference.value = 'light'

@@ -303,12 +303,17 @@
               <VCol cols="12">
                 <VRow dense>
                   <VCol cols="12" md="6">
-                    <VSelect v-model="formData.status" :items="statusOptions" label="Statut" variant="outlined"
+                    <VSelect v-model="formData.status" :items="availableStatusOptions" label="Statut" variant="outlined"
                       density="compact" :disabled="isStatusAutoManaged" clearable />
                   </VCol>
                   <VCol cols="12" md="6">
                     <VAlert v-if="isStatusAutoManaged" type="info" variant="tonal" density="compact" class="mt-2">
                       Statut automatiquement géré selon les paiements
+                    </VAlert>
+                    <VAlert
+                      v-else-if="strictPaymentValidation && !hasRequiredPaymentAmounts() && formData.status !== 'inscrit'"
+                      type="warning" variant="tonal" density="compact" class="mt-2">
+                      Pour définir le statut "inscrit", saisissez 60€ (cotisation) et 20€ (adhésion)
                     </VAlert>
                   </VCol>
                 </VRow>
@@ -494,7 +499,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useApi } from '@/services/api'
 import { useNotifications } from '@/composables/useNotifications'
 import ChequesManager from '@/components/ChequesManager.vue'
@@ -567,6 +572,9 @@ const pagination = ref<any>(null)
 const loading = ref(false)
 const saving = ref(false)
 const deleting = ref(false)
+
+// Paramètres de sécurité
+const strictPaymentValidation = ref(true)
 // Chèques ajoutés pour un nouveau membre avant création
 interface NewCheque {
   _id?: string
@@ -709,6 +717,36 @@ const removeCheque = (idx: number) => {
   newCheques.value.splice(idx, 1)
 }
 
+// Méthodes pour les paramètres
+const loadSettings = () => {
+  try {
+    const savedSettings = localStorage.getItem('scd_user_settings')
+    if (savedSettings) {
+      const parsed = JSON.parse(savedSettings)
+      strictPaymentValidation.value = parsed.strictPaymentValidation !== undefined ? parsed.strictPaymentValidation : true
+    }
+  } catch (error) {
+    console.error('Erreur lors du chargement des paramètres:', error)
+    strictPaymentValidation.value = true
+  }
+}
+
+const hasRequiredPaymentAmounts = () => {
+  const requiredAnnualAmount = 60
+  const requiredMembershipAmount = 20
+
+  return Number(formData.annualFeeAmount) >= requiredAnnualAmount &&
+    Number(formData.membershipFeeAmount) >= requiredMembershipAmount
+}
+
+const canSetStatusToInscrit = () => {
+  // Si la validation stricte est désactivée, autoriser
+  if (!strictPaymentValidation.value) return true
+
+  // Si la validation stricte est activée, vérifier les montants requis
+  return hasRequiredPaymentAmounts()
+}
+
 // Méthodes
 const loadMembers = async () => {
   try {
@@ -845,6 +883,13 @@ const fillForm = (member: Member) => {
 const saveMember = async () => {
   try {
     saving.value = true
+
+    // Validation de sécurité pour le statut "inscrit"
+    if (formData.status === 'inscrit' && !canSetStatusToInscrit()) {
+      showError('Impossible de définir le statut "inscrit" : les montants de cotisation (60€) et d\'adhésion (20€) doivent être saisis. Vous pouvez désactiver cette sécurité dans les paramètres.')
+      saving.value = false
+      return
+    }
 
     const memberData = {
       ...formData,
@@ -1036,13 +1081,29 @@ const isStatusAutoManaged = computed<boolean>(() => {
     Number(formData.membershipFeeAmount) > 0
 })
 
+// Computed pour filtrer les options de statut selon la validation stricte
+const availableStatusOptions = computed(() => {
+  if (!strictPaymentValidation.value) {
+    return statusOptions
+  }
+
+  // Si la validation stricte est activée et les montants requis ne sont pas atteints,
+  // désactiver l'option "inscrit"
+  return statusOptions.map(option => ({
+    ...option,
+    disabled: option.value === 'inscrit' && !hasRequiredPaymentAmounts()
+  }))
+})
+
 // Watcher pour mettre à jour automatiquement le statut
 watch([() => formData.annualFeePaymentMethod, () => formData.annualFeeAmount,
 () => formData.membershipPaymentMethod, () => formData.membershipFeeAmount],
   ([annualMethod, annualAmount, membershipMethod, membershipAmount]) => {
     if (annualMethod && annualAmount && membershipMethod && membershipAmount) {
-      // Si tous les paiements sont renseignés, passer en "inscrit"
-      formData.status = 'inscrit'
+      // Si tous les paiements sont renseignés ET que la validation permet le changement, passer en "inscrit"
+      if (canSetStatusToInscrit()) {
+        formData.status = 'inscrit'
+      }
     } else if (!annualMethod && !annualAmount && !membershipMethod && !membershipAmount) {
       // Si aucun paiement n'est renseigné, rester en "pré-inscrit"
       formData.status = 'pré-inscrit'
@@ -1248,12 +1309,28 @@ watch(filters, (newFilters) => {
   loadMembers()
 }, { deep: true })
 
+// Surveillance des changements dans le localStorage pour les paramètres
+const handleStorageChange = (e: StorageEvent) => {
+  if (e.key === 'scd_user_settings') {
+    loadSettings()
+  }
+}
+
 // Initialisation
 onMounted(() => {
+  loadSettings()
   loadMembers()
   loadStats()
   loadCourses()
   loadActiveRules()
+
+  // Écouter les changements dans le localStorage
+  window.addEventListener('storage', handleStorageChange)
+})
+
+// Nettoyage lors de la destruction du composant
+onUnmounted(() => {
+  window.removeEventListener('storage', handleStorageChange)
 })
 </script>
 
