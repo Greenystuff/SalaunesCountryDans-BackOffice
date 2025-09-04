@@ -14,7 +14,7 @@
         <v-icon :color="statusColor" class="me-2">
           {{ statusIcon }}
         </v-icon>
-        Connexion WebSocket
+        Connexion Site Vitrine
       </v-card-title>
 
       <v-card-text>
