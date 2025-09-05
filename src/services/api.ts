@@ -185,7 +185,7 @@ class ApiService {
   // Gestion des erreurs
   private handleError(error: any): Error {
     // Si c'est une erreur d'annulation, la propager telle quelle
-    if (error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
+    if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
       return error
     }
 

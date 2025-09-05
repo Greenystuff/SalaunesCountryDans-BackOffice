@@ -114,8 +114,6 @@ export function useWebSocket(): SocketState & WebSocketHooks {
       const wsHost = apiUrl.replace(/^https?:\/\//, '')
       const wsUrl = `${wsProtocol}//${wsHost}/ws?token=${userStore.token}`
 
-      console.log('🔌 Connexion WebSocket à:', wsUrl)
-
       socket.value = new WebSocket(wsUrl)
 
       // Gestionnaire de connexion ouverte

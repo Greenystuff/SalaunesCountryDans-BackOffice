@@ -522,7 +522,7 @@ const loadCourses = async () => {
     }
   } catch (error) {
     // Ne pas afficher l'erreur si la requête a été annulée ou si le composant n'est plus monté
-    if (error.name !== 'AbortError' && isComponentMounted.value) {
+    if (error.name !== 'CanceledError' && isComponentMounted.value) {
       console.error('❌ Erreur lors du chargement des cours:', error)
       error.value = error.message
       showError('Erreur lors du chargement des cours. Veuillez réessayer.')

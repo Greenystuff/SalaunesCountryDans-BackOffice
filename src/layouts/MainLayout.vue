@@ -108,7 +108,6 @@ import { useTheme } from 'vuetify'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useNavigationPermissions } from '@/composables/useNavigationPermissions'
-import { useDebugPermissions } from '@/composables/useDebugPermissions'
 import GlobalNotifications from '@/components/GlobalNotifications.vue'
 import WebSocketStatus from '@/components/WebSocketStatus.vue'
 import NotificationCenter from '@/components/NotificationCenter.vue'
@@ -118,7 +117,6 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const { filterMenuItems, canManageUsers } = useNavigationPermissions()
-const { debugUserPermissions } = useDebugPermissions()
 
 const drawer = ref(true)
 const rail = ref(false)
@@ -259,15 +257,7 @@ onMounted(() => {
 
   // Écouter les changements de taille d'écran
   window.addEventListener('resize', checkScreenSize)
-
-  // Debug des permissions (temporaire)
-  debugUserPermissions()
 })
-
-// Watcher pour debug des permissions quand l'utilisateur change
-watch(() => userStore.user, () => {
-  debugUserPermissions()
-}, { deep: true })
 </script>
 
 <style scoped>

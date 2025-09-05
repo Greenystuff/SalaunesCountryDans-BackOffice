@@ -302,7 +302,7 @@ const loadImages = async () => {
     images.value = (response.data as GalleryImage[]) || []
   } catch (error: any) {
     // Ne pas afficher l'erreur si la requête a été annulée
-    if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+    if (error.name !== 'CanceledError' && error.name !== 'CanceledError') {
       console.error('Erreur lors du chargement des images:', error)
       showError('Erreur lors du chargement des images. Veuillez réessayer.')
     }
@@ -471,7 +471,7 @@ const saveImage = async () => {
     console.error('Erreur lors de la sauvegarde:', error)
 
     // Gestion des erreurs spécifiques
-    if (error.name !== 'AbortError') {
+    if (error.name !== 'CanceledError') {
       if (error.response?.data?.message) {
         const errorMessage = error.response.data.message
 
@@ -505,7 +505,7 @@ const deleteImage = async (image: GalleryImage) => {
       console.error('Erreur lors de la suppression:', error)
 
       // Ne pas afficher l'erreur si la requête a été annulée
-      if (error.name !== 'AbortError') {
+      if (error.name !== 'CanceledError') {
         if (error.response?.data?.message) {
           showError(`Erreur: ${error.response.data.message}`)
         } else if (error.message) {

@@ -14,6 +14,30 @@
           <VBtn v-if="canCreate" color="primary" prepend-icon="mdi-plus" @click="openDialog()">
             Ajouter une danse
           </VBtn>
+          
+          <!-- Menu des actions supplémentaires -->
+          <VMenu v-if="canDelete && dances.length > 0" location="bottom end">
+            <template #activator="{ props }">
+              <VBtn
+                v-bind="props"
+                icon="mdi-dots-vertical"
+                variant="text"
+                color="grey-darken-1"
+                class="ml-2"
+                size="small"
+              />
+            </template>
+            <VList>
+              <VListItem @click="confirmDeleteAll">
+                <template #prepend>
+                  <VIcon icon="mdi-delete-sweep" color="error" />
+                </template>
+                <VListItemTitle class="text-error">
+                  Supprimer toutes les danses
+                </VListItemTitle>
+              </VListItem>
+            </VList>
+          </VMenu>
         </div>
       </div>
 
@@ -280,6 +304,37 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Dialog de confirmation de suppression de toutes les danses -->
+    <v-dialog v-model="deleteAllDialog" max-width="500px">
+      <v-card class="confirm-dialog">
+        <v-card-title class="text-h5">
+          <VIcon icon="mdi-alert" color="error" class="mr-2" />
+          Supprimer toutes les danses
+        </v-card-title>
+        <v-card-text>
+          <p class="text-body-1 mb-3">
+            <strong>Attention !</strong> Cette action est irréversible.
+          </p>
+          <p class="text-body-2">
+            Vous êtes sur le point de supprimer <strong>{{ dances.length }} danse{{ dances.length > 1 ? 's' : '' }}</strong> 
+            de votre répertoire. Cette action ne peut pas être annulée.
+          </p>
+          <p class="text-body-2 mt-2">
+            Êtes-vous sûr de vouloir continuer ?
+          </p>
+        </v-card-text>
+        <v-card-actions>
+          <VSpacer />
+          <VBtn color="grey" variant="text" @click="deleteAllDialog = false">
+            Annuler
+          </VBtn>
+          <VBtn color="error" variant="flat" @click="deleteAllDances" :loading="loading">
+            Supprimer toutes les danses
+          </VBtn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -327,6 +382,7 @@ const filters = ref({
 })
 const dialog = ref(false)
 const deleteDialog = ref(false)
+const deleteAllDialog = ref(false)
 const formValid = ref(false)
 const showDatePicker = ref(false)
 const editingDance = ref<Dance | null>(null)
@@ -563,7 +619,7 @@ const loadDances = async () => {
 
   } catch (error: any) {
     // Ne pas afficher l'erreur si la requête a été annulée
-    if (error.name !== 'AbortError') {
+    if (error.name !== 'CanceledError') {
       console.error('❌ Erreur lors du chargement des danses:', error)
       showError('Erreur lors du chargement des danses. Veuillez réessayer.')
     }
@@ -855,6 +911,33 @@ const deleteDance = async () => {
       } else {
         showError('Erreur inconnue lors de la suppression de la danse')
       }
+    }
+  }
+}
+
+// Confirmer la suppression de toutes les danses
+const confirmDeleteAll = () => {
+  deleteAllDialog.value = true
+}
+
+// Supprimer toutes les danses
+const deleteAllDances = async () => {
+  try {
+    await api.delete('/dances')
+    await loadDances() // Recharger les danses
+
+    deleteAllDialog.value = false
+
+    showSuccess(`Toutes les danses ont été supprimées avec succès`)
+  } catch (error: any) {
+    console.error('❌ Erreur lors de la suppression de toutes les danses:', error)
+
+    if (error.response?.data?.message) {
+      showError(`Erreur: ${error.response.data.message}`)
+    } else if (error.message) {
+      showError(`Erreur lors de la suppression: ${error.message}`)
+    } else {
+      showError('Erreur inconnue lors de la suppression de toutes les danses')
     }
   }
 }
