@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useDashboard, type DashboardStats } from '@/services/dashboardService'
+import { useViewPermissions } from '@/composables/useViewPermissions'
 
 // Services
 const { getStats } = useDashboard()
+
+// Permissions pour cette vue
+const { canView: canViewDashboard } = useViewPermissions('dashboard')
 
 // État réactif
 const loading = ref(false)

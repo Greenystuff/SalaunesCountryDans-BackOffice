@@ -16,7 +16,8 @@ export interface LoginResponse {
     lastName: string
     phone?: string
     avatar?: string
-    role: string
+    role: 'admin' | 'manager' | 'user'
+    permissions?: string[]
     lastLogin: string
   }
   token: string
@@ -30,7 +31,9 @@ export interface User {
   lastName: string
   phone?: string
   avatar?: string
-  role: string
+  role: 'admin' | 'manager' | 'user'
+  permissions?: string[]
+  isActive?: boolean
   lastLogin: string
   createdAt?: string
   updatedAt?: string

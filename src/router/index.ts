@@ -9,6 +9,7 @@ import MembersView from '@/views/MembersView.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import SettingsView from '@/views/SettingsView.vue'
 import NotificationsView from '@/views/NotificationsView.vue'
+import UsersView from '@/views/UsersView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -101,6 +102,17 @@ const router = createRouter({
         isUserPage: true,
       },
     },
+    {
+      path: '/users',
+      name: 'users',
+      component: UsersView,
+      meta: {
+        requiresAuth: true,
+        requiresAdmin: true,
+        title: 'Gestion des utilisateurs',
+        isUserPage: true,
+      },
+    },
   ],
 })
 
@@ -119,6 +131,12 @@ router.beforeEach(async (to, from, next) => {
 
     if (!isAuthenticated) {
       next('/login')
+      return
+    }
+    
+    // Vérifier si la route nécessite des privilèges d'administrateur
+    if (to.meta.requiresAdmin && !userStore.isAdmin) {
+      next('/dashboard')
       return
     }
   }

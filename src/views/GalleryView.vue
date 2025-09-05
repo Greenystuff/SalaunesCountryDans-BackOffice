@@ -11,7 +11,7 @@
           </p>
         </div>
         <div class="header-actions">
-          <VBtn color="primary" prepend-icon="mdi-plus" @click="openDialog()">
+          <VBtn v-if="canCreate" color="primary" prepend-icon="mdi-plus" @click="openDialog()">
             Ajouter des images
           </VBtn>
         </div>
@@ -40,7 +40,7 @@
         <!-- Grille des images -->
         <v-row v-if="!loading && filteredImages.length > 0">
           <v-col v-for="image in filteredImages" :key="image._id" cols="12" sm="6" md="4" lg="3">
-            <GalleryImageCard :image="image" @edit="openDialog" @delete="deleteImage" />
+            <GalleryImageCard :image="image" :can-edit="canEdit" :can-delete="canDelete" @edit="openDialog" @delete="deleteImage" />
           </v-col>
         </v-row>
 
@@ -134,6 +134,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { apiService } from '@/services/api'
 import { useNotifications } from '@/composables/useNotifications'
+import { useViewPermissions } from '@/composables/useViewPermissions'
 import GalleryImageCard from '@/components/GalleryImageCard.vue'
 
 interface GalleryImage {
@@ -158,6 +159,9 @@ interface GalleryImage {
 
 // État
 const { showSuccess, showError, showWarning } = useNotifications()
+// Permissions pour cette vue
+const { canCreate, canEdit, canDelete } = useViewPermissions('gallery')
+
 const loading = ref(false)
 const saving = ref(false)
 const dialog = ref(false)

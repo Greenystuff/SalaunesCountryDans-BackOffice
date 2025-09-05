@@ -11,7 +11,7 @@
           </p>
         </div>
         <div class="header-actions">
-          <VBtn color="primary" prepend-icon="mdi-plus" @click="openCreate()">
+          <VBtn v-if="canCreate" color="primary" prepend-icon="mdi-plus" @click="openCreate()">
             Nouveau membre
           </VBtn>
         </div>
@@ -87,8 +87,8 @@
               <td class="col-actions">
                 <div class="actions-container">
                   <VBtn icon="mdi-eye" variant="text" size="small" @click="openView(member)" />
-                  <VBtn icon="mdi-pencil" variant="text" size="small" @click="openEdit(member)" />
-                  <VBtn icon="mdi-delete" variant="text" size="small" color="error" @click="openDelete(member)" />
+                  <VBtn v-if="canEdit" icon="mdi-pencil" variant="text" size="small" @click="openEdit(member)" />
+                  <VBtn v-if="canDelete" icon="mdi-delete" variant="text" size="small" color="error" @click="openDelete(member)" />
                 </div>
               </td>
             </tr>
@@ -502,6 +502,7 @@
 import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useApi } from '@/services/api'
 import { useNotifications } from '@/composables/useNotifications'
+import { useViewPermissions } from '@/composables/useViewPermissions'
 import ChequesManager from '@/components/ChequesManager.vue'
 import MemberDetailsModal from '@/components/MemberDetailsModal.vue'
 import ChequeModal from '@/components/ChequeModal.vue'
@@ -564,6 +565,9 @@ interface Stats {
 // État réactif
 const api = useApi()
 const { showSuccess, showError, showWarning } = useNotifications()
+// Permissions pour cette vue
+const { canCreate, canEdit, canDelete } = useViewPermissions('members')
+
 const members = ref<Member[]>([])
 const courses = ref<Course[]>([])
 const stats = ref<Stats | null>(null)

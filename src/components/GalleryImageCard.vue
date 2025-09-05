@@ -27,9 +27,9 @@
 
         <!-- Actions flottantes -->
         <div class="floating-actions">
-          <v-btn icon="mdi-pencil" size="small" variant="tonal" color="white" class="action-btn"
+          <v-btn v-if="canEdit" icon="mdi-pencil" size="small" variant="tonal" color="white" class="action-btn"
             @click="$emit('edit', image)" />
-          <v-btn icon="mdi-delete" size="small" variant="tonal" color="error" class="action-btn"
+          <v-btn v-if="canDelete" icon="mdi-delete" size="small" variant="tonal" color="error" class="action-btn"
             @click="$emit('delete', image)" />
         </div>
       </v-img>
@@ -104,9 +104,14 @@ interface GalleryImage {
 
 interface Props {
   image: GalleryImage
+  canEdit?: boolean
+  canDelete?: boolean
 }
 
-defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  canEdit: true,
+  canDelete: true
+})
 
 defineEmits<{
   edit: [image: GalleryImage]

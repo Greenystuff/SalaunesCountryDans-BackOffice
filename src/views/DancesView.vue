@@ -11,7 +11,7 @@
           </p>
         </div>
         <div class="header-actions">
-          <VBtn color="primary" prepend-icon="mdi-plus" @click="openDialog()">
+          <VBtn v-if="canCreate" color="primary" prepend-icon="mdi-plus" @click="openDialog()">
             Ajouter une danse
           </VBtn>
         </div>
@@ -68,8 +68,8 @@
 
             <!-- Colonne Actions -->
             <template #item.actions="{ item }">
-              <v-btn icon="mdi-pencil" size="small" variant="text" color="primary" @click="openDialog(item)" />
-              <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="confirmDelete(item)" />
+              <v-btn v-if="canEdit" icon="mdi-pencil" size="small" variant="text" color="primary" @click="openDialog(item)" />
+              <v-btn v-if="canDelete" icon="mdi-delete" size="small" variant="text" color="error" @click="confirmDelete(item)" />
             </template>
           </v-data-table>
         </div>
@@ -287,6 +287,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { apiService } from '@/services/api'
 import { useNotifications } from '@/composables/useNotifications'
+import { useViewPermissions } from '@/composables/useViewPermissions'
 
 interface Dance {
   _id: string
@@ -315,6 +316,9 @@ const api = apiService
 const { showSuccess, showError, showWarning } = useNotifications()
 
 // Données réactives
+// Permissions pour cette vue
+const { canCreate, canEdit, canDelete } = useViewPermissions('dances')
+
 const dances = ref<Dance[]>([])
 const loading = ref(false)
 const search = ref('')

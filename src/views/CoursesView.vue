@@ -11,7 +11,7 @@
           </p>
         </div>
         <div class="header-actions">
-          <VBtn color="primary" prepend-icon="mdi-plus" @click="openCreate()">
+          <VBtn v-if="canCreate" color="primary" prepend-icon="mdi-plus" @click="openCreate()">
             Nouveau cours
           </VBtn>
         </div>
@@ -47,7 +47,7 @@
                     <div v-for="item in coursesOnDate(day.date)" :key="item._id" class="vc-day-content-item"
                       :data-level="item.level"
                       :title="`${timeShort(item.start)}–${timeShort(item.end)} · ${item.title} (${item.level})`"
-                      @click.stop="openEdit(item)">
+                      @click.stop="canEdit ? openEdit(item) : null">
                       <div class="event-time">{{ timeShort(item.start) }}</div>
                       <div class="event-title">{{ item.title }}</div>
                       <div class="event-level">{{ item.level }}</div>
@@ -60,7 +60,7 @@
                       <div v-for="item in coursesOnDate(day.date)" :key="item._id" class="vc-day-dot"
                         :data-level="item.level"
                         :title="`${timeShort(item.start)}–${timeShort(item.end)} · ${item.title} (${item.level})`"
-                        @click.stop="openEdit(item)" />
+                        @click.stop="canEdit ? openEdit(item) : null" />
                     </div>
                     <div class="vc-day-events-count">
                       {{ coursesOnDate(day.date).length }} cours
@@ -118,8 +118,8 @@
               <td>{{ item.location || '—' }}</td>
               <td class="actions">
                 <div class="actions-wrapper">
-                  <VBtn icon="mdi-pencil" variant="text" @click="openEdit(item)" />
-                  <VBtn icon="mdi-delete" variant="text" color="error" @click="remove(item._id)" />
+                  <VBtn v-if="canEdit" icon="mdi-pencil" variant="text" @click="openEdit(item)" />
+                  <VBtn v-if="canDelete" icon="mdi-delete" variant="text" color="error" @click="remove(item._id)" />
                 </div>
               </td>
             </tr>
@@ -190,7 +190,7 @@
 
         <div class="dialog-actions">
           <div class="left">
-            <VBtn v-if="dialog.mode === 'edit'" variant="text" color="error" @click="remove(form._id)">
+            <VBtn v-if="dialog.mode === 'edit' && canDelete" variant="text" color="error" @click="remove(form._id)">
               Supprimer
             </VBtn>
           </div>
@@ -215,11 +215,15 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import DayManagementModal from '@/components/DayManagementModal.vue'
 import { apiService } from '@/services/api'
 import { useNotifications } from '@/composables/useNotifications'
+import { useViewPermissions } from '@/composables/useViewPermissions'
 
 /** ----------------------------
  *  Données & constantes
  *  ---------------------------- */
 const levelOptions = ['Débutant', 'Novice', 'Intermédiaire']
+
+// Permissions pour cette vue
+const { canCreate, canEdit, canDelete } = useViewPermissions('courses')
 const recurrenceOptions = ['Aucune', 'Hebdomadaire', 'Toutes les 2 semaines', 'Mensuelle']
 
 // Notifications

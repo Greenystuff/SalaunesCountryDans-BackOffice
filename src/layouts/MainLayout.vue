@@ -82,6 +82,7 @@
         <v-list class="user-menu">
           <v-list-item prepend-icon="mdi-account" title="Profil" value="profile" @click="goToProfile" />
           <v-list-item prepend-icon="mdi-cog" title="Paramètres" value="settings" @click="goToSettings" />
+          <v-list-item v-if="canManageUsers" prepend-icon="mdi-account-cog" title="Gestion utilisateurs" value="users" @click="goToUsers" />
           <v-divider />
           <v-list-item prepend-icon="mdi-logout" title="Déconnexion" value="logout" @click="logout" />
         </v-list>
@@ -106,6 +107,8 @@ import { RouterView, useRoute } from 'vue-router'
 import { useTheme } from 'vuetify'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useNavigationPermissions } from '@/composables/useNavigationPermissions'
+import { useDebugPermissions } from '@/composables/useDebugPermissions'
 import GlobalNotifications from '@/components/GlobalNotifications.vue'
 import WebSocketStatus from '@/components/WebSocketStatus.vue'
 import NotificationCenter from '@/components/NotificationCenter.vue'
@@ -114,6 +117,8 @@ const theme = useTheme()
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const { filterMenuItems, canManageUsers } = useNavigationPermissions()
+const { debugUserPermissions } = useDebugPermissions()
 
 const drawer = ref(true)
 const rail = ref(false)
@@ -137,7 +142,7 @@ const checkScreenSize = () => {
   }
 }
 
-const menuItems = [
+const allMenuItems = [
   {
     title: 'Tableau de bord',
     icon: 'mdi-view-dashboard',
@@ -164,6 +169,11 @@ const menuItems = [
     to: '/members'
   }
 ]
+
+// Filtrer les éléments de menu selon les permissions de l'utilisateur
+const menuItems = computed(() => {
+  return filterMenuItems(allMenuItems)
+})
 
 const avatarSrc = computed(() => {
   // Priorité : avatar personnalisé > avatar par défaut selon le rôle
@@ -202,6 +212,10 @@ const goToProfile = () => {
 
 const goToSettings = () => {
   router.push('/settings')
+}
+
+const goToUsers = () => {
+  router.push('/users')
 }
 
 const goBackToNavigation = () => {
@@ -245,7 +259,15 @@ onMounted(() => {
 
   // Écouter les changements de taille d'écran
   window.addEventListener('resize', checkScreenSize)
+
+  // Debug des permissions (temporaire)
+  debugUserPermissions()
 })
+
+// Watcher pour debug des permissions quand l'utilisateur change
+watch(() => userStore.user, () => {
+  debugUserPermissions()
+}, { deep: true })
 </script>
 
 <style scoped>

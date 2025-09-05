@@ -1,0 +1,51 @@
+.users-view {
+  padding: 1.5rem;
+}
+
+.search-field {
+  max-width: 300px;
+}
+
+.permissions-section {
+  border: 1px solid rgb(var(--v-theme-outline));
+  border-radius: 4px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.user-dialog {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-dialog .v-card-text {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.permission-grid .v-checkbox {
+  margin-bottom: 8px;
+  transition: background-color 0.2s;
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.permission-grid .v-checkbox:hover {
+  background-color: rgb(var(--v-theme-surface-variant));
+}
+
+/* Pour les écrans de petite taille */
+@media (max-width: 600px) {
+  .v-dialog {
+    margin: 0;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    border-radius: 0;
+  }
+  
+  .user-dialog {
+    height: 100%;
+    border-radius: 0;
+  }
+}

@@ -11,6 +11,7 @@ export const useUserStore = defineStore('user', () => {
 
   const isAuthenticated = computed(() => !!token.value && !!user.value)
   const isAdmin = computed(() => user.value?.role === 'admin')
+  const isManager = computed(() => user.value?.role === 'manager')
   const fullName = computed(() => {
     if (!user.value) return ''
     return `${user.value.firstName} ${user.value.lastName}`
@@ -116,6 +117,7 @@ export const useUserStore = defineStore('user', () => {
     isLoading,
     isAuthenticated,
     isAdmin,
+    isManager,
     fullName,
     login,
     logout,
