@@ -12,9 +12,7 @@ RUN npm ci
 # Copier le code source
 COPY . .
 
-# >>> clé : passer l'URL au moment du build
-ARG VITE_API_URL
-ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_API_URL="api.salaunescountrydans.fr"
 
 # Construire l'application pour la production
 RUN node -e "console.log('>> VITE_API_URL during build =', process.env.VITE_API_URL || '(empty)')"
