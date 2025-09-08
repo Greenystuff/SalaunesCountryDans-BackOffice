@@ -71,7 +71,7 @@ interface ChequeData {
   ibanLast4?: string
   remitBatch?: string
   issuedAt?: string
-  status: 'emis' | 'recu' | 'remis' | 'credite' | 'rejete' | 'retourne'
+  status: 'recu' | 'remis' | 'credite' | 'rejete' | 'retourne'
   imageUrl?: string
   notes?: string
 }
@@ -105,7 +105,7 @@ const form = reactive<ChequeData & { _id: string }>({
   ibanLast4: '',
   remitBatch: '',
   issuedAt: '',
-  status: 'emis',
+  status: 'recu',
   imageUrl: '',
   notes: '',
 })
@@ -118,7 +118,6 @@ const purposeItems = [
 ]
 
 const statusItems = [
-  { title: 'Émis', value: 'emis' },
   { title: 'Reçu', value: 'recu' },
   { title: 'Remis', value: 'remis' },
   { title: 'Crédité', value: 'credite' },
@@ -152,7 +151,7 @@ const resetForm = () => {
     ibanLast4: '',
     remitBatch: '',
     issuedAt: '',
-    status: 'emis',
+    status: 'recu',
     imageUrl: '',
     notes: '',
   })

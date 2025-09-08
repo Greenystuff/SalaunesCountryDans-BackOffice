@@ -88,7 +88,8 @@
                 <div class="actions-container">
                   <VBtn icon="mdi-eye" variant="text" size="small" @click="openView(member)" />
                   <VBtn v-if="canEdit" icon="mdi-pencil" variant="text" size="small" @click="openEdit(member)" />
-                  <VBtn v-if="canDelete" icon="mdi-delete" variant="text" size="small" color="error" @click="openDelete(member)" />
+                  <VBtn v-if="canDelete" icon="mdi-delete" variant="text" size="small" color="error"
+                    @click="openDelete(member)" />
                 </div>
               </td>
             </tr>
@@ -469,7 +470,7 @@
                     <div class="text-caption text-medium-emphasis mb-1">
                       Version {{ rules.version }} • {{ formatDate(rules.uploadDate) }}
                       <span v-if="rules.uploadedBy"> par {{ rules.uploadedBy.firstName }} {{ rules.uploadedBy.lastName
-                        }}</span>
+                      }}</span>
                     </div>
                     <div v-if="rules.description" class="text-body-2 mb-1">
                       {{ rules.description }}
@@ -589,7 +590,7 @@ interface NewCheque {
   ibanLast4?: string
   remitBatch?: string
   issuedAt?: string
-  status: 'emis' | 'recu' | 'remis' | 'credite' | 'rejete' | 'retourne'
+  status: 'recu' | 'remis' | 'credite' | 'rejete' | 'retourne'
   imageUrl?: string
   notes?: string
 }
@@ -922,7 +923,7 @@ const saveMember = async () => {
               ibanLast4: c.ibanLast4,
               remitBatch: c.remitBatch,
               issuedAt: c.issuedAt ? new Date(c.issuedAt).toISOString() : undefined,
-              status: c.status || 'emis',
+              status: c.status || 'recu',
               imageUrl: c.imageUrl,
               notes: c.notes,
             }
