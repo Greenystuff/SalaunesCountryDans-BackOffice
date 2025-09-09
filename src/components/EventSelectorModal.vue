@@ -453,42 +453,14 @@ function removeEvent(event: any) {
   if (index >= 0) {
     selectedEvents.value.splice(index, 1)
 
-    // Mettre à jour la sélection du VTreeview
-    updateTreeviewSelection()
+    // Mettre à jour la sélection du VTreeview seulement pour la date courante
+    updateTreeviewSelectionForCurrentDate()
   }
 }
 
-// Fonction pour synchroniser la sélection du VTreeview avec selectedEvents
-function updateTreeviewSelection() {
-  const treeviewIds = selectedEvents.value.map(event => {
-    if (event.isAllOccurrences) {
-      return `all_${event.originalEventId}`
-    } else if (event.isVirtualOccurrence) {
-      return `${event.originalEventId}_${event.occurrenceDate}`
-    } else {
-      return event.eventId
-    }
-  })
-
-  // Trouver les items correspondants dans le treeview
-  const matchingItems: any[] = []
-  treeviewIds.forEach(id => {
-    // Chercher dans tous les items du treeview
-    treeviewItems.value.forEach(item => {
-      if (item.id === id) {
-        matchingItems.push(item)
-      } else if (item.children) {
-        item.children.forEach((child: any) => {
-          if (child.id === id) {
-            matchingItems.push(child)
-          }
-        })
-      }
-    })
-  })
-
-  treeviewSelection.value = matchingItems
-}
+// Note: La fonction updateTreeviewSelection() a été supprimée car elle causait
+// des conflits entre les sélections de différentes dates. Seule la fonction
+// updateTreeviewSelectionForCurrentDate() est utilisée maintenant.
 
 function getEventTypeIcon(type: string) {
   switch (type) {
@@ -635,7 +607,7 @@ function updateTreeviewSelectionForCurrentDate() {
 function onTreeviewSelectionChange(selectedItems: any[]) {
   console.log('onTreeviewSelectionChange - selectedItems:', selectedItems)
 
-  // Convertir la date sélectionnée en string pour la comparaison (en utilisant les méthodes locales pour éviter les problèmes de fuseau horaire)
+  // Convertir la date sélectionnée en string pour la comparaison
   let selectedDateString: string
   if ((selectedDate.value as any) instanceof Date) {
     const year = (selectedDate.value as any).getFullYear()
@@ -649,11 +621,14 @@ function onTreeviewSelectionChange(selectedItems: any[]) {
   // Obtenir les événements actuellement sélectionnés pour la date courante
   const currentDateEvents = selectedEvents.value.filter(event => {
     if (event.isAllOccurrences) {
-      return false
+      // Pour "Toutes les occurrences", vérifier si cet événement a des occurrences sur la date courante
+      const hasOccurrenceOnCurrentDate = eventsOnSelectedDate.value.some(occurrence =>
+        occurrence.originalEventId === event.originalEventId
+      )
+      return hasOccurrenceOnCurrentDate
     } else if (event.isVirtualOccurrence) {
       return event.occurrenceDate === selectedDateString
     } else {
-      // Utiliser les méthodes locales pour éviter les problèmes de fuseau horaire
       const eventDateObj = new Date(event.start)
       const year = eventDateObj.getFullYear()
       const month = String(eventDateObj.getMonth() + 1).padStart(2, '0')
@@ -666,7 +641,6 @@ function onTreeviewSelectionChange(selectedItems: any[]) {
   // Convertir les items sélectionnés en événements
   let newCurrentDateEvents = selectedItems.map(item => {
     if (item.isAllOccurrences) {
-      // Récupérer les données de l'événement original pour avoir le bon titre
       const originalEvent = events.value.find(e => e._id === item.originalEventId)
       return {
         isAllOccurrences: true,
@@ -679,9 +653,8 @@ function onTreeviewSelectionChange(selectedItems: any[]) {
         location: item.location
       }
     } else if (item.isVirtualOccurrence) {
-      // Pour les occurrences individuelles, récupérer les données de l'événement original
       const originalEvent = events.value.find(e => e._id === item.originalEventId)
-      const result = {
+      return {
         eventId: item.originalEventId,
         occurrenceDate: item.occurrenceDate,
         isRecurring: true,
@@ -695,10 +668,7 @@ function onTreeviewSelectionChange(selectedItems: any[]) {
         start: originalEvent?.start,
         end: originalEvent?.end
       }
-      console.log('Virtual occurrence result:', result)
-      return result
     } else if (item.isSimpleEvent) {
-      // Pour les événements simples, récupérer les données de l'événement original
       const originalEvent = events.value.find(e => e._id === item.id)
       return {
         eventId: item.id,
@@ -730,7 +700,6 @@ function onTreeviewSelectionChange(selectedItems: any[]) {
   if (allOccurrencesEvents.length > 0) {
     newCurrentDateEvents = newCurrentDateEvents.filter(event => {
       if ((event as any).isVirtualOccurrence) {
-        // Vérifier si cet événement a une version "Toutes les occurrences" sélectionnée
         const hasAllOccurrences = allOccurrencesEvents.some(allEvent =>
           (allEvent as any).originalEventId === (event as any).originalEventId
         )
@@ -744,7 +713,6 @@ function onTreeviewSelectionChange(selectedItems: any[]) {
   if (individualOccurrencesEvents.length > 0) {
     newCurrentDateEvents = newCurrentDateEvents.filter(event => {
       if ((event as any).isAllOccurrences) {
-        // Vérifier si cet événement a des occurrences individuelles sélectionnées
         const hasIndividualOccurrences = individualOccurrencesEvents.some(indEvent =>
           (indEvent as any).originalEventId === (event as any).originalEventId
         )
@@ -757,7 +725,11 @@ function onTreeviewSelectionChange(selectedItems: any[]) {
   // Remplacer les événements de la date courante par les nouveaux
   let otherDateEvents = selectedEvents.value.filter(event => {
     if (event.isAllOccurrences) {
-      return true // Garder les "toutes les occurrences"
+      // Pour "Toutes les occurrences", vérifier si cet événement a des occurrences sur la date courante
+      const hasOccurrenceOnCurrentDate = eventsOnSelectedDate.value.some(occurrence =>
+        occurrence.originalEventId === event.originalEventId
+      )
+      return !hasOccurrenceOnCurrentDate
     } else if (event.isVirtualOccurrence) {
       return event.occurrenceDate !== selectedDateString
     } else {
@@ -767,11 +739,9 @@ function onTreeviewSelectionChange(selectedItems: any[]) {
   })
 
   // Appliquer l'exclusion mutuelle sur toutes les dates
-  // Si "Toutes les occurrences" est sélectionné pour la date courante, supprimer toutes les occurrences individuelles du même événement sur toutes les dates
   if (allOccurrencesEvents.length > 0) {
     otherDateEvents = otherDateEvents.filter(event => {
       if ((event as any).isVirtualOccurrence) {
-        // Vérifier si cet événement a une version "Toutes les occurrences" sélectionnée pour la date courante
         const hasAllOccurrences = allOccurrencesEvents.some(allEvent =>
           (allEvent as any).originalEventId === (event as any).originalEventId
         )
@@ -781,11 +751,9 @@ function onTreeviewSelectionChange(selectedItems: any[]) {
     })
   }
 
-  // Si des occurrences individuelles sont sélectionnées pour la date courante, supprimer "Toutes les occurrences" du même événement sur toutes les dates
   if (individualOccurrencesEvents.length > 0) {
     otherDateEvents = otherDateEvents.filter(event => {
       if ((event as any).isAllOccurrences) {
-        // Vérifier si cet événement a des occurrences individuelles sélectionnées pour la date courante
         const hasIndividualOccurrences = individualOccurrencesEvents.some(indEvent =>
           (indEvent as any).originalEventId === (event as any).originalEventId
         )
@@ -795,17 +763,11 @@ function onTreeviewSelectionChange(selectedItems: any[]) {
     })
   }
 
-  // Note: La logique de détection des désélections a été supprimée car elle causait
-  // des conflits entre les sélections de différents événements
-
   // Reconstituer la liste complète
   selectedEvents.value = [...otherDateEvents, ...newCurrentDateEvents]
 
   console.log('Final selectedEvents:', selectedEvents.value)
   console.log('Exclusion mutuelle appliquée - allOccurrencesEvents:', allOccurrencesEvents.length, 'individualOccurrencesEvents:', individualOccurrencesEvents.length)
-
-  // Synchroniser la sélection du VTreeview pour refléter les changements
-  updateTreeviewSelectionForCurrentDate()
 }
 
 // Chargement des événements (seulement les événements futurs)
@@ -940,6 +902,21 @@ function initializeSelectedEvents() {
         }
       }
     })
+
+    // Définir une date par défaut pour afficher les événements sélectionnés
+    if (selectedEvents.value.length > 0 && !selectedDate.value) {
+      // Prendre la première date d'événement sélectionné
+      const firstEvent = selectedEvents.value[0]
+      if (firstEvent.isVirtualOccurrence) {
+        selectedDate.value = firstEvent.occurrenceDate
+      } else if (firstEvent.start) {
+        const eventDate = new Date(firstEvent.start)
+        const year = eventDate.getFullYear()
+        const month = String(eventDate.getMonth() + 1).padStart(2, '0')
+        const day = String(eventDate.getDate()).padStart(2, '0')
+        selectedDate.value = `${year}-${month}-${day}`
+      }
+    }
   }
 }
 
@@ -959,6 +936,20 @@ watch(() => props.selectedEventIds, () => {
 watch(events, () => {
   if (events.value.length > 0) {
     initializeSelectedEvents()
+  }
+})
+
+// Watcher pour synchroniser le VTreeview quand selectedEvents change
+watch(selectedEvents, () => {
+  if (selectedDate.value) {
+    updateTreeviewSelectionForCurrentDate()
+  }
+}, { deep: true })
+
+// Watcher pour synchroniser le VTreeview quand selectedDate change
+watch(selectedDate, () => {
+  if (selectedDate.value) {
+    updateTreeviewSelectionForCurrentDate()
   }
 })
 

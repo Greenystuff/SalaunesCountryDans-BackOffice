@@ -462,11 +462,44 @@ const isComponentMounted = ref(false)
  *  Fonctions utilitaires
  *  ---------------------------- */
 function toISODate(date) {
-  return date.toISOString().split('T')[0]
+  // Utiliser les méthodes locales pour éviter les problèmes de fuseau horaire
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function toLocalISOString(date) {
+  // Créer une chaîne ISO en heure locale (sans le Z final pour éviter la conversion UTC)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.000`
+}
+
+function parseLocalDate(dateString) {
+  // Parser une date locale en évitant les problèmes de fuseau horaire
+  if (typeof dateString === 'string') {
+    // Si c'est au format ISO sans Z, l'interpréter comme locale
+    if (dateString.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?$/)) {
+      const [datePart, timePart] = dateString.split('T')
+      const [year, month, day] = datePart.split('-').map(Number)
+      const [time, ms] = timePart.split('.')
+      const [hours, minutes, seconds] = time.split(':').map(Number)
+
+      // Créer une date locale
+      return new Date(year, month - 1, day, hours, minutes, seconds || 0)
+    }
+  }
+  // Fallback pour les autres formats
+  return new Date(dateString)
 }
 
 function timeShort(dateString) {
-  const date = new Date(dateString)
+  const date = parseLocalDate(dateString)
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
@@ -595,7 +628,18 @@ function composeDate(dateInput, timeString) {
     throw new Error('Date invalide générée')
   }
 
-  return date
+  // S'assurer que la date est bien en heure locale
+  // En créant une nouvelle date avec les composants locaux
+  const localDate = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    date.getHours(),
+    date.getMinutes(),
+    date.getSeconds()
+  )
+
+  return localDate
 }
 
 /** ----------------------------
@@ -783,14 +827,14 @@ async function save() {
       maxParticipants: form.maxParticipants || undefined,
       price: form.price || undefined,
       isPublic: form.isPublic,
-      start: start.toISOString(),
-      end: end.toISOString(),
+      start: toLocalISOString(start),
+      end: toLocalISOString(end),
       recurrence: form.recurrence
     }
 
     console.log('📤 Données envoyées au backend:', {
-      start: start.toISOString(),
-      end: end.toISOString(),
+      start: toLocalISOString(start),
+      end: toLocalISOString(end),
       startLocal: start.toString(),
       endLocal: end.toString()
     })

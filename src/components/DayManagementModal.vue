@@ -148,13 +148,31 @@ const eventsForSelectedDate = computed(() => {
 // Méthodes utilitaires
 function dateLong(date) {
   // S'assurer que date est un objet Date
-  const dateObj = date instanceof Date ? date : new Date(date)
+  const dateObj = date instanceof Date ? date : parseLocalDate(date)
   return dateObj.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'long' })
+}
+
+function parseLocalDate(dateString) {
+  // Parser une date locale en évitant les problèmes de fuseau horaire
+  if (typeof dateString === 'string') {
+    // Si c'est au format ISO sans Z, l'interpréter comme locale
+    if (dateString.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?$/)) {
+      const [datePart, timePart] = dateString.split('T')
+      const [year, month, day] = datePart.split('-').map(Number)
+      const [time, ms] = timePart.split('.')
+      const [hours, minutes, seconds] = time.split(':').map(Number)
+
+      // Créer une date locale
+      return new Date(year, month - 1, day, hours, minutes, seconds || 0)
+    }
+  }
+  // Fallback pour les autres formats
+  return new Date(dateString)
 }
 
 function timeShort(date) {
   // S'assurer que date est un objet Date
-  const dateObj = date instanceof Date ? date : new Date(date)
+  const dateObj = date instanceof Date ? date : parseLocalDate(date)
   return `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`
 }
 
