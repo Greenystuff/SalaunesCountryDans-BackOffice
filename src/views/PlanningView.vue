@@ -467,7 +467,7 @@ function toISODate(date) {
 
 function timeShort(dateString) {
   const date = new Date(dateString)
-  return `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
 function dateLong(d) {
@@ -588,8 +588,8 @@ function composeDate(dateInput, timeString) {
     }
   }
 
-  // Créer une date en UTC pour éviter les problèmes de fuseau horaire
-  const date = new Date(dateOnly + 'T' + timeString + ':00.000Z')
+  // Créer une date en heure locale (sans le Z final)
+  const date = new Date(dateOnly + 'T' + timeString + ':00')
 
   if (isNaN(date.getTime())) {
     throw new Error('Date invalide générée')

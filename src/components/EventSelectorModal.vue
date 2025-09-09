@@ -375,7 +375,7 @@ const treeviewItems = computed(() => {
 // Méthodes utilitaires
 function timeShort(dateString: string | Date) {
   const date = new Date(dateString)
-  return `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
 function getEventKey(event: any) {
@@ -666,11 +666,13 @@ function onTreeviewSelectionChange(selectedItems: any[]) {
   // Convertir les items sélectionnés en événements
   let newCurrentDateEvents = selectedItems.map(item => {
     if (item.isAllOccurrences) {
+      // Récupérer les données de l'événement original pour avoir le bon titre
+      const originalEvent = events.value.find(e => e._id === item.originalEventId)
       return {
         isAllOccurrences: true,
         originalEventId: item.originalEventId,
-        title: item.title,
-        type: 'recurring',
+        title: originalEvent?.title || item.title,
+        type: originalEvent?.type || 'recurring',
         level: item.level,
         recurrence: item.recurrence,
         time: item.time,
@@ -793,50 +795,14 @@ function onTreeviewSelectionChange(selectedItems: any[]) {
     })
   }
 
-  // Détecter si "Toutes les occurrences" a été désélectionné pour la date courante
-  const previousCurrentDateEvents = selectedEvents.value.filter(event => {
-    if (event.isAllOccurrences) {
-      const hasOccurrenceOnCurrentDate = eventsOnSelectedDate.value.some(occurrence =>
-        occurrence.originalEventId === event.originalEventId
-      )
-      return hasOccurrenceOnCurrentDate
-    } else if (event.isVirtualOccurrence) {
-      return event.occurrenceDate === selectedDateString
-    } else {
-      const eventDate = new Date(event.start).toISOString().split('T')[0]
-      return eventDate === selectedDateString
-    }
-  })
-
-  const previousAllOccurrencesEvents = previousCurrentDateEvents.filter(event => (event as any).isAllOccurrences)
-  const currentAllOccurrencesEvents = newCurrentDateEvents.filter(event => (event as any).isAllOccurrences)
-
-  // Si "Toutes les occurrences" a été désélectionné, le supprimer de toutes les dates
-  const deselectedAllOccurrences = previousAllOccurrencesEvents.filter(prevEvent =>
-    !currentAllOccurrencesEvents.some(currEvent =>
-      (currEvent as any).originalEventId === (prevEvent as any).originalEventId
-    )
-  )
-
-  if (deselectedAllOccurrences.length > 0) {
-    // Supprimer "Toutes les occurrences" désélectionné de toutes les dates
-    otherDateEvents = otherDateEvents.filter(event => {
-      if ((event as any).isAllOccurrences) {
-        const shouldRemove = deselectedAllOccurrences.some(deselectedEvent =>
-          (deselectedEvent as any).originalEventId === (event as any).originalEventId
-        )
-        return !shouldRemove
-      }
-      return true
-    })
-  }
+  // Note: La logique de détection des désélections a été supprimée car elle causait
+  // des conflits entre les sélections de différents événements
 
   // Reconstituer la liste complète
   selectedEvents.value = [...otherDateEvents, ...newCurrentDateEvents]
 
   console.log('Final selectedEvents:', selectedEvents.value)
   console.log('Exclusion mutuelle appliquée - allOccurrencesEvents:', allOccurrencesEvents.length, 'individualOccurrencesEvents:', individualOccurrencesEvents.length)
-  console.log('Deselected all occurrences:', deselectedAllOccurrences.length)
 
   // Synchroniser la sélection du VTreeview pour refléter les changements
   updateTreeviewSelectionForCurrentDate()
@@ -869,18 +835,34 @@ function confirmSelection() {
       return {
         eventId: event.originalEventId,
         isAllOccurrences: true,
-        isRecurring: true
+        isRecurring: true,
+        title: event.title,
+        type: event.type,
+        level: event.level,
+        location: event.location,
+        recurrence: event.recurrence,
+        time: event.time
       }
     } else if (event.isVirtualOccurrence) {
       return {
         eventId: event.originalEventId,
         occurrenceDate: event.occurrenceDate,
-        isRecurring: true
+        isRecurring: true,
+        title: event.title,
+        type: event.type,
+        level: event.level,
+        location: event.location,
+        time: event.time
       }
     } else {
       return {
         eventId: event._id,
-        isRecurring: false
+        isRecurring: false,
+        title: event.title,
+        type: event.type,
+        level: event.level,
+        location: event.location,
+        time: event.time
       }
     }
   })
