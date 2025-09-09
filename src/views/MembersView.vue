@@ -46,7 +46,7 @@
               <th scope="col">Âge</th>
               <th scope="col">Statut</th>
               <th scope="col">Droit à l'image</th>
-              <th scope="col">Cours inscrits</th>
+              <th scope="col">Événements inscrits</th>
               <th scope="col" class="col-actions">Actions</th>
             </tr>
           </thead>
@@ -72,15 +72,25 @@
                 </VChip>
               </td>
               <td>
-                <div v-if="member.enrolledCourses?.length" class="courses-summary">
-                  <VChip color="primary" size="small" class="mb-1">
-                    {{ member.enrolledCourses.length }} cours
-                  </VChip>
-                  <div v-if="getUpcomingCourses(member.enrolledCourses).length" class="next-course">
-                    <small class="text-success">
-                      Prochain: {{ getUpcomingCourses(member.enrolledCourses)[0].title }}
-                    </small>
-                  </div>
+                <div v-if="member.enrolledEvents?.length" class="courses-summary">
+                  <VTooltip>
+                    <template #activator="{ props }">
+                      <VChip color="primary" size="small" v-bind="props">
+                        {{ member.enrolledEvents.length }} événement(s)
+                      </VChip>
+                    </template>
+                    <template #default>
+                      <div class="tooltip-content">
+                        <div class="tooltip-events">
+                          {{ getEventsTooltipEventsText(member) }}
+                        </div>
+                        <div v-if="hasUpcomingTrialDate(member)" class="tooltip-trial-date">
+                          <VIcon icon="mdi-calendar-star" size="small" class="me-1" />
+                          Première visite prévue: {{ getFormattedTrialDate(member) }}
+                        </div>
+                      </div>
+                    </template>
+                  </VTooltip>
                 </div>
                 <span v-else class="text-muted">Aucun</span>
               </td>
@@ -250,8 +260,39 @@
                 <VCheckbox v-model="formData.imageRights" label="Droit à l'image" density="compact" />
               </VCol>
               <VCol cols="12">
-                <VSelect v-model="formData.enrolledCourses" :items="coursesOptions" label="Cours inscrits" multiple
-                  variant="outlined" density="compact" />
+                <div class="events-selection">
+                  <VLabel class="mb-2">Événements inscrits</VLabel>
+                  <div class="selected-events-display">
+                    <div v-if="formData.enrolledEvents.length === 0" class="no-events">
+                      Aucun événement sélectionné
+                    </div>
+                    <div v-else class="selected-events-list">
+                      <VChip v-for="eventId in formData.enrolledEvents" :key="eventId"
+                        :color="getEventChipColor(eventId)" size="small" class="me-2 mb-2" closable
+                        @click:close="removeEvent(eventId)">
+                        {{ getEventDisplayName(eventId) }}
+                      </VChip>
+                    </div>
+                  </div>
+                  <VBtn variant="outlined" prepend-icon="mdi-calendar-plus" @click="openEventSelector" class="mt-2">
+                    {{ formData.enrolledEvents.length > 0 ? 'Modifier la sélection' : 'Sélectionner des événements' }}
+                  </VBtn>
+                </div>
+              </VCol>
+
+              <!-- Date d'essai pour les événements récurrents -->
+              <VCol cols="12" v-if="hasRecurringEvents">
+                <VMenu v-model="showTrialDatePicker" :close-on-content-click="false" transition="scale-transition"
+                  offset-y>
+                  <template #activator="{ props }">
+                    <VTextField v-model="formattedTrialDate" label="Date du premier essai prévue"
+                      prepend-inner-icon="mdi-calendar-star" variant="outlined" density="compact" readonly
+                      v-bind="props"
+                      hint="Choisissez parmi les dates disponibles de l'événement récurrent ou passez le statut à 'Inscrit' s'il est déjà venu" />
+                  </template>
+                  <VDatePicker v-model="formData.trialDate" :allowed-dates="allowedTrialDates"
+                    @update:model-value="showTrialDatePicker = false" />
+                </VMenu>
               </VCol>
 
               <!-- Champs admin -->
@@ -270,102 +311,58 @@
                     @update:model-value="showRegistrationDatePicker = false" />
                 </VMenu>
               </VCol>
-              <!-- Ligne 1: Paiement cotisation + Montant cotisation -->
-              <VCol cols="12">
-                <VRow dense>
-                  <VCol cols="8" sm="7" md="6">
-                    <VSelect v-model="formData.annualFeePaymentMethod" :items="paymentMethods"
-                      label="Paiement cotisation" placeholder="Sélectionnez un moyen de paiement" variant="outlined"
-                      density="compact" clearable />
-                  </VCol>
-                  <VCol cols="4" sm="5" md="6">
-                    <VTextField v-model="formData.annualFeeAmount" label="Montant cotisation (€)" type="number" min="0"
-                      step="0.01" variant="outlined" density="compact" placeholder="60" />
-                  </VCol>
-                </VRow>
+              <!-- Statut indépendant -->
+              <VCol cols="12" md="6">
+                <VSelect v-model="formData.status" :items="statusOptions" label="Statut" variant="outlined"
+                  density="compact" clearable />
               </VCol>
 
-              <!-- Ligne 2: Paiement adhésion + Montant adhésion -->
-              <VCol cols="12">
-                <VRow dense>
-                  <VCol cols="8" sm="7" md="6">
-                    <VSelect v-model="formData.membershipPaymentMethod" :items="paymentMethods"
-                      label="Paiement adhésion" placeholder="Sélectionnez un moyen de paiement" variant="outlined"
-                      density="compact" clearable />
-                  </VCol>
-                  <VCol cols="4" sm="5" md="6">
-                    <VTextField v-model="formData.membershipFeeAmount" label="Montant adhésion (€)" type="number"
-                      min="0" step="0.01" variant="outlined" density="compact" placeholder="20" />
-                  </VCol>
-                </VRow>
-              </VCol>
-
-              <!-- Ligne 3: Statut + Alert -->
-              <VCol cols="12">
-                <VRow dense>
-                  <VCol cols="12" md="6">
-                    <VSelect v-model="formData.status" :items="availableStatusOptions" label="Statut" variant="outlined"
-                      density="compact" :disabled="isStatusAutoManaged" clearable />
-                  </VCol>
-                  <VCol cols="12" md="6">
-                    <VAlert v-if="isStatusAutoManaged" type="info" variant="tonal" density="compact" class="mt-2">
-                      Statut automatiquement géré selon les paiements
-                    </VAlert>
-                    <VAlert
-                      v-else-if="strictPaymentValidation && !hasRequiredPaymentAmounts() && formData.status !== 'inscrit'"
-                      type="warning" variant="tonal" density="compact" class="mt-2">
-                      Pour définir le statut "inscrit", saisissez 60€ (cotisation) et 20€ (adhésion)
-                    </VAlert>
-                  </VCol>
-                </VRow>
-              </VCol>
-
-              <!-- Section chèques -->
-              <VCol cols="12">
+              <!-- Paiements ajoutés -->
+              <VCol cols="12" v-if="newPayments.length > 0">
                 <VDivider class="my-3" />
-                <!-- Nouveau membre: utilisation du même composant de modale -->
-                <template v-if="!editingMember">
-                  <div class="d-flex justify-space-between align-center mb-2">
-                    <h5 class="text-subtitle-1 m-0">Chèques (nouveau membre)</h5>
-                    <VBtn size="small" color="primary" prepend-icon="mdi-plus" @click="openChequeModal">Ajouter</VBtn>
-                  </div>
-                  <VTable density="compact" v-if="newCheques.length > 0">
-                    <thead>
-                      <tr>
-                        <th scope="col">Montant</th>
-                        <th scope="col">Objet</th>
-                        <th scope="col">Banque</th>
-                        <th scope="col">N° chèque</th>
-                        <th scope="col">Émission</th>
-                        <th scope="col" class="text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="(c, idx) in newCheques" :key="idx">
-                        <td>{{ c.amount?.toFixed(2) || '0.00' }} €</td>
-                        <td>{{ c.purpose || '-' }}</td>
-                        <td>{{ c.bankName || '-' }}</td>
-                        <td>{{ c.checkNumber || '-' }}</td>
-                        <td>{{ c.issuedAt ? formatDate(c.issuedAt) : '-' }}</td>
-                        <td class="text-right">
-                          <VBtn icon="mdi-pencil" size="small" variant="text" @click="editCheque(idx)" />
-                          <VBtn icon="mdi-delete" size="small" variant="text" color="error"
-                            @click="removeCheque(idx)" />
-                        </td>
-                      </tr>
-                    </tbody>
-                  </VTable>
-                  <div v-else class="text-center text-medium-emphasis py-4">
-                    Aucun chèque ajouté
-                  </div>
-                </template>
-                <!-- Membre existant: gestionnaire complet -->
-                <ChequesManager v-else :member-id="editingMember._id" />
+                <h5 class="text-subtitle-1 mb-3">Paiements ajoutés</h5>
+                <VTable density="compact">
+                  <thead>
+                    <tr>
+                      <th scope="col">Moyen</th>
+                      <th scope="col">Montant</th>
+                      <th scope="col">Objet</th>
+                      <th scope="col">Date</th>
+                      <th scope="col" class="text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(payment, idx) in newPayments" :key="idx">
+                      <td>
+                        <VChip :color="getPaymentMethodColor(payment.method)" size="small">
+                          {{ getPaymentMethodLabel(payment.method) }}
+                        </VChip>
+                      </td>
+                      <td>{{ payment.amount?.toFixed(2) || '0.00' }} €</td>
+                      <td>{{ payment.purpose || '-' }}</td>
+                      <td>{{ payment.date ? formatDate(payment.date) : '-' }}</td>
+                      <td class="text-right">
+                        <VBtn icon="mdi-pencil" size="small" variant="text" @click="editPayment(idx)" />
+                        <VBtn icon="mdi-delete" size="small" variant="text" color="error" @click="removePayment(idx)" />
+                      </td>
+                    </tr>
+                  </tbody>
+                </VTable>
+              </VCol>
+
+              <!-- Membre existant: gestionnaire de paiements -->
+              <VCol cols="12" v-if="editingMember">
+                <VDivider class="my-3" />
+                <PaymentsManager ref="paymentsManagerRef" :member-id="editingMember._id"
+                  @add-payment="openPaymentStepper" @edit-payment="editExistingPayment" />
               </VCol>
             </VRow>
           </VForm>
         </VCardText>
         <VCardActions class="pa-4">
+          <VBtn v-if="!editingMember" color="secondary" prepend-icon="mdi-plus" @click="openPaymentStepper">
+            Ajouter un paiement
+          </VBtn>
           <VSpacer />
           <VBtn variant="text" @click="closeModal">Annuler</VBtn>
           <VBtn color="primary" @click="saveMember" :loading="saving">
@@ -378,9 +375,121 @@
     <!-- MODAL DÉTAILS -->
     <MemberDetailsModal v-model="showViewModal" :member="viewingMember" @edit="openEdit" />
 
-    <!-- MODAL CHÈQUE RÉUTILISABLE -->
-    <ChequeModal v-model="showChequeModal" :cheque="editingCheque" :editing="editingChequeIndex !== -1"
-      @save="saveCheque" @close="closeChequeModal" />
+    <!-- MODAL SÉLECTION D'ÉVÉNEMENTS -->
+    <EventSelectorModal v-model="showEventSelectorModal" :selected-event-ids="formData.enrolledEvents"
+      @confirm="onEventsSelected" />
+
+
+    <!-- MODAL STEPPER PAIEMENT -->
+    <VDialog v-model="showPaymentStepperModal" max-width="800px" persistent>
+      <VCard>
+        <VCardTitle class="d-flex justify-space-between align-center">
+          <span>Ajouter un paiement</span>
+          <VBtn icon="mdi-close" variant="text" size="small" @click="closePaymentStepper" />
+        </VCardTitle>
+        <VCardText class="pa-4">
+          <VStepper v-model="paymentStepperStep" class="elevation-0">
+            <!-- Étape 1: Sélection du moyen de paiement -->
+            <VStepperHeader>
+              <VStepperItem :value="1" title="Moyen de paiement" />
+              <VDivider />
+              <VStepperItem :value="2" title="Détails du paiement" />
+            </VStepperHeader>
+
+            <VStepperWindow>
+              <VStepperWindowItem :value="1">
+                <div class="text-center py-6 px-4">
+                  <h3 class="text-h6 mb-4">Choisissez le moyen de paiement</h3>
+                  <VRow justify="center">
+                    <VCol cols="12" md="4" v-for="method in paymentMethods" :key="method.value">
+                      <VCard :class="['payment-method-card', { 'selected': paymentFormData.method === method.value }]"
+                        @click="selectPaymentMethod(method.value)" hover elevation="2">
+                        <VCardText class="text-center pa-4">
+                          <VIcon :icon="getPaymentMethodIcon(method.value)" size="48"
+                            :color="paymentFormData.method === method.value ? 'primary' : 'default'" class="mb-2" />
+                          <div class="text-h6">{{ method.title }}</div>
+                        </VCardText>
+                      </VCard>
+                    </VCol>
+                  </VRow>
+                </div>
+              </VStepperWindowItem>
+
+              <VStepperWindowItem :value="2">
+                <div class="py-6 px-4">
+                  <VForm ref="paymentForm" @submit.prevent="savePayment">
+                    <VRow dense>
+                      <!-- Champs communs -->
+                      <VCol cols="12" md="6">
+                        <VTextField v-model="paymentFormData.amount" label="Montant *" type="number" step="0.01"
+                          required variant="outlined" density="compact" prepend-inner-icon="mdi-currency-eur" />
+                      </VCol>
+                      <VCol cols="12" md="6">
+                        <VTextField v-model="paymentFormData.purpose" label="Objet" variant="outlined" density="compact"
+                          placeholder="ex: Cotisation, Adhésion, Stage..." />
+                      </VCol>
+                      <VCol cols="12" md="6">
+                        <VMenu v-model="showPaymentDatePicker" :close-on-content-click="false"
+                          transition="scale-transition" offset-y>
+                          <template #activator="{ props }">
+                            <VTextField v-model="formattedPaymentDate" label="Date du paiement *"
+                              prepend-inner-icon="mdi-calendar" variant="outlined" density="compact" readonly
+                              v-bind="props" required />
+                          </template>
+                          <VDatePicker v-model="paymentFormData.date" :max="maxPaymentDate"
+                            @update:model-value="showPaymentDatePicker = false" />
+                        </VMenu>
+                      </VCol>
+
+                      <!-- Champs spécifiques au chèque -->
+                      <template v-if="paymentFormData.method === 'chèque'">
+                        <VCol cols="12" md="6">
+                          <VTextField v-model="paymentFormData.bankName" label="Banque" variant="outlined"
+                            density="compact" />
+                        </VCol>
+                        <VCol cols="12" md="6">
+                          <VTextField v-model="paymentFormData.checkNumber" label="Numéro de chèque" variant="outlined"
+                            density="compact" />
+                        </VCol>
+                        <VCol cols="12" md="6">
+                          <VTextField v-model="paymentFormData.ibanLast4" label="4 derniers chiffres IBAN"
+                            variant="outlined" density="compact" maxlength="4" />
+                        </VCol>
+                        <VCol cols="12" md="6">
+                          <VTextField v-model="paymentFormData.remitBatch" label="Lot de remise" variant="outlined"
+                            density="compact" />
+                        </VCol>
+                      </template>
+
+                      <!-- Champs spécifiques à l'espèce -->
+                      <template v-if="paymentFormData.method === 'Espèce'">
+                        <VCol cols="12">
+                          <VAlert type="info" variant="tonal" density="compact">
+                            <VIcon icon="mdi-information" class="me-2" />
+                            Paiement en espèces - Aucune information supplémentaire requise
+                          </VAlert>
+                        </VCol>
+                      </template>
+                    </VRow>
+                  </VForm>
+                </div>
+              </VStepperWindowItem>
+            </VStepperWindow>
+          </VStepper>
+        </VCardText>
+        <VCardActions class="pa-4">
+          <VBtn v-if="paymentStepperStep === 2" variant="text" @click="paymentStepperStep = 1">
+            <VIcon icon="mdi-arrow-left" class="me-2" />
+            Précédent
+          </VBtn>
+          <VSpacer />
+          <VBtn variant="text" @click="closePaymentStepper">Annuler</VBtn>
+          <VBtn v-if="paymentStepperStep === 2" color="primary" @click="savePayment" :loading="savingPayment">
+            {{ editingExistingPayment ? 'Modifier le paiement' : 'Ajouter le paiement' }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
 
     <!-- MODAL SUPPRESSION -->
     <VDialog v-model="showDeleteModal" max-width="400px">
@@ -470,7 +579,7 @@
                     <div class="text-caption text-medium-emphasis mb-1">
                       Version {{ rules.version }} • {{ formatDate(rules.uploadDate) }}
                       <span v-if="rules.uploadedBy"> par {{ rules.uploadedBy.firstName }} {{ rules.uploadedBy.lastName
-                      }}</span>
+                        }}</span>
                     </div>
                     <div v-if="rules.description" class="text-body-2 mb-1">
                       {{ rules.description }}
@@ -500,67 +609,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useApi } from '@/services/api'
 import { useNotifications } from '@/composables/useNotifications'
 import { useViewPermissions } from '@/composables/useViewPermissions'
-import ChequesManager from '@/components/ChequesManager.vue'
 import MemberDetailsModal from '@/components/MemberDetailsModal.vue'
-import ChequeModal from '@/components/ChequeModal.vue'
+import PaymentsManager from '@/components/PaymentsManager.vue'
+import EventSelectorModal from '@/components/EventSelectorModal.vue'
+import type { Member, InternalRules, Course, Stats } from '@/types'
 
-// Types
-interface Member {
-  _id: string
-  firstName: string
-  lastName: string
-  birthDate: string
-  address: string
-  postalCode: string
-  city: string
-  homePhone?: string
-  mobilePhone?: string
-  email: string
-  imageRights: boolean
-  enrolledCourses: any[]
-  registrationDate?: string
-  annualFeePaymentMethod?: 'chèque' | 'Espèce'
-  membershipPaymentMethod?: 'chèque' | 'Espèce'
-  checkDeposits?: Array<{ amount: number; depositDate: string }>
-  age?: number
-  primaryPhone?: string
-  status?: 'pré-inscrit' | 'inscrit' | 'actif' | 'inactif'
-  intendedTrialDate?: string
-}
-
-interface InternalRules {
-  _id: string
-  title: string
-  version: string
-  description?: string
-  pdfFile: string
-  fileSize: number
-  uploadDate: string
-  isActive: boolean
-  uploadedBy?: {
-    _id: string
-    firstName: string
-    lastName: string
-    email: string
-  }
-  pdfUrl?: string
-}
-
-interface Course {
+// Interface pour les événements (étend Course)
+interface Event {
   _id: string
   title: string
   level: string
-}
-
-interface Stats {
-  totalMembers: number
-  membersWithImageRights: number
-  membersByCity: Array<{ _id: string; count: number }>
-  ageDistribution: Array<{ _id: string; count: number }>
+  type: string
+  start: string
+  end: string
+  recurrence: 'Aucune' | 'Hebdomadaire' | 'Toutes les 2 semaines' | 'Mensuelle'
 }
 
 // État réactif
@@ -570,7 +636,7 @@ const { showSuccess, showError, showWarning } = useNotifications()
 const { canCreate, canEdit, canDelete } = useViewPermissions('members')
 
 const members = ref<Member[]>([])
-const courses = ref<Course[]>([])
+const events = ref<Event[]>([])
 const stats = ref<Stats | null>(null)
 const currentPage = ref(1)
 const pagination = ref<any>(null)
@@ -578,23 +644,6 @@ const loading = ref(false)
 const saving = ref(false)
 const deleting = ref(false)
 
-// Paramètres de sécurité
-const strictPaymentValidation = ref(true)
-// Chèques ajoutés pour un nouveau membre avant création
-interface NewCheque {
-  _id?: string
-  amount: number
-  purpose: string
-  checkNumber?: string
-  bankName?: string
-  ibanLast4?: string
-  remitBatch?: string
-  issuedAt?: string
-  status: 'recu' | 'remis' | 'credite' | 'rejete' | 'retourne'
-  imageUrl?: string
-  notes?: string
-}
-const newCheques = ref<NewCheque[]>([])
 
 // Variables pour les règlements intérieurs
 const activeRules = ref<InternalRules | null>(null)
@@ -606,13 +655,37 @@ const rulesFileError = ref<string>('')
 const showModal = ref(false)
 const showViewModal = ref(false)
 const showDeleteModal = ref(false)
-const showChequeModal = ref(false)
 const showBirthDatePicker = ref(false)
 const showRegistrationDatePicker = ref(false)
-const editingChequeIndex = ref(-1)
-const editingCheque = ref<NewCheque | null>(null)
+const showTrialDatePicker = ref(false)
 const showRulesUploadModal = ref(false)
 const showRulesHistoryModal = ref(false)
+const showEventSelectorModal = ref(false)
+
+// Variables pour le stepper de paiement
+const showPaymentStepperModal = ref(false)
+const paymentStepperStep = ref(1)
+const savingPayment = ref(false)
+const showPaymentDatePicker = ref(false)
+const editingPaymentIndex = ref(-1)
+const editingExistingPayment = ref<any>(null)
+const paymentsManagerRef = ref()
+
+// Paiements ajoutés pour un nouveau membre avant création
+const newPayments = ref<any[]>([])
+
+// Données du formulaire de paiement
+const paymentFormData = ref({
+  method: '',
+  amount: '',
+  purpose: '',
+  date: '',
+  bankName: '',
+  checkNumber: '',
+  ibanLast4: '',
+  remitBatch: '',
+  status: 'recu'
+})
 
 // Variables supprimées : activeTab (maintenant dans le composant MemberDetailsModal)
 const maxChequeDate = computed(() => new Date().toISOString().split('T')[0])
@@ -633,12 +706,9 @@ const formData = reactive({
   mobilePhone: '',
   email: '',
   imageRights: false,
-  enrolledCourses: [] as string[],
+  enrolledEvents: [] as any[],
+  trialDate: '',
   registrationDate: '',
-  annualFeePaymentMethod: null as 'chèque' | 'Espèce' | null,
-  annualFeeAmount: 60,
-  membershipPaymentMethod: null as 'chèque' | 'Espèce' | null,
-  membershipFeeAmount: 20,
   status: 'pré-inscrit' as 'pré-inscrit' | 'inscrit' | 'actif' | 'inactif',
 })
 
@@ -676,80 +746,314 @@ const paymentMethods = [
   { title: 'Espèce', value: 'Espèce' },
 ]
 
-const coursesOptions = computed(() => {
-  return courses.value.map(course => ({
-    title: `${course.title} (${course.level})`,
-    value: course._id
-  }))
-})
-
-const purposeItems = [
-  { title: 'Cotisation', value: 'cotisation' },
-  { title: 'Adhésion', value: 'adhesion' },
-  { title: 'Autre', value: 'autre' },
-]
-
-// Gestion des chèques avec le composant ChequeModal
-const openChequeModal = () => {
-  editingChequeIndex.value = -1
-  editingCheque.value = null
-  showChequeModal.value = true
+// Méthodes pour la gestion des événements sélectionnés
+const openEventSelector = () => {
+  showEventSelectorModal.value = true
 }
 
-const editCheque = (index: number) => {
-  editingChequeIndex.value = index
-  editingCheque.value = newCheques.value[index]
-  showChequeModal.value = true
-}
-
-const closeChequeModal = () => {
-  showChequeModal.value = false
-  editingChequeIndex.value = -1
-  editingCheque.value = null
-}
-
-const saveCheque = (chequeData: NewCheque) => {
-  if (editingChequeIndex.value >= 0) {
-    // Modification
-    newCheques.value[editingChequeIndex.value] = chequeData
-  } else {
-    // Ajout
-    newCheques.value.push(chequeData)
-  }
-}
-
-const removeCheque = (idx: number) => {
-  newCheques.value.splice(idx, 1)
-}
-
-// Méthodes pour les paramètres
-const loadSettings = () => {
-  try {
-    const savedSettings = localStorage.getItem('scd_user_settings')
-    if (savedSettings) {
-      const parsed = JSON.parse(savedSettings)
-      strictPaymentValidation.value = parsed.strictPaymentValidation !== undefined ? parsed.strictPaymentValidation : true
+const onEventsSelected = (selectedEvents: any[]) => {
+  // Convertir les événements sélectionnés en format EventEnrollment
+  formData.enrolledEvents = selectedEvents.map(event => {
+    if (event.isAllOccurrences) {
+      // Pour "toutes les occurrences", on garde un seul événement récurrent
+      return {
+        eventId: event.eventId,
+        isRecurring: true,
+        isAllOccurrences: true
+      }
+    } else if (event.isRecurring) {
+      return {
+        eventId: event.eventId,
+        occurrenceDate: event.occurrenceDate,
+        isRecurring: true
+      }
+    } else {
+      return {
+        eventId: event.eventId,
+        isRecurring: false
+      }
     }
-  } catch (error) {
-    console.error('Erreur lors du chargement des paramètres:', error)
-    strictPaymentValidation.value = true
+  })
+}
+
+const removeEvent = (eventEnrollment: any) => {
+  const index = formData.enrolledEvents.findIndex((event: any) => {
+    if (typeof event === 'string') {
+      return event === eventEnrollment
+    } else {
+      return event.eventId === eventEnrollment.eventId &&
+        event.occurrenceDate === eventEnrollment.occurrenceDate &&
+        event.isAllOccurrences === eventEnrollment.isAllOccurrences
+    }
+  })
+  if (index > -1) {
+    formData.enrolledEvents.splice(index, 1)
   }
 }
 
-const hasRequiredPaymentAmounts = () => {
-  const requiredAnnualAmount = 60
-  const requiredMembershipAmount = 20
+const getEventDisplayName = (eventEnrollment: any) => {
+  // Gérer le nouveau format d'objet avec populate (depuis le backend)
+  if (typeof eventEnrollment === 'object') {
+    // Si eventId est un objet (grâce au populate), l'utiliser directement
+    if (eventEnrollment.eventId && typeof eventEnrollment.eventId === 'object') {
+      const event = eventEnrollment.eventId
+      if (eventEnrollment.isAllOccurrences) {
+        return `${event.title} (Toutes les occurrences)`
+      } else if (eventEnrollment.occurrenceDate) {
+        const date = new Date(eventEnrollment.occurrenceDate).toLocaleDateString('fr-FR')
+        return `${event.title} - ${date}`
+      } else {
+        return event.title
+      }
+    }
 
-  return Number(formData.annualFeeAmount) >= requiredAnnualAmount &&
-    Number(formData.membershipFeeAmount) >= requiredMembershipAmount
+    // Si eventId est un string (format du formulaire), chercher dans events.value
+    if (typeof eventEnrollment.eventId === 'string') {
+      const event = events.value.find(e => e._id === eventEnrollment.eventId)
+      if (event) {
+        if (eventEnrollment.isAllOccurrences) {
+          return `${event.title} (Toutes les occurrences)`
+        } else if (eventEnrollment.occurrenceDate) {
+          const date = new Date(eventEnrollment.occurrenceDate).toLocaleDateString('fr-FR')
+          return `${event.title} - ${date}`
+        } else {
+          return event.title
+        }
+      }
+    }
+  }
+
+  // Gérer l'ancien format string (compatibilité)
+  if (typeof eventEnrollment === 'string') {
+    if (eventEnrollment.includes('_')) {
+      // Occurrence récurrente
+      const [originalId, occurrenceDate] = eventEnrollment.split('_')
+      const event = events.value.find(e => e._id === originalId)
+      if (event) {
+        const date = new Date(occurrenceDate).toLocaleDateString('fr-FR')
+        return `${event.title} - ${date}`
+      }
+    } else {
+      // Événement simple
+      const event = events.value.find(e => e._id === eventEnrollment)
+      if (event) {
+        return event.title
+      }
+    }
+  }
+
+  return eventEnrollment?.eventId?.title || eventEnrollment?.eventId || eventEnrollment || 'Événement inconnu'
 }
 
-const canSetStatusToInscrit = () => {
-  // Si la validation stricte est désactivée, autoriser
-  if (!strictPaymentValidation.value) return true
+const getEventChipColor = (eventEnrollment: any) => {
+  let event = null
 
-  // Si la validation stricte est activée, vérifier les montants requis
-  return hasRequiredPaymentAmounts()
+  // Gérer le nouveau format d'objet avec populate
+  if (typeof eventEnrollment === 'object') {
+    // Si eventId est un objet (grâce au populate), l'utiliser directement
+    if (eventEnrollment.eventId && typeof eventEnrollment.eventId === 'object') {
+      event = eventEnrollment.eventId
+    }
+    // Si eventId est encore un string (ancien format), chercher dans events.value
+    else if (typeof eventEnrollment.eventId === 'string') {
+      event = events.value.find(e => e._id === eventEnrollment.eventId)
+    }
+  }
+  // Gérer l'ancien format string (compatibilité)
+  else if (typeof eventEnrollment === 'string') {
+    let eventId = eventEnrollment
+    if (eventId.includes('_')) {
+      // Occurrence récurrente
+      const [originalId] = eventId.split('_')
+      eventId = originalId
+    }
+    event = events.value.find(e => e._id === eventId)
+  }
+
+  if (event) {
+    switch (event.type) {
+      case 'Cours': return 'primary'
+      case 'Événement': return 'success'
+      case 'Compétition': return 'warning'
+      case 'Stage': return 'info'
+      default: return 'default'
+    }
+  }
+  return 'default'
+}
+
+
+
+// Gestion du stepper de paiement
+const openPaymentStepper = () => {
+  paymentStepperStep.value = 1
+  editingPaymentIndex.value = -1
+  resetPaymentForm()
+  showPaymentStepperModal.value = true
+}
+
+const editExistingPayment = (payment: any) => {
+  // Stocker le paiement en cours d'édition
+  editingExistingPayment.value = payment
+
+  // Remplir le formulaire avec les données du paiement existant
+  paymentFormData.value = {
+    method: payment.paymentMethod,
+    amount: payment.amount.toString(),
+    purpose: payment.purpose,
+    date: payment.paymentDate ? new Date(payment.paymentDate).toISOString().split('T')[0] : '',
+    bankName: '',
+    checkNumber: '',
+    ibanLast4: '',
+    remitBatch: '',
+    status: 'recu'
+  }
+
+  // Extraire les informations de chèque de la description si c'est un chèque
+  if (payment.paymentMethod === 'chèque' && payment.description) {
+    const desc = payment.description
+    const bankMatch = desc.match(/Banque: ([^,]+)/)
+    const checkMatch = desc.match(/N°: ([^,]+)/)
+    const ibanMatch = desc.match(/IBAN: \*\*\*\*([^,]+)/)
+    const batchMatch = desc.match(/Lot: ([^,]+)/)
+
+    if (bankMatch) paymentFormData.value.bankName = bankMatch[1]
+    if (checkMatch) paymentFormData.value.checkNumber = checkMatch[1]
+    if (ibanMatch) paymentFormData.value.ibanLast4 = ibanMatch[1]
+    if (batchMatch) paymentFormData.value.remitBatch = batchMatch[1]
+  }
+
+  // Aller directement à l'étape 2 et ouvrir le stepper
+  paymentStepperStep.value = 2
+  showPaymentStepperModal.value = true
+}
+
+const closePaymentStepper = () => {
+  showPaymentStepperModal.value = false
+  paymentStepperStep.value = 1
+  editingPaymentIndex.value = -1
+  editingExistingPayment.value = null
+  resetPaymentForm()
+}
+
+const selectPaymentMethod = (method: string) => {
+  paymentFormData.value.method = method
+  // Passer automatiquement à l'étape suivante
+  paymentStepperStep.value = 2
+}
+
+const resetPaymentForm = () => {
+  paymentFormData.value = {
+    method: '',
+    amount: '',
+    purpose: '',
+    date: '',
+    bankName: '',
+    checkNumber: '',
+    ibanLast4: '',
+    remitBatch: '',
+    status: 'recu'
+  }
+}
+
+const savePayment = async () => {
+  try {
+    savingPayment.value = true
+
+    // Validation
+    if (!paymentFormData.value.method || !paymentFormData.value.amount || !paymentFormData.value.purpose || !paymentFormData.value.date) {
+      showError('Veuillez remplir tous les champs obligatoires')
+      return
+    }
+
+    const paymentData = {
+      ...paymentFormData.value,
+      amount: parseFloat(paymentFormData.value.amount),
+      date: toLocalISOString(paymentFormData.value.date),
+      description: paymentFormData.value.bankName ? `Banque: ${paymentFormData.value.bankName}${paymentFormData.value.checkNumber ? `, N°: ${paymentFormData.value.checkNumber}` : ''}${paymentFormData.value.ibanLast4 ? `, IBAN: ****${paymentFormData.value.ibanLast4}` : ''}${paymentFormData.value.remitBatch ? `, Lot: ${paymentFormData.value.remitBatch}` : ''}` : ''
+    }
+
+    if (editingExistingPayment.value) {
+      // Modification d'un paiement existant
+      const paymentDataForAPI = {
+        amount: paymentData.amount,
+        purpose: paymentData.purpose,
+        paymentMethod: paymentData.method,
+        paymentDate: paymentData.date,
+        description: paymentData.bankName ? `Banque: ${paymentData.bankName}${paymentData.checkNumber ? `, N°: ${paymentData.checkNumber}` : ''}${paymentData.ibanLast4 ? `, IBAN: ****${paymentData.ibanLast4}` : ''}${paymentData.remitBatch ? `, Lot: ${paymentData.remitBatch}` : ''}` : undefined
+      }
+
+      await api.put(`/payments/${editingExistingPayment.value._id}`, paymentDataForAPI)
+      showSuccess('Paiement modifié avec succès')
+
+      // Recharger les paiements dans le PaymentsManager
+      if (paymentsManagerRef.value) {
+        paymentsManagerRef.value.reloadPayments()
+      }
+    } else if (editingPaymentIndex.value >= 0) {
+      // Modification d'un nouveau paiement (pas encore créé)
+      newPayments.value[editingPaymentIndex.value] = paymentData
+      showSuccess('Paiement modifié dans la liste (sera sauvegardé avec le membre)')
+    } else {
+      // Ajout d'un nouveau paiement
+      newPayments.value.push(paymentData)
+      showSuccess('Paiement ajouté à la liste (sera sauvegardé avec le membre)')
+    }
+
+    closePaymentStepper()
+  } catch (error) {
+    console.error('Erreur lors de l\'ajout du paiement:', error)
+    showError('Erreur lors de l\'ajout du paiement')
+  } finally {
+    savingPayment.value = false
+  }
+}
+
+const editPayment = (index: number) => {
+  editingPaymentIndex.value = index
+  const payment = newPayments.value[index]
+  paymentFormData.value = {
+    method: payment.method,
+    amount: payment.amount.toString(),
+    purpose: payment.purpose,
+    date: payment.date ? new Date(payment.date).toISOString().split('T')[0] : '',
+    bankName: payment.bankName || '',
+    checkNumber: payment.checkNumber || '',
+    ibanLast4: payment.ibanLast4 || '',
+    remitBatch: payment.remitBatch || '',
+    status: payment.status || 'recu'
+  }
+  paymentStepperStep.value = 2
+  showPaymentStepperModal.value = true
+}
+
+const removePayment = (idx: number) => {
+  newPayments.value.splice(idx, 1)
+}
+
+// Méthodes utilitaires pour les paiements
+const getPaymentMethodIcon = (method: string) => {
+  switch (method) {
+    case 'chèque': return 'mdi-bank-check'
+    case 'Espèce': return 'mdi-cash'
+    default: return 'mdi-credit-card'
+  }
+}
+
+const getPaymentMethodColor = (method: string) => {
+  switch (method) {
+    case 'chèque': return 'primary'
+    case 'Espèce': return 'success'
+    default: return 'default'
+  }
+}
+
+const getPaymentMethodLabel = (method: string) => {
+  switch (method) {
+    case 'chèque': return 'Chèque'
+    case 'Espèce': return 'Espèces'
+    default: return method
+  }
 }
 
 // Méthodes
@@ -793,12 +1097,12 @@ const loadStats = async () => {
   }
 }
 
-const loadCourses = async () => {
+const loadEvents = async () => {
   try {
-    const payload = await api.getData<Course[]>('/courses')
-    courses.value = payload
+    const payload = await api.getData<Event[]>('/events/upcoming?limit=1000')
+    events.value = payload
   } catch (error) {
-    console.error('Erreur lors du chargement des cours:', error)
+    console.error('Erreur lors du chargement des événements:', error)
   }
 }
 
@@ -853,19 +1157,42 @@ const resetForm = () => {
     mobilePhone: '',
     email: '',
     imageRights: false,
-    enrolledCourses: [],
+    enrolledEvents: [],
+    trialDate: '',
     registrationDate: '',
-    annualFeePaymentMethod: null,
-    annualFeeAmount: 60,
-    membershipPaymentMethod: null,
-    membershipFeeAmount: 20,
     status: 'pré-inscrit',
   })
-  // Réinitialiser aussi les chèques
-  newCheques.value = []
+  // Réinitialiser aussi les paiements
+  newPayments.value = []
 }
 
 const fillForm = (member: Member) => {
+  // Traiter les événements inscrits pour reconstruire les valeurs du formulaire
+  const processedEventValues = member.enrolledEvents?.map(enrollment => {
+    // Maintenant enrollment contient eventId (grâce au populate) et les propriétés d'inscription
+    if (enrollment.isAllOccurrences) {
+      // Pour "toutes les occurrences", retourner l'objet complet
+      return {
+        eventId: enrollment.eventId._id,
+        isRecurring: true,
+        isAllOccurrences: true
+      }
+    } else if (enrollment.occurrenceDate) {
+      // Pour une occurrence spécifique
+      return {
+        eventId: enrollment.eventId._id,
+        occurrenceDate: enrollment.occurrenceDate,
+        isRecurring: true
+      }
+    } else {
+      // Pour un événement simple
+      return {
+        eventId: enrollment.eventId._id,
+        isRecurring: false
+      }
+    }
+  }) || []
+
   Object.assign(formData, {
     firstName: member.firstName,
     lastName: member.lastName,
@@ -877,67 +1204,131 @@ const fillForm = (member: Member) => {
     mobilePhone: member.mobilePhone || '',
     email: member.email,
     imageRights: member.imageRights,
-    enrolledCourses: member.enrolledCourses.map(c => c._id),
+    enrolledEvents: processedEventValues,
+    trialDate: member.intendedTrialDate?.split('T')[0] || '',
     registrationDate: member.registrationDate?.split('T')[0] || '',
-    annualFeePaymentMethod: member.annualFeePaymentMethod || null,
-    membershipPaymentMethod: member.membershipPaymentMethod || null,
     status: member.status || 'pré-inscrit',
   })
+}
+
+// Fonction utilitaire pour convertir une date locale en ISO sans décalage de fuseau horaire
+const toLocalISOString = (dateString: string) => {
+  if (!dateString) return undefined
+  const date = new Date(dateString)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}T00:00:00.000Z`
 }
 
 const saveMember = async () => {
   try {
     saving.value = true
 
-    // Validation de sécurité pour le statut "inscrit"
-    if (formData.status === 'inscrit' && !canSetStatusToInscrit()) {
-      showError('Impossible de définir le statut "inscrit" : les montants de cotisation (60€) et d\'adhésion (20€) doivent être saisis. Vous pouvez désactiver cette sécurité dans les paramètres.')
-      saving.value = false
-      return
-    }
+
+    // Traiter les événements sélectionnés (déjà au bon format)
+    const processedEvents = formData.enrolledEvents.map(eventValue => {
+      // Si c'est déjà un objet (nouveau format)
+      if (typeof eventValue === 'object') {
+        return eventValue
+      }
+
+      // Si c'est une string (ancien format - compatibilité)
+      if (typeof eventValue === 'string') {
+        if (eventValue.includes('_') && eventValue.split('_').length === 2) {
+          const [eventId, occurrenceDate] = eventValue.split('_')
+          return {
+            eventId,
+            occurrenceDate,
+            isRecurring: true
+          }
+        } else {
+          return {
+            eventId: eventValue,
+            isRecurring: false
+          }
+        }
+      }
+
+      return eventValue
+    })
 
     const memberData = {
       ...formData,
-      birthDate: new Date(formData.birthDate).toISOString(),
-      registrationDate: formData.registrationDate ? new Date(formData.registrationDate).toISOString() : undefined,
+      birthDate: toLocalISOString(formData.birthDate),
+      intendedTrialDate: toLocalISOString(formData.trialDate),
+      registrationDate: toLocalISOString(formData.registrationDate),
+      enrolledEvents: processedEvents
     }
 
     if (editingMember.value) {
       await api.put(`/members/${editingMember.value._id}`, memberData)
-      showSuccess('Membre modifié avec succès')
-    } else {
-      const created = await api.postData<any>('/members', memberData)
 
-      // Créer les chèques saisis localement si présents
-      if (created?._id && newCheques.value.length > 0) {
-        const memberId = created._id
-        let chequeErrors = 0
+      // Créer les paiements saisis localement si présents
+      if (newPayments.value.length > 0) {
+        const memberId = editingMember.value._id
+        let paymentErrors = 0
 
-        for (const c of newCheques.value) {
+        for (const p of newPayments.value) {
           try {
-            const chequeData = {
-              amount: c.amount,
-              purpose: c.purpose,
-              bankName: c.bankName,
-              checkNumber: c.checkNumber,
-              ibanLast4: c.ibanLast4,
-              remitBatch: c.remitBatch,
-              issuedAt: c.issuedAt ? new Date(c.issuedAt).toISOString() : undefined,
-              status: c.status || 'recu',
-              imageUrl: c.imageUrl,
-              notes: c.notes,
+            const paymentData = {
+              amount: p.amount,
+              purpose: p.purpose || 'Paiement',
+              paymentMethod: p.method,
+              paymentDate: toLocalISOString(p.date),
+              description: p.bankName ? `Banque: ${p.bankName}${p.checkNumber ? `, N°: ${p.checkNumber}` : ''}${p.ibanLast4 ? `, IBAN: ****${p.ibanLast4}` : ''}${p.remitBatch ? `, Lot: ${p.remitBatch}` : ''}` : (p.description || '')
             }
-            await api.postData(`/members/${memberId}/checks`, chequeData)
-          } catch (chequeError) {
-            console.error('Erreur création chèque:', chequeError)
-            chequeErrors++
+            await api.postData(`/members/${memberId}/payments`, paymentData)
+          } catch (error) {
+            console.error('Erreur lors de la création du paiement:', error)
+            paymentErrors++
           }
         }
 
-        if (chequeErrors > 0) {
-          showWarning(`Membre créé, mais ${chequeErrors} chèque(s) n'ont pas pu être ajoutés`)
+        if (paymentErrors > 0) {
+          showError(`${paymentErrors} paiement(s) n'ont pas pu être créés`)
         } else {
-          showSuccess('Membre et chèques créés avec succès')
+          showSuccess('Membre modifié et paiements créés avec succès')
+        }
+
+        // Recharger les paiements pour afficher les nouveaux
+        if (paymentsManagerRef.value) {
+          paymentsManagerRef.value.reloadPayments()
+        }
+
+        // Vider la liste des nouveaux paiements
+        newPayments.value = []
+      } else {
+        showSuccess('Membre modifié avec succès')
+      }
+    } else {
+      const created = await api.postData<any>('/members', memberData)
+
+      // Créer les paiements saisis localement si présents
+      if (created?._id && newPayments.value.length > 0) {
+        const memberId = created._id
+        let paymentErrors = 0
+
+        for (const p of newPayments.value) {
+          try {
+            const paymentData = {
+              amount: p.amount,
+              purpose: p.purpose || 'Paiement',
+              paymentMethod: p.method,
+              paymentDate: toLocalISOString(p.date),
+              description: p.bankName ? `Banque: ${p.bankName}${p.checkNumber ? `, N°: ${p.checkNumber}` : ''}${p.ibanLast4 ? `, IBAN: ****${p.ibanLast4}` : ''}${p.remitBatch ? `, Lot: ${p.remitBatch}` : ''}` : undefined
+            }
+            await api.postData(`/members/${memberId}/payments`, paymentData)
+          } catch (paymentError) {
+            console.error('Erreur création paiement:', paymentError)
+            paymentErrors++
+          }
+        }
+
+        if (paymentErrors > 0) {
+          showWarning(`Membre créé, mais ${paymentErrors} paiement(s) n'ont pas pu être ajoutés`)
+        } else {
+          showSuccess('Membre et paiements créés avec succès')
         }
       } else {
         showSuccess('Membre créé avec succès')
@@ -1004,12 +1395,22 @@ const deleteMember = async () => {
 // Computed properties pour les date pickers
 const formattedBirthDate = computed(() => {
   if (!formData.birthDate) return ''
-  return new Date(formData.birthDate).toLocaleDateString('fr-FR')
+  // Éviter les problèmes de fuseau horaire
+  const date = new Date(formData.birthDate)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${day}/${month}/${year}`
 })
 
 const formattedRegistrationDate = computed(() => {
   if (!formData.registrationDate) return ''
-  return new Date(formData.registrationDate).toLocaleDateString('fr-FR')
+  // Éviter les problèmes de fuseau horaire
+  const date = new Date(formData.registrationDate)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${day}/${month}/${year}`
 })
 
 // Date maximale pour la naissance (aujourd'hui)
@@ -1022,10 +1423,132 @@ const maxRegistrationDate = computed(() => {
   return new Date().toISOString().split('T')[0]
 })
 
+// Date maximale pour les paiements (aujourd'hui)
+const maxPaymentDate = computed(() => {
+  return new Date().toISOString().split('T')[0]
+})
 
+// Date formatée pour les paiements
+const formattedPaymentDate = computed(() => {
+  if (!paymentFormData.value.date) return ''
+  // Éviter les problèmes de fuseau horaire
+  const date = new Date(paymentFormData.value.date)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${day}/${month}/${year}`
+})
+
+// Computed properties pour la date d'essai
+const formattedTrialDate = computed(() => {
+  if (!formData.trialDate) return ''
+  // Éviter les problèmes de fuseau horaire
+  const date = new Date(formData.trialDate)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${day}/${month}/${year}`
+})
+
+const minTrialDate = computed(() => {
+  return new Date().toISOString().split('T')[0]
+})
+
+// Dates autorisées pour la date d'essai (basées sur les événements récurrents sélectionnés)
+const allowedTrialDates = computed(() => {
+  const allowedDates = new Set<string>()
+  const now = new Date() // Utiliser l'heure actuelle, pas minuit
+
+  formData.enrolledEvents.forEach(eventEnrollment => {
+    if (typeof eventEnrollment === 'object' && (eventEnrollment.isRecurring || eventEnrollment.isAllOccurrences)) {
+      const event = events.value.find(e => e._id === eventEnrollment.eventId)
+      if (event && event.recurrence !== 'Aucune') {
+        // Générer les occurrences futures de cet événement récurrent
+        const eventStart = new Date(event.start)
+        const eventEnd = new Date(event.end)
+        const duration = eventEnd.getTime() - eventStart.getTime()
+
+        let currentOccurrence = new Date(eventStart)
+        const endDate = new Date(now)
+        endDate.setFullYear(endDate.getFullYear() + 1) // 1 an dans le futur
+
+        // Générer les occurrences jusqu'à la date de fin
+        while (currentOccurrence <= endDate) {
+          // Ne générer que les occurrences futures (en tenant compte de l'heure)
+          if (currentOccurrence >= now) {
+            // Éviter les problèmes de fuseau horaire en utilisant les méthodes locales
+            const year = currentOccurrence.getFullYear()
+            const month = String(currentOccurrence.getMonth() + 1).padStart(2, '0')
+            const day = String(currentOccurrence.getDate()).padStart(2, '0')
+            const dateString = `${year}-${month}-${day}`
+            allowedDates.add(dateString)
+          }
+
+          // Calculer la prochaine occurrence
+          switch (event.recurrence) {
+            case 'Hebdomadaire':
+              currentOccurrence.setDate(currentOccurrence.getDate() + 7)
+              break
+            case 'Toutes les 2 semaines':
+              currentOccurrence.setDate(currentOccurrence.getDate() + 14)
+              break
+            case 'Mensuelle':
+              currentOccurrence.setMonth(currentOccurrence.getMonth() + 1)
+              break
+          }
+        }
+      }
+    }
+  })
+
+  return Array.from(allowedDates).sort()
+})
+
+const hasRecurringEvents = computed(() => {
+  // Ne pas afficher le champ si le membre est déjà venu (statuts "inscrit" ou "actif")
+  if (formData.status === 'inscrit' || formData.status === 'actif') {
+    return false
+  }
+
+  return formData.enrolledEvents.some(event => {
+    if (typeof event === 'object') {
+      // Vérifier si c'est un événement récurrent
+      if (event.isRecurring || event.isAllOccurrences) {
+        // Pour les événements récurrents, vérifier s'il y a encore des occurrences futures
+        const eventObj = events.value.find(e => e._id === event.eventId)
+        if (eventObj) {
+          // Si c'est "toutes les occurrences", vérifier que l'événement a encore des dates futures
+          if (event.isAllOccurrences) {
+            const now = new Date()
+            const eventEnd = new Date(eventObj.end)
+            return eventEnd > now // L'événement n'est pas encore terminé
+          }
+          // Pour les occurrences spécifiques, vérifier que la date n'est pas passée
+          else if (event.occurrenceDate) {
+            const occurrenceDate = new Date(event.occurrenceDate)
+            const now = new Date()
+            return occurrenceDate > now
+          }
+          // Pour les événements récurrents sans date spécifique, vérifier la date de fin
+          else {
+            const now = new Date()
+            const eventEnd = new Date(eventObj.end)
+            return eventEnd > now
+          }
+        }
+      }
+    }
+    return false
+  })
+})
 
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('fr-FR')
+  // Éviter les problèmes de fuseau horaire en utilisant les méthodes locales
+  const date = new Date(dateString)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${day}/${month}/${year}`
 }
 
 const getStatusColor = (status: string) => {
@@ -1057,11 +1580,144 @@ const getLevelColor = (level: string) => {
   }
 }
 
-const getUpcomingCourses = (courses: any[]) => {
+const getUpcomingEvents = (enrolledEvents: any[]) => {
   const now = new Date()
-  return courses
-    .filter(course => new Date(course.start) > now)
-    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+  const upcomingEvents: any[] = []
+
+  enrolledEvents.forEach(enrollment => {
+    // L'événement est maintenant directement dans enrollment.eventId (grâce au populate)
+    const event = enrollment.eventId
+    if (!event) return
+
+    if (enrollment.isAllOccurrences) {
+      // Pour "toutes les occurrences", ajouter l'événement avec un titre spécial
+      upcomingEvents.push({
+        ...event,
+        title: `${event.title} (Toutes les occurrences)`,
+        isAllOccurrences: true
+      })
+    } else if (enrollment.occurrenceDate) {
+      // Pour une occurrence spécifique, vérifier si elle est à venir
+      const occurrenceDate = new Date(enrollment.occurrenceDate)
+      if (occurrenceDate > now) {
+        upcomingEvents.push({
+          ...event,
+          title: `${event.title} - ${occurrenceDate.toLocaleDateString('fr-FR')}`,
+          occurrenceDate: occurrenceDate,
+          isSpecificOccurrence: true
+        })
+      }
+    } else if (!enrollment.isRecurring) {
+      // Pour un événement simple, vérifier s'il est à venir
+      const eventDate = new Date(event.start)
+      if (eventDate > now) {
+        upcomingEvents.push({
+          ...event,
+          isSimpleEvent: true
+        })
+      }
+    }
+  })
+
+  // Trier par date
+  return upcomingEvents.sort((a, b) => {
+    const dateA = a.occurrenceDate ? a.occurrenceDate : new Date(a.start)
+    const dateB = b.occurrenceDate ? b.occurrenceDate : new Date(b.start)
+    return dateA.getTime() - dateB.getTime()
+  })
+}
+
+// Fonction pour calculer la prochaine occurrence d'un événement récurrent
+const getNextOccurrenceDate = (event: any, member: Member) => {
+  const now = new Date()
+
+  // Si le membre est pré-inscrit et a une date d'essai future, utiliser cette date
+  if (member.status === 'pré-inscrit' && member.intendedTrialDate) {
+    const trialDate = new Date(member.intendedTrialDate)
+    // Comparer en utilisant les méthodes locales pour éviter les problèmes de fuseau horaire
+    if (trialDate.getTime() > now.getTime()) {
+      return trialDate
+    }
+  }
+
+  // Sinon, calculer la prochaine occurrence à partir d'aujourd'hui
+  const eventStart = new Date(event.start)
+  const eventEnd = new Date(event.end)
+  const duration = eventEnd.getTime() - eventStart.getTime()
+
+  let currentOccurrence = new Date(eventStart)
+  const endDate = new Date(now)
+  endDate.setFullYear(endDate.getFullYear() + 1) // 1 an dans le futur
+
+  // Trouver la prochaine occurrence future
+  while (currentOccurrence.getTime() <= endDate.getTime()) {
+    if (currentOccurrence.getTime() >= now.getTime()) {
+      return currentOccurrence
+    }
+
+    // Calculer la prochaine occurrence
+    switch (event.recurrence) {
+      case 'Hebdomadaire':
+        currentOccurrence.setDate(currentOccurrence.getDate() + 7)
+        break
+      case 'Toutes les 2 semaines':
+        currentOccurrence.setDate(currentOccurrence.getDate() + 14)
+        break
+      case 'Mensuelle':
+        currentOccurrence.setMonth(currentOccurrence.getMonth() + 1)
+        break
+    }
+  }
+
+  return null
+}
+
+// Fonction pour générer le texte des événements dans le tooltip
+const getEventsTooltipEventsText = (member: Member) => {
+  const upcomingEvents = getUpcomingEvents(member.enrolledEvents || [])
+
+  if (upcomingEvents.length === 0) {
+    return 'Aucun événement à venir'
+  }
+
+  const firstEvent = upcomingEvents[0]
+  let eventTitle = firstEvent.title
+
+  // Si c'est un événement récurrent avec "Toutes les occurrences", calculer la prochaine date
+  if (firstEvent.isAllOccurrences) {
+    const nextOccurrence = getNextOccurrenceDate(firstEvent, member)
+    if (nextOccurrence) {
+      const nextDate = nextOccurrence.toLocaleDateString('fr-FR', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short'
+      })
+      eventTitle = `${firstEvent.title.replace(' (Toutes les occurrences)', '')} - ${nextDate}`
+    }
+  }
+
+  if (upcomingEvents.length === 1) {
+    return `Prochain: ${eventTitle}`
+  } else {
+    return `Prochain: ${eventTitle} (+ ${upcomingEvents.length - 1} autre${upcomingEvents.length > 2 ? 's' : ''})`
+  }
+}
+
+// Fonction pour vérifier s'il y a une date de première visite future
+const hasUpcomingTrialDate = (member: Member) => {
+  const now = new Date()
+  return member.intendedTrialDate && new Date(member.intendedTrialDate).getTime() > now.getTime()
+}
+
+// Fonction pour formater la date de première visite
+const getFormattedTrialDate = (member: Member) => {
+  if (!member.intendedTrialDate) return ''
+  const trialDate = new Date(member.intendedTrialDate)
+  return trialDate.toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long'
+  })
 }
 
 const getPastCourses = (courses: any[]) => {
@@ -1078,44 +1734,6 @@ const getAgeGroupCount = (ageGroup: string) => {
   return group?.count || 0
 }
 
-// Computed pour déterminer si le statut doit être géré automatiquement (booléen strict)
-const isStatusAutoManaged = computed<boolean>(() => {
-  return !!formData.annualFeePaymentMethod &&
-    !!formData.membershipPaymentMethod &&
-    Number(formData.annualFeeAmount) > 0 &&
-    Number(formData.membershipFeeAmount) > 0
-})
-
-// Computed pour filtrer les options de statut selon la validation stricte
-const availableStatusOptions = computed(() => {
-  if (!strictPaymentValidation.value) {
-    return statusOptions
-  }
-
-  // Si la validation stricte est activée et les montants requis ne sont pas atteints,
-  // désactiver l'option "inscrit"
-  return statusOptions.map(option => ({
-    ...option,
-    disabled: option.value === 'inscrit' && !hasRequiredPaymentAmounts()
-  }))
-})
-
-// Watcher pour mettre à jour automatiquement le statut
-watch([() => formData.annualFeePaymentMethod, () => formData.annualFeeAmount,
-() => formData.membershipPaymentMethod, () => formData.membershipFeeAmount],
-  ([annualMethod, annualAmount, membershipMethod, membershipAmount]) => {
-    if (annualMethod && annualAmount && membershipMethod && membershipAmount) {
-      // Si tous les paiements sont renseignés ET que la validation permet le changement, passer en "inscrit"
-      if (canSetStatusToInscrit()) {
-        formData.status = 'inscrit'
-      }
-    } else if (!annualMethod && !annualAmount && !membershipMethod && !membershipAmount) {
-      // Si aucun paiement n'est renseigné, rester en "pré-inscrit"
-      formData.status = 'pré-inscrit'
-    }
-    // Sinon, laisser l'utilisateur choisir manuellement
-  }
-)
 
 // Méthodes pour les règlements intérieurs
 const loadActiveRules = async () => {
@@ -1314,31 +1932,81 @@ watch(filters, (newFilters) => {
   loadMembers()
 }, { deep: true })
 
-// Surveillance des changements dans le localStorage pour les paramètres
-const handleStorageChange = (e: StorageEvent) => {
-  if (e.key === 'scd_user_settings') {
-    loadSettings()
-  }
-}
-
 // Initialisation
 onMounted(() => {
-  loadSettings()
   loadMembers()
   loadStats()
-  loadCourses()
+  loadEvents()
   loadActiveRules()
-
-  // Écouter les changements dans le localStorage
-  window.addEventListener('storage', handleStorageChange)
-})
-
-// Nettoyage lors de la destruction du composant
-onUnmounted(() => {
-  window.removeEventListener('storage', handleStorageChange)
 })
 </script>
 
 <style>
 @import '@/assets/members-view.css';
+
+.payment-method-card {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.payment-method-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.payment-method-card.selected {
+  border-color: rgb(var(--v-theme-primary));
+  background-color: rgb(var(--v-theme-primary-container));
+}
+
+/* Styles pour la sélection d'événements */
+.events-selection {
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 8px;
+  padding: 16px;
+  background: rgb(var(--v-theme-surface-variant));
+}
+
+.selected-events-display {
+  min-height: 40px;
+  padding: 8px;
+  background: rgb(var(--v-theme-surface));
+  border-radius: 4px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.no-events {
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-style: italic;
+  text-align: center;
+  padding: 8px;
+}
+
+.selected-events-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Styles pour le tooltip amélioré */
+.tooltip-content {
+  text-align: left;
+  line-height: 1.4;
+}
+
+.tooltip-events {
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.tooltip-trial-date {
+  display: flex;
+  align-items: center;
+  font-size: 0.9em;
+  color: rgb(var(--v-theme-primary));
+  font-weight: 500;
+  padding-top: 4px;
+  border-top: 1px solid rgb(var(--v-theme-outline-variant));
+}
 </style>

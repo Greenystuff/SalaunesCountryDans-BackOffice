@@ -6,7 +6,8 @@
         <div class="header-content">
           <h2 class="modal-title">{{ dateLong(selectedDate) }}</h2>
           <p class="modal-subtitle">
-            {{ eventsForSelectedDate.length }} cours programmé{{ eventsForSelectedDate.length > 1 ? 's' : '' }}
+            {{ eventsForSelectedDate.length }} événement{{ eventsForSelectedDate.length > 1 ? 's' : '' }} programmé{{
+              eventsForSelectedDate.length > 1 ? 's' : '' }}
           </p>
         </div>
         <VBtn icon="mdi-close" variant="text" @click="closeModal" class="close-btn" />
@@ -21,12 +22,13 @@
           <div class="header-info">
             <h3 class="day-title">{{ dateLong(selectedDate) }}</h3>
             <p class="day-subtitle">
-              {{ eventsForSelectedDate.length }} cours programmé{{ eventsForSelectedDate.length > 1 ? 's' : '' }}
+              {{ eventsForSelectedDate.length }} événement{{ eventsForSelectedDate.length > 1 ? 's' : '' }} programmé{{
+                eventsForSelectedDate.length > 1 ? 's' : '' }}
             </p>
           </div>
           <div class="header-actions">
-            <VBtn color="primary" prepend-icon="mdi-plus" @click="addCourse">
-              Ajouter un cours
+            <VBtn color="primary" prepend-icon="mdi-plus" @click="addEvent">
+              Ajouter un événement
             </VBtn>
           </div>
         </div>
@@ -37,8 +39,8 @@
             <div class="empty-icon">
               <VIcon icon="mdi-calendar-blank" size="64" color="grey" />
             </div>
-            <h4 class="empty-title">Aucun cours programmé</h4>
-            <p class="empty-description">Cliquez sur "Ajouter un cours" pour commencer</p>
+            <h4 class="empty-title">Aucun événement programmé</h4>
+            <p class="empty-description">Cliquez sur "Ajouter un événement" pour commencer</p>
           </div>
 
           <div v-else class="events-list">
@@ -56,22 +58,29 @@
               <!-- Détails de l'événement -->
               <div class="event-content">
                 <div class="event-header">
-                  <VChip :color="levelColor(item.level)" size="small" variant="flat" class="level-chip">
+                  <VChip :color="typeColor(item.type)" size="small" variant="flat" class="type-chip">
+                    {{ item.type }}
+                  </VChip>
+                  <VChip v-if="item.level" :color="levelColor(item.level)" size="small" variant="outlined"
+                    class="level-chip">
                     {{ item.level }}
                   </VChip>
                   <h4 class="event-title">{{ item.title }}</h4>
                 </div>
 
                 <div class="event-meta">
-                  <div class="meta-item" v-if="item.teacher">
+                  <div class="meta-item" v-if="item.instructor">
                     <VIcon icon="mdi-account" size="16" />
-                    <span>{{ item.teacher }}</span>
+                    <span>{{ item.instructor }}</span>
                   </div>
                   <div class="meta-item" v-if="item.location">
                     <VIcon icon="mdi-map-marker" size="16" />
                     <span>{{ item.location }}</span>
                   </div>
-
+                  <div class="meta-item" v-if="item.price">
+                    <VIcon icon="mdi-currency-eur" size="16" />
+                    <span>{{ item.price }}€</span>
+                  </div>
                 </div>
 
                 <div class="event-description" v-if="item.description">
@@ -81,8 +90,8 @@
 
               <!-- Actions -->
               <div class="event-actions">
-                <VBtn icon="mdi-pencil" variant="text" size="small" @click="editCourse(item)" />
-                <VBtn icon="mdi-delete" variant="text" color="error" size="small" @click="deleteCourse(item._id)" />
+                <VBtn icon="mdi-pencil" variant="text" size="small" @click="editEvent(item)" />
+                <VBtn icon="mdi-delete" variant="text" color="error" size="small" @click="deleteEvent(item._id)" />
               </div>
             </div>
           </div>
@@ -112,7 +121,7 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['update:modelValue', 'add-course', 'edit-course', 'delete-course'])
+const emit = defineEmits(['update:modelValue', 'add-event', 'edit-event', 'delete-event'])
 
 // Computed
 const isOpen = computed({
@@ -154,6 +163,19 @@ function levelColor(level) {
     case 'Débutant': return 'success'
     case 'Novice': return 'info'
     case 'Intermédiaire': return 'warning'
+    case 'Avancé': return 'error'
+    case 'Tous niveaux': return 'primary'
+    default: return 'primary'
+  }
+}
+
+function typeColor(type) {
+  switch (type) {
+    case 'Cours': return 'primary'
+    case 'Événement': return 'secondary'
+    case 'Compétition': return 'tertiary'
+    case 'Stage': return 'error'
+    case 'Autre': return 'surface-variant'
     default: return 'primary'
   }
 }
@@ -163,16 +185,16 @@ function closeModal() {
   isOpen.value = false
 }
 
-function addCourse() {
-  emit('add-course', props.selectedDate)
+function addEvent() {
+  emit('add-event', props.selectedDate)
 }
 
-function editCourse(course) {
-  emit('edit-course', course)
+function editEvent(event) {
+  emit('edit-event', event)
 }
 
-function deleteCourse(courseId) {
-  emit('delete-course', courseId)
+function deleteEvent(eventId) {
+  emit('delete-event', eventId)
 }
 </script>
 

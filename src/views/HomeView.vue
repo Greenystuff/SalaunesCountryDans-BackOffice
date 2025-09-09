@@ -84,6 +84,19 @@ const getLevelColor = (level: string) => {
     case 'Débutant': return 'success'
     case 'Novice': return 'warning'
     case 'Intermédiaire': return 'error'
+    case 'Avancé': return 'error'
+    case 'Tous niveaux': return 'primary'
+    default: return 'default'
+  }
+}
+
+const getTypeColor = (type: string) => {
+  switch (type) {
+    case 'Cours': return 'primary'
+    case 'Événement': return 'secondary'
+    case 'Compétition': return 'tertiary'
+    case 'Stage': return 'error'
+    case 'Autre': return 'surface-variant'
     default: return 'default'
   }
 }
@@ -180,13 +193,13 @@ onMounted(() => {
         </VCol>
 
         <VCol cols="12" sm="6" md="3">
-          <VCard class="stat-card courses-card" elevation="2">
+          <VCard class="stat-card events-card" elevation="2">
             <VCardText class="text-center">
               <VIcon icon="mdi-calendar-clock" size="48" color="success" class="mb-3" />
-              <h3 class="stat-number">{{ stats.overview.totalCourses }}</h3>
-              <p class="stat-label">Cours</p>
+              <h3 class="stat-number">{{ stats.overview.totalEvents }}</h3>
+              <p class="stat-label">Événements</p>
               <div class="stat-detail">
-                <span class="stat-change">{{ stats.courses.upcoming }}</span>
+                <span class="stat-change">{{ stats.events.upcoming }}</span>
                 <span class="stat-period">à venir</span>
               </div>
             </VCardText>
@@ -214,11 +227,11 @@ onMounted(() => {
               :title="isFinancesCardCensored ? 'Afficher les données' : 'Masquer les données'" />
             <VCardText class="text-center">
               <VIcon icon="mdi-cash-multiple" size="48" color="info" class="mb-3" />
-              <h3 class="stat-number">{{ formatCurrency(stats.finances.totalCreditedAmount) }}</h3>
-              <p class="stat-label">Chèques crédités</p>
+              <h3 class="stat-number">{{ formatCurrency(stats.finances.totalAmount) }}</h3>
+              <p class="stat-label">Paiements reçus</p>
               <div class="stat-detail">
-                <span class="stat-change">{{ stats.finances.credites }}</span>
-                <span class="stat-period">validés</span>
+                <span class="stat-change">{{ stats.finances.totalPayments }}</span>
+                <span class="stat-period">total</span>
               </div>
             </VCardText>
           </VCard>
@@ -320,34 +333,37 @@ onMounted(() => {
 
       <!-- Section des listes -->
       <VRow>
-        <!-- Prochains cours -->
+        <!-- Prochains événements -->
         <VCol cols="12" lg="6">
           <VCard class="list-card" elevation="2">
             <VCardTitle class="d-flex align-center">
               <VIcon icon="mdi-calendar" class="me-2" />
-              Prochains cours
+              Prochains événements
             </VCardTitle>
             <VCardText>
-              <div v-if="stats.recent?.nextCourses?.length" class="course-list">
-                <div v-for="course in stats.recent.nextCourses" :key="course.title" class="course-item">
-                  <div class="course-info">
-                    <h4 class="course-title">{{ course.title }}</h4>
-                    <div class="course-details">
-                      <VChip :color="getLevelColor(course.level)" size="small" class="me-2">
-                        {{ course.level }}
+              <div v-if="stats.recent?.nextEvents?.length" class="event-list">
+                <div v-for="event in stats.recent.nextEvents" :key="event.title" class="event-item">
+                  <div class="event-info">
+                    <h4 class="event-title">{{ event.title }}</h4>
+                    <div class="event-details">
+                      <VChip :color="getTypeColor(event.type)" size="small" class="me-2">
+                        {{ event.type }}
                       </VChip>
-                      <span class="course-date">{{ formatDate(course.start) }}</span>
+                      <VChip v-if="event.level" :color="getLevelColor(event.level)" size="small" class="me-2">
+                        {{ event.level }}
+                      </VChip>
+                      <span class="event-date">{{ formatDate(event.start) }}</span>
                     </div>
-                    <div v-if="course.teacher || course.location" class="course-meta">
-                      <span v-if="course.teacher" class="course-teacher">{{ course.teacher }}</span>
-                      <span v-if="course.location" class="course-location">{{ course.location }}</span>
+                    <div v-if="event.instructor || event.location" class="event-meta">
+                      <span v-if="event.instructor" class="event-instructor">{{ event.instructor }}</span>
+                      <span v-if="event.location" class="event-location">{{ event.location }}</span>
                     </div>
                   </div>
                 </div>
               </div>
               <div v-else class="empty-state">
                 <VIcon icon="mdi-calendar-blank" size="48" color="grey" class="mb-3" />
-                <p>Aucun cours à venir</p>
+                <p>Aucun événement à venir</p>
               </div>
             </VCardText>
           </VCard>
@@ -429,8 +445,8 @@ onMounted(() => {
                 <div class="quick-stat-item">
                   <VIcon icon="mdi-calendar-week" color="success" />
                   <div class="quick-stat-info">
-                    <span class="quick-stat-label">Cours cette semaine</span>
-                    <span class="quick-stat-value">{{ stats.courses?.thisWeek || 0 }} cours</span>
+                    <span class="quick-stat-label">Événements cette semaine</span>
+                    <span class="quick-stat-value">{{ stats.events?.thisWeek || 0 }} événements</span>
                   </div>
                 </div>
                 <div class="quick-stat-item">

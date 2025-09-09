@@ -4,10 +4,10 @@ import { apiService } from './api'
 export interface DashboardStats {
   overview: {
     totalMembers: number
-    totalCourses: number
+    totalEvents: number
     totalDances: number
     totalImages: number
-    totalCheques: number
+    totalPayments: number
   }
   members: {
     total: number
@@ -24,7 +24,7 @@ export interface DashboardStats {
       count: number
     }>
   }
-  courses: {
+  events: {
     total: number
     upcoming: number
     thisWeek: number
@@ -34,10 +34,12 @@ export interface DashboardStats {
     }>
   }
   finances: {
-    totalCheques: number
-    recus: number
-    credites: number
-    totalCreditedAmount: number
+    totalPayments: number
+    byMethod: Array<{
+      _id: string
+      count: number
+    }>
+    totalAmount: number
   }
   dances: {
     total: number
@@ -59,12 +61,13 @@ export interface DashboardStats {
     }>
   }
   recent: {
-    nextCourses: Array<{
+    nextEvents: Array<{
       title: string
-      level: string
+      type: string
+      level?: string
       start: string
       end: string
-      teacher?: string
+      instructor?: string
       location?: string
     }>
     recentMembers: Array<{

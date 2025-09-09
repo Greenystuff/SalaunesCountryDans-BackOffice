@@ -19,10 +19,11 @@
 .member-header {
   background: linear-gradient(
     135deg,
-    rgb(var(--v-theme-primary)) 0%,
-    rgb(var(--v-theme-primary-darken-1)) 100%
+    rgb(var(--v-theme-surface-variant)) 0%,
+    rgba(var(--v-theme-primary), 0.15) 50%,
+    rgb(var(--v-theme-surface)) 100%
   );
-  color: rgb(var(--v-theme-on-primary));
+  color: rgb(var(--v-theme-on-surface));
   padding: 32px;
   display: flex;
   align-items: center;
@@ -58,9 +59,21 @@
   font-size: 2rem;
   font-weight: 700;
   margin: 0 0 12px 0;
-  color: rgb(var(--v-theme-on-primary));
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  color: rgb(var(--v-theme-on-surface)) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
   line-height: 1.2;
+}
+
+/* Mode clair spécifique pour le nom */
+[data-v-theme='light'] .member-info .member-name {
+  color: white !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Mode sombre spécifique pour le nom */
+[data-v-theme='dark'] .member-info .member-name {
+  color: rgb(var(--v-theme-on-surface)) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
 }
 
 .member-meta {
@@ -78,14 +91,24 @@
 }
 
 .member-header .header-actions .v-btn {
-  color: rgba(var(--v-theme-on-primary), 0.8);
+  color: rgba(var(--v-theme-on-surface), 0.7);
   transition: all 0.2s ease;
 }
 
 .member-header .header-actions .v-btn:hover {
-  color: rgb(var(--v-theme-on-primary));
-  background: rgba(255, 255, 255, 0.1);
+  color: rgb(var(--v-theme-on-surface));
+  background: rgba(var(--v-theme-primary), 0.1);
   transform: scale(1.1);
+}
+
+/* Mode clair spécifique pour le bouton fermer */
+[data-v-theme='light'] .member-header .header-actions .v-btn {
+  color: white !important;
+}
+
+[data-v-theme='light'] .member-header .header-actions .v-btn:hover {
+  color: white !important;
+  background: rgba(255, 255, 255, 0.2) !important;
 }
 
 /* ===== ONGLETS MODERNES ===== */
@@ -578,6 +601,7 @@
 
   .member-info .member-name {
     font-size: 1.5rem;
+    color: rgb(var(--v-theme-on-primary)) !important;
   }
 
   .member-meta {

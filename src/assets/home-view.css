@@ -105,8 +105,8 @@
   color: rgb(var(--v-theme-primary));
 }
 
-/* Carte des cours */
-.stat-card.courses-card .v-icon {
+/* Carte des événements */
+.stat-card.events-card .v-icon {
   color: rgb(var(--v-theme-success));
 }
 
@@ -334,8 +334,8 @@
   text-align: right;
 }
 
-/* ===== LISTES (COURS, MEMBRES) ===== */
-.course-list,
+/* ===== LISTES (ÉVÉNEMENTS, MEMBRES) ===== */
+.event-list,
 .member-list,
 .city-list {
   display: flex;
@@ -343,7 +343,7 @@
   gap: 12px;
 }
 
-.course-item,
+.event-item,
 .member-item,
 .city-item {
   padding: 12px;
@@ -353,7 +353,7 @@
   transition: all 0.2s ease;
 }
 
-.course-item:hover,
+.event-item:hover,
 .member-item:hover,
 .city-item:hover {
   background: rgba(var(--v-theme-primary), 0.06);
@@ -362,7 +362,7 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.course-title,
+.event-title,
 .member-name,
 .city-name {
   font-size: 0.9rem;
@@ -373,19 +373,19 @@
 
 /* Sélecteurs plus spécifiques pour éviter les conflits */
 .dashboard-container .member-item .member-name,
-.dashboard-container .course-item .course-title,
+.dashboard-container .event-item .event-title,
 .dashboard-container .city-item .city-name {
   color: rgb(var(--v-theme-primary)) !important;
 }
 
 /* Forcer la couleur dans les listes spécifiques */
 .member-list .member-item .member-name,
-.course-list .course-item .course-title,
+.event-list .event-item .event-title,
 .city-list .city-item .city-name {
   color: rgb(var(--v-theme-primary)) !important;
 }
 
-.course-details,
+.event-details,
 .member-details {
   display: flex;
   align-items: center;
@@ -393,22 +393,22 @@
   gap: 8px;
 }
 
-.course-date,
+.event-date,
 .member-date,
 .city-count {
   font-size: 0.8rem;
   color: rgba(var(--v-theme-on-surface), 0.7);
 }
 
-.course-meta {
+.event-meta {
   display: flex;
   gap: 12px;
   font-size: 0.75rem;
   color: rgba(var(--v-theme-on-surface), 0.6);
 }
 
-.course-teacher,
-.course-location {
+.event-instructor,
+.event-location {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -582,7 +582,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-[data-v-theme='dark'] .course-item:hover,
+[data-v-theme='dark'] .event-item:hover,
 [data-v-theme='dark'] .member-item:hover,
 [data-v-theme='dark'] .city-item:hover,
 [data-v-theme='dark'] .quick-stat-item:hover {

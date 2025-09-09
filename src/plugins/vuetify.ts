@@ -85,9 +85,15 @@ const vuetify = createVuetify({
           'level-novice-dark': '#2563EB', // Bleu royal foncé pour dégradé
           'level-intermediaire': '#F59E0B', // Orange pour intermédiaire
           'level-intermediaire-dark': '#D97706', // Orange foncé pour dégradé
+          'level-avance': '#DC143C', // Rouge crimson pour avancé
+          'level-avance-dark': '#B91C1C', // Rouge foncé pour dégradé
+          'level-tous-niveaux': '#1E3A8A', // Bleu foncé pour tous niveaux
+          'level-tous-niveaux-dark': '#1E40AF', // Bleu foncé pour dégradé
           'on-debutant': '#F8FAFC', // Très sombre pour le texte
           'on-novice': '#F8FAFC', // Très sombre pour le texte
           'on-intermediaire': '#F8FAFC', // Très sombre pour le texte
+          'on-avance': '#F8FAFC', // Très sombre pour le texte
+          'on-tous-niveaux': '#F8FAFC', // Très sombre pour le texte
         },
       },
       dark: {
@@ -160,9 +166,15 @@ const vuetify = createVuetify({
           'level-novice-dark': '#2563EB', // Bleu royal foncé pour dégradé
           'level-intermediaire': '#F59E0B', // Orange pour intermédiaire
           'level-intermediaire-dark': '#D97706', // Orange foncé pour dégradé
+          'level-avance': '#DC143C', // Rouge crimson pour avancé
+          'level-avance-dark': '#B91C1C', // Rouge foncé pour dégradé
+          'level-tous-niveaux': '#1E3A8A', // Bleu foncé pour tous niveaux
+          'level-tous-niveaux-dark': '#1E40AF', // Bleu foncé pour dégradé
           'on-debutant': '#0F172A', // Très sombre pour le texte
           'on-novice': '#0F172A', // Très sombre pour le texte
           'on-intermediaire': '#0F172A', // Très sombre pour le texte
+          'on-avance': '#0F172A', // Très sombre pour le texte
+          'on-tous-niveaux': '#F8FAFC', // Très clair pour le texte
         },
       },
     },

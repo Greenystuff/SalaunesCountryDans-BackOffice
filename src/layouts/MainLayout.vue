@@ -82,7 +82,8 @@
         <v-list class="user-menu">
           <v-list-item prepend-icon="mdi-account" title="Profil" value="profile" @click="goToProfile" />
           <v-list-item prepend-icon="mdi-cog" title="Paramètres" value="settings" @click="goToSettings" />
-          <v-list-item v-if="canManageUsers" prepend-icon="mdi-account-cog" title="Gestion utilisateurs" value="users" @click="goToUsers" />
+          <v-list-item v-if="canManageUsers" prepend-icon="mdi-account-cog" title="Gestion utilisateurs" value="users"
+            @click="goToUsers" />
           <v-divider />
           <v-list-item prepend-icon="mdi-logout" title="Déconnexion" value="logout" @click="logout" />
         </v-list>
@@ -147,9 +148,9 @@ const allMenuItems = [
     to: '/dashboard'
   },
   {
-    title: 'Cours',
-    icon: 'mdi-music-note',
-    to: '/courses'
+    title: 'Planning',
+    icon: 'mdi-calendar-month',
+    to: '/planning'
   },
   {
     title: 'Les danses',

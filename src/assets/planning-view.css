@@ -1,10 +1,10 @@
 /* ==========================================================================
-   CoursesView — Design moderne, sobre et détendu
+   PlanningView — Design moderne, sobre et détendu
    Palette douce, coins arrondis, ombres légères, grands espaces
    ========================================================================== */
 
 /* ===== LAYOUT PRINCIPAL ===== */
-.courses-container {
+.planning-container {
   padding: 24px;
   height: 100%;
   width: 100%;
@@ -130,55 +130,85 @@
 /* ===== CALENDRIER ===== */
 .calendar-section {
   background: rgb(var(--v-theme-surface));
-}
-
-.calendar-wrapper {
-  background: rgb(var(--v-theme-surface));
   padding: 20px 24px 24px;
 }
 
 /* Mode sombre */
-[data-v-theme='dark'] .calendar-wrapper {
+[data-v-theme='dark'] .calendar-section {
   background: rgb(var(--v-theme-surface));
 }
 
 /* Configuration v-calendar */
 .custom-calendar {
-  width: 100%;
-  height: 100%;
-  background: transparent;
+  width: 100% !important;
+  height: 100% !important;
+  background: transparent !important;
 }
 
-.vc-container {
+/* Forcer les styles sur le conteneur VCalendar */
+.custom-calendar .vc-container {
   background: transparent !important;
   border: none !important;
   font-family: inherit !important;
+  width: 100% !important;
+  box-shadow: none !important;
 }
 
-/* Fond du calendrier */
-.vc-container,
-.vc-weeks,
-.vc-week {
-  background: transparent !important;
-}
-
-/* Cibler spécifiquement le composant VCalendar */
-.custom-calendar,
+/* Fond du calendrier - forcer la transparence */
 .custom-calendar .vc-container,
 .custom-calendar .vc-weeks,
-.custom-calendar .vc-week {
+.custom-calendar .vc-week,
+.custom-calendar .vc-pane-container,
+.custom-calendar .vc-pane-layout {
   background: transparent !important;
 }
 
 /* Mode sombre - fond du calendrier */
-[data-v-theme='dark'] .vc-container,
-[data-v-theme='dark'] .vc-weeks,
-[data-v-theme='dark'] .vc-week,
-[data-v-theme='dark'] .custom-calendar,
 [data-v-theme='dark'] .custom-calendar .vc-container,
 [data-v-theme='dark'] .custom-calendar .vc-weeks,
-[data-v-theme='dark'] .custom-calendar .vc-week {
+[data-v-theme='dark'] .custom-calendar .vc-week,
+[data-v-theme='dark'] .custom-calendar .vc-pane-container,
+[data-v-theme='dark'] .custom-calendar .vc-pane-layout {
   background: transparent !important;
+}
+
+/* Forcer l'étalement du calendrier */
+.custom-calendar .vc-pane-container {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.custom-calendar .vc-pane-layout {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+/* Supprimer les bordures par défaut de VCalendar */
+.custom-calendar .vc-container.vc-bordered {
+  border: none !important;
+}
+
+.custom-calendar .vc-container.vc-light {
+  background: transparent !important;
+}
+
+.vc-bordered {
+  border: none !important;
+}
+
+/* Supprimer toutes les bordures du calendrier */
+.custom-calendar .vc-container,
+.custom-calendar .vc-pane-container,
+.custom-calendar .vc-pane-layout,
+.custom-calendar .vc-pane {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Forcer la suppression des bordures sur tous les éléments VCalendar */
+.custom-calendar * {
+  border-color: transparent !important;
 }
 
 /* Header du calendrier simplifié */
@@ -249,35 +279,35 @@
 }
 
 /* Jours du calendrier */
-.vc-day {
-  background: rgb(var(--v-theme-surface));
-  border-radius: 12px;
-  transition: all 0.2s ease;
-  border: 1px solid rgb(var(--v-theme-outline));
-  min-height: 85px;
-  cursor: pointer;
-  overflow: visible;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+.custom-calendar .vc-day {
+  background: rgb(var(--v-theme-surface)) !important;
+  border-radius: 12px !important;
+  transition: all 0.2s ease !important;
+  border: 1px solid rgb(var(--v-theme-outline)) !important;
+  min-height: 85px !important;
+  cursor: pointer !important;
+  overflow: visible !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
 }
 
-.vc-day:hover {
-  background: rgba(var(--v-theme-primary), 0.08);
-  border-color: rgb(var(--v-theme-primary));
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transform: translateY(-1px);
+.custom-calendar .vc-day:hover {
+  background: rgba(var(--v-theme-primary), 0.08) !important;
+  border-color: rgb(var(--v-theme-primary)) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  transform: translateY(-1px) !important;
 }
 
-.vc-day.is-today {
-  background: rgb(var(--v-theme-primary-container));
-  border-color: rgb(var(--v-theme-primary));
-  box-shadow: 0 2px 6px rgba(var(--v-theme-primary), 0.15);
+.custom-calendar .vc-day.is-today {
+  background: rgb(var(--v-theme-primary-container)) !important;
+  border-color: rgb(var(--v-theme-primary)) !important;
+  box-shadow: 0 2px 6px rgba(var(--v-theme-primary), 0.15) !important;
 }
 
-.vc-day.is-not-in-month {
-  opacity: 0.4;
-  background: rgb(var(--v-theme-surface-dim));
-  border-color: rgb(var(--v-theme-outline));
-  border-style: dashed;
+.custom-calendar .vc-day.is-not-in-month {
+  opacity: 0.4 !important;
+  background: rgb(var(--v-theme-surface-dim)) !important;
+  border-color: rgb(var(--v-theme-outline)) !important;
+  border-style: dashed !important;
 }
 
 /* Mode sombre - ajustements spécifiques */
@@ -389,6 +419,14 @@
   background: rgb(var(--v-theme-level-intermediaire));
 }
 
+.vc-day-dot[data-level='Avancé'] {
+  background: rgb(var(--v-theme-level-avance));
+}
+
+.vc-day-dot[data-level='Tous niveaux'] {
+  background: rgb(var(--v-theme-level-tous-niveaux));
+}
+
 /* Compteur d'événements */
 .vc-day-events-count {
   font-size: 0.6rem;
@@ -451,6 +489,24 @@
   color: white;
 }
 
+.vc-day-content-item[data-level='Avancé'] {
+  background: linear-gradient(
+    135deg,
+    rgb(var(--v-theme-level-avance)),
+    rgb(var(--v-theme-level-avance-dark))
+  );
+  color: white;
+}
+
+.vc-day-content-item[data-level='Tous niveaux'] {
+  background: linear-gradient(
+    135deg,
+    rgb(var(--v-theme-level-tous-niveaux)),
+    rgb(var(--v-theme-level-tous-niveaux-dark))
+  );
+  color: white;
+}
+
 /* Éléments internes des événements */
 .event-time {
   font-weight: 700;
@@ -469,6 +525,7 @@
   margin-bottom: 1px;
   line-height: 1.1;
   max-width: 100%;
+  color: rgb(var(--v-theme-on-tous-niveaux)) !important;
 }
 
 .event-level {
@@ -719,7 +776,7 @@
 }
 
 @media (max-width: 420px) {
-  .courses-container {
+  .planning-container {
     padding: 14px;
   }
 

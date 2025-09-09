@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import LoginView from '@/views/LoginView.vue'
 import HomeView from '@/views/HomeView.vue'
-import CoursesView from '@/views/CoursesView.vue'
+import PlanningView from '@/views/PlanningView.vue'
 import DancesView from '@/views/DancesView.vue'
 import GalleryView from '@/views/GalleryView.vue'
 import MembersView from '@/views/MembersView.vue'
@@ -37,12 +37,12 @@ const router = createRouter({
       },
     },
     {
-      path: '/courses',
-      name: 'courses',
-      component: CoursesView,
+      path: '/planning',
+      name: 'planning',
+      component: PlanningView,
       meta: {
         requiresAuth: true,
-        title: 'Gestion des cours',
+        title: 'Planning',
       },
     },
     {
@@ -133,7 +133,7 @@ router.beforeEach(async (to, from, next) => {
       next('/login')
       return
     }
-    
+
     // Vérifier si la route nécessite des privilèges d'administrateur
     if (to.meta.requiresAdmin && !userStore.isAdmin) {
       next('/dashboard')
