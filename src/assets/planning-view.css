@@ -517,14 +517,14 @@
 }
 
 .event-title {
-  font-weight: 600;
-  font-size: 0.65rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 1px;
-  line-height: 1.1;
-  max-width: 100%;
+  font-weight: 600 !important;
+  font-size: 0.65rem !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  margin-bottom: 1px !important;
+  line-height: 1.1 !important;
+  max-width: 100% !important;
   color: rgb(var(--v-theme-on-tous-niveaux)) !important;
 }
 
