@@ -626,7 +626,7 @@
                     <div class="text-caption text-medium-emphasis mb-1">
                       Version {{ rules.version }} • {{ formatDate(rules.uploadDate) }}
                       <span v-if="rules.uploadedBy"> par {{ rules.uploadedBy.firstName }} {{ rules.uploadedBy.lastName
-                      }}</span>
+                        }}</span>
                     </div>
                     <div v-if="rules.description" class="text-body-2 mb-1">
                       {{ rules.description }}
@@ -1901,7 +1901,7 @@ const getLevelColor = (level: string) => {
   }
 }
 
-const getUpcomingEvents = (enrolledEvents: any[]) => {
+const getUpcomingEvents = (enrolledEvents: any[], member: Member) => {
   const now = new Date()
   const upcomingEvents: any[] = []
 
@@ -1911,12 +1911,16 @@ const getUpcomingEvents = (enrolledEvents: any[]) => {
     if (!event) return
 
     if (enrollment.isAllOccurrences) {
-      // Pour "toutes les occurrences", ajouter l'événement avec un titre spécial
-      upcomingEvents.push({
-        ...event,
-        title: `${event.title} (Toutes les occurrences)`,
-        isAllOccurrences: true
-      })
+      // Pour "toutes les occurrences", calculer la prochaine occurrence future
+      const nextOccurrence = getNextOccurrenceDate(event, member)
+      if (nextOccurrence) {
+        upcomingEvents.push({
+          ...event,
+          title: `${event.title} (Toutes les occurrences)`,
+          isAllOccurrences: true,
+          nextOccurrence: nextOccurrence
+        })
+      }
     } else if (enrollment.occurrenceDate) {
       // Pour une occurrence spécifique, vérifier si elle est à venir
       const occurrenceDate = new Date(enrollment.occurrenceDate)
@@ -1942,8 +1946,8 @@ const getUpcomingEvents = (enrolledEvents: any[]) => {
 
   // Trier par date
   return upcomingEvents.sort((a, b) => {
-    const dateA = a.occurrenceDate ? a.occurrenceDate : new Date(a.start)
-    const dateB = b.occurrenceDate ? b.occurrenceDate : new Date(b.start)
+    const dateA = a.occurrenceDate ? a.occurrenceDate : (a.nextOccurrence ? a.nextOccurrence : new Date(a.start))
+    const dateB = b.occurrenceDate ? b.occurrenceDate : (b.nextOccurrence ? b.nextOccurrence : new Date(b.start))
     return dateA.getTime() - dateB.getTime()
   })
 }
@@ -1961,7 +1965,7 @@ const getNextOccurrenceDate = (event: any, member: Member) => {
     }
   }
 
-  // Sinon, calculer la prochaine occurrence à partir d'aujourd'hui
+  // Pour tous les membres (pré-inscrits, inscrits, actifs), calculer la prochaine occurrence future
   const eventStart = new Date(event.start)
   const eventEnd = new Date(event.end)
   const duration = eventEnd.getTime() - eventStart.getTime()
@@ -1995,7 +1999,7 @@ const getNextOccurrenceDate = (event: any, member: Member) => {
 
 // Fonction pour générer le texte des événements dans le tooltip
 const getEventsTooltipEventsText = (member: Member) => {
-  const upcomingEvents = getUpcomingEvents(member.enrolledEvents || [])
+  const upcomingEvents = getUpcomingEvents(member.enrolledEvents || [], member)
 
   if (upcomingEvents.length === 0) {
     return 'Aucun événement à venir'
@@ -2004,17 +2008,14 @@ const getEventsTooltipEventsText = (member: Member) => {
   const firstEvent = upcomingEvents[0]
   let eventTitle = firstEvent.title
 
-  // Si c'est un événement récurrent avec "Toutes les occurrences", calculer la prochaine date
-  if (firstEvent.isAllOccurrences) {
-    const nextOccurrence = getNextOccurrenceDate(firstEvent, member)
-    if (nextOccurrence) {
-      const nextDate = nextOccurrence.toLocaleDateString('fr-FR', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short'
-      })
-      eventTitle = `${firstEvent.title.replace(' (Toutes les occurrences)', '')} - ${nextDate}`
-    }
+  // Si c'est un événement récurrent avec "Toutes les occurrences", utiliser la prochaine occurrence calculée
+  if (firstEvent.isAllOccurrences && firstEvent.nextOccurrence) {
+    const nextDate = firstEvent.nextOccurrence.toLocaleDateString('fr-FR', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short'
+    })
+    eventTitle = `${firstEvent.title.replace(' (Toutes les occurrences)', '')} - ${nextDate}`
   }
 
   if (upcomingEvents.length === 1) {
