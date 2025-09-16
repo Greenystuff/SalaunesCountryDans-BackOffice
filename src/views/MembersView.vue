@@ -1053,11 +1053,29 @@ const savePayment = async () => {
 const editPayment = (index: number) => {
   editingPaymentIndex.value = index
   const payment = newPayments.value[index]
+
+  // Convertir la date ISO en format local pour le datepicker
+  let dateForForm = ''
+  if (payment.date) {
+    try {
+      const date = new Date(payment.date)
+      if (!isNaN(date.getTime())) {
+        // Utiliser les méthodes locales pour éviter les problèmes de fuseau horaire
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        dateForForm = `${year}-${month}-${day}`
+      }
+    } catch (error) {
+      console.error('Erreur lors de la conversion de la date:', error)
+    }
+  }
+
   paymentFormData.value = {
     method: payment.method,
     amount: payment.amount.toString(),
     purpose: payment.purpose,
-    date: payment.date ? new Date(payment.date).toISOString().split('T')[0] : '',
+    date: dateForForm,
     bankName: payment.bankName || '',
     checkNumber: payment.checkNumber || '',
     ibanLast4: payment.ibanLast4 || '',
@@ -1300,8 +1318,23 @@ const fillForm = (member: Member) => {
 }
 
 // Fonction utilitaire pour convertir une date locale en ISO sans décalage de fuseau horaire
-const toLocalISOString = (dateString: string) => {
-  if (!dateString) return undefined
+const toLocalISOString = (dateInput: string | Date) => {
+  if (!dateInput) {
+    return undefined
+  }
+
+  let dateString: string
+
+  // Si c'est un objet Date, le convertir en chaîne YYYY-MM-DD
+  if (dateInput instanceof Date) {
+    const year = dateInput.getFullYear()
+    const month = String(dateInput.getMonth() + 1).padStart(2, '0')
+    const day = String(dateInput.getDate()).padStart(2, '0')
+    dateString = `${year}-${month}-${day}`
+  } else {
+    dateString = dateInput
+  }
+
   // Utiliser directement la date string pour éviter les problèmes de fuseau horaire
   return `${dateString}T00:00:00.000Z`
 }
@@ -1360,7 +1393,7 @@ const saveMember = async () => {
               amount: p.amount,
               purpose: p.purpose || 'Paiement',
               paymentMethod: p.method,
-              paymentDate: toLocalISOString(p.date),
+              paymentDate: p.date, // p.date est déjà au format ISO depuis savePayment
               description: p.bankName ? `Banque: ${p.bankName}${p.checkNumber ? `, N°: ${p.checkNumber}` : ''}${p.ibanLast4 ? `, IBAN: ****${p.ibanLast4}` : ''}${p.remitBatch ? `, Lot: ${p.remitBatch}` : ''}` : (p.description || '')
             }
             await api.postData(`/members/${memberId}/payments`, paymentData)
@@ -1400,7 +1433,7 @@ const saveMember = async () => {
               amount: p.amount,
               purpose: p.purpose || 'Paiement',
               paymentMethod: p.method,
-              paymentDate: toLocalISOString(p.date),
+              paymentDate: p.date, // p.date est déjà au format ISO depuis savePayment
               description: p.bankName ? `Banque: ${p.bankName}${p.checkNumber ? `, N°: ${p.checkNumber}` : ''}${p.ibanLast4 ? `, IBAN: ****${p.ibanLast4}` : ''}${p.remitBatch ? `, Lot: ${p.remitBatch}` : ''}` : undefined
             }
             await api.postData(`/members/${memberId}/payments`, paymentData)
@@ -1628,8 +1661,16 @@ const hasRecurringEvents = computed(() => {
 })
 
 const formatDate = (dateString: string) => {
+  if (!dateString) return '-'
+
   // Éviter les problèmes de fuseau horaire en utilisant les méthodes locales
   const date = new Date(dateString)
+
+  // Vérifier si la date est valide
+  if (isNaN(date.getTime())) {
+    return '-'
+  }
+
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')

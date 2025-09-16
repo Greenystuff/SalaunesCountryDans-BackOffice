@@ -161,7 +161,20 @@ const deletePayment = async (payment: Payment) => {
 
 // Utilitaires
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('fr-FR')
+  if (!dateString) return '-'
+
+  // Éviter les problèmes de fuseau horaire en utilisant les méthodes locales
+  const date = new Date(dateString)
+
+  // Vérifier si la date est valide
+  if (isNaN(date.getTime())) {
+    return '-'
+  }
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${day}/${month}/${year}`
 }
 
 const formatDescription = (description: string) => {
