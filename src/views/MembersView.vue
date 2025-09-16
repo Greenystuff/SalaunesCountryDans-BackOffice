@@ -2064,6 +2064,17 @@ watch(filters, (newFilters) => {
   loadMembers()
 }, { deep: true })
 
+// Watcher pour gérer automatiquement la date d'inscription selon le statut
+watch(() => formData.status, (newStatus) => {
+  if (newStatus === 'inscrit') {
+    // Si le statut est "Inscrit", mettre la date du jour
+    formData.registrationDate = new Date().toISOString().split('T')[0]
+  } else {
+    // Si le statut n'est pas "Inscrit", vider le champ
+    formData.registrationDate = ''
+  }
+})
+
 // Watcher pour détecter le paramètre 'view' dans l'URL
 watch(() => route.query.view, (memberId) => {
   if (memberId && typeof memberId === 'string') {

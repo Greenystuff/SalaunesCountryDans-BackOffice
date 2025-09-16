@@ -116,7 +116,7 @@
                             {{ getEventTypeLabel(event.type) }}
                           </VChip>
                           <span class="event-date">{{ formatDate(event.trialDate || event.occurrenceDate || event.start)
-                            }}</span>
+                          }}</span>
                         </div>
                         <h5 class="event-title">{{ event.title }}</h5>
                         <div v-if="event.description" class="event-description">
@@ -147,7 +147,7 @@
                             {{ getEventTypeLabel(event.type) }}
                           </VChip>
                           <span class="event-date">{{ formatDate(event.trialDate || event.occurrenceDate || event.start)
-                            }}</span>
+                          }}</span>
                         </div>
                         <h5 class="event-title">{{ event.title }}</h5>
                         <div v-if="event.description" class="event-description">
@@ -681,9 +681,9 @@ watch(() => props.modelValue, (newValue) => {
 }
 
 .event-title {
-  font-size: 1.1rem;
-  font-weight: 700;
-  margin: 0 0 8px 0;
+  font-size: 1.1rem !important;
+  font-weight: 700 !important;
+  margin: 0 0 8px 0 !important;
   /* Utiliser une couleur plus contrastée pour assurer la lisibilité */
   color: rgb(var(--v-theme-on-surface)) !important;
   /* Forcer l'opacité pour éviter les héritages */
