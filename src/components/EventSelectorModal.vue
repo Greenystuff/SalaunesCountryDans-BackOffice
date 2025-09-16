@@ -73,7 +73,7 @@
                           color="success" />
                         <VRadio :value="'single'" :label="`Seulement le ${formatEventDate({ start: selectedDate })}`"
                           color="primary" />
-                        <VRadio :value="'none'" label="Ne pas participer" color="default" />
+                        <VRadio :value="'none'" label="Ne participe pas" color="default" />
                       </VRadioGroup>
                     </div>
 
@@ -509,11 +509,15 @@ function getEventSelectionType(event: any): string {
 
   if (selected.isAllOccurrences) return 'all'
   if (selected.isSingleOccurrence) {
+    // Normaliser les dates pour la comparaison (ignorer l'heure et le fuseau horaire)
+    const occurrenceDateOnly = new Date(selected.occurrenceDate).toISOString().split('T')[0]
+    const selectedDateOnly = selectedDate.value
+
     // Vérifier si la date de l'occurrence unique correspond à la date actuellement sélectionnée
-    if (selected.occurrenceDate === selectedDate.value) {
+    if (occurrenceDateOnly === selectedDateOnly) {
       return 'single'
     } else {
-      // L'occurrence unique est pour une autre date, donc "ne pas participer" pour cette date
+      // L'occurrence unique est pour une autre date, donc "ne participe pas" pour cette date
       return 'none'
     }
   }
