@@ -681,7 +681,7 @@ const paymentFormData = ref({
   method: '',
   amount: '',
   purpose: '',
-  date: '',
+  date: new Date().toISOString().split('T')[0], // Date d'aujourd'hui par défaut
   bankName: '',
   checkNumber: '',
   ibanLast4: '',
@@ -988,7 +988,7 @@ const resetPaymentForm = () => {
     method: '',
     amount: '',
     purpose: '',
-    date: '',
+    date: new Date().toISOString().split('T')[0], // Date d'aujourd'hui par défaut
     bankName: '',
     checkNumber: '',
     ibanLast4: '',
