@@ -509,6 +509,53 @@
       </VCard>
     </VDialog>
 
+    <!-- MODAL CONFIRMATION SORTIE -->
+    <VDialog v-model="showExitConfirmationModal" max-width="500px">
+      <VCard>
+        <VCardTitle class="d-flex align-center">
+          <VIcon icon="mdi-alert-circle" color="warning" class="me-2" />
+          Modifications non sauvegardées
+        </VCardTitle>
+        <VCardText>
+          <p class="mb-3">
+            Vous avez des modifications non sauvegardées :
+          </p>
+          <ul class="mb-3">
+            <li v-if="hasFormChanges" class="mb-1">
+              <VIcon icon="mdi-account-edit" size="small" class="me-1" />
+              Informations du membre
+            </li>
+            <li v-if="newPayments.length > 0" class="mb-1">
+              <VIcon icon="mdi-plus-circle" size="small" class="me-1" />
+              {{ newPayments.length }} paiement(s) ajouté(s)
+            </li>
+            <li v-if="modifiedPayments.size > 0" class="mb-1">
+              <VIcon icon="mdi-pencil" size="small" class="me-1" />
+              {{ modifiedPayments.size }} paiement(s) modifié(s)
+            </li>
+            <li v-if="hasEventChanges" class="mb-1">
+              <VIcon icon="mdi-calendar-edit" size="small" class="me-1" />
+              Événements inscrits
+            </li>
+          </ul>
+          <p class="text-warning">
+            <strong>Si vous quittez maintenant, toutes ces modifications seront perdues.</strong>
+          </p>
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn variant="text" @click="showExitConfirmationModal = false">
+            <VIcon icon="mdi-arrow-left" class="me-1" />
+            Continuer l'édition
+          </VBtn>
+          <VBtn color="error" @click="confirmExit">
+            <VIcon icon="mdi-exit-to-app" class="me-1" />
+            Quitter sans sauvegarder
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
     <!-- MODAL UPLOAD RÈGLEMENT INTÉRIEUR -->
     <VDialog v-model="showRulesUploadModal" max-width="600px" persistent>
       <VCard>
@@ -579,7 +626,7 @@
                     <div class="text-caption text-medium-emphasis mb-1">
                       Version {{ rules.version }} • {{ formatDate(rules.uploadDate) }}
                       <span v-if="rules.uploadedBy"> par {{ rules.uploadedBy.firstName }} {{ rules.uploadedBy.lastName
-                      }}</span>
+                        }}</span>
                     </div>
                     <div v-if="rules.description" class="text-body-2 mb-1">
                       {{ rules.description }}
@@ -609,7 +656,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { ref, reactive, onMounted, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '@/services/api'
 import { useNotifications } from '@/composables/useNotifications'
@@ -658,6 +705,7 @@ const rulesFileError = ref<string>('')
 const showModal = ref(false)
 const showViewModal = ref(false)
 const showDeleteModal = ref(false)
+const showExitConfirmationModal = ref(false)
 const showBirthDatePicker = ref(false)
 const showRegistrationDatePicker = ref(false)
 const showTrialDatePicker = ref(false)
@@ -679,6 +727,13 @@ const newPayments = ref<any[]>([])
 
 // Paiements modifiés (pour les membres existants)
 const modifiedPayments = ref<Set<string>>(new Set())
+
+// État initial du formulaire pour détecter les modifications
+const initialFormData = ref<any>(null)
+const initialEnrolledEvents = ref<any[]>([])
+
+// Flag pour empêcher le watcher de se déclencher lors de l'ouverture de la modale
+const isInitializingForm = ref(false)
 
 // Données du formulaire de paiement
 const paymentFormData = ref({
@@ -1189,14 +1244,55 @@ const resetFilters = () => {
 
 const openCreate = () => {
   editingMember.value = null
+  isInitializingForm.value = true
   resetForm()
+  // Sauvegarder l'état initial (vide pour un nouveau membre)
+  initialFormData.value = {
+    firstName: '',
+    lastName: '',
+    email: '',
+    birthDate: '',
+    address: '',
+    postalCode: '',
+    city: '',
+    homePhone: '',
+    mobilePhone: '',
+    imageRights: false,
+    trialDate: '',
+    registrationDate: '',
+    status: 'pré-inscrit'
+  }
+  initialEnrolledEvents.value = []
+  isInitializingForm.value = false
   showModal.value = true
 }
 
 const openEdit = (member: Member) => {
   editingMember.value = member
+  isInitializingForm.value = true
   fillForm(member)
   showModal.value = true
+
+  // Réactiver le watcher et sauvegarder l'état initial après que tous les watchers aient fini de s'exécuter
+  nextTick(() => {
+    isInitializingForm.value = false
+    initialFormData.value = {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      birthDate: formData.birthDate,
+      address: formData.address,
+      postalCode: formData.postalCode,
+      city: formData.city,
+      homePhone: formData.homePhone,
+      mobilePhone: formData.mobilePhone,
+      imageRights: formData.imageRights,
+      trialDate: formData.trialDate,
+      registrationDate: formData.registrationDate,
+      status: formData.status
+    }
+    initialEnrolledEvents.value = [...formData.enrolledEvents]
+  })
 }
 
 const openView = (member: Member) => {
@@ -1236,9 +1332,28 @@ const openDelete = (member: Member) => {
 // Fonction editFromView supprimée : maintenant gérée par le composant MemberDetailsModal
 
 const closeModal = () => {
+  // Vérifier s'il y a des modifications non sauvegardées
+  if (hasAnyChanges.value) {
+    showExitConfirmationModal.value = true
+    return
+  }
+
+  // Pas de modifications, fermer directement
+  doCloseModal()
+}
+
+const doCloseModal = () => {
   showModal.value = false
   editingMember.value = null
   resetForm()
+  // Réinitialiser l'état initial
+  initialFormData.value = null
+  initialEnrolledEvents.value = []
+}
+
+const confirmExit = () => {
+  showExitConfirmationModal.value = false
+  doCloseModal()
 }
 
 const resetForm = () => {
@@ -1462,7 +1577,7 @@ const saveMember = async () => {
       }
     }
 
-    closeModal()
+    doCloseModal()
     loadMembers()
     loadStats()
   } catch (error: any) {
@@ -1667,6 +1782,67 @@ const hasRecurringEvents = computed(() => {
     }
     return false
   })
+})
+
+// Fonction utilitaire pour normaliser les valeurs avant comparaison
+const normalizeValue = (value: any) => {
+  if (value === null || value === undefined || value === '') return ''
+  if (typeof value === 'string') return value.trim()
+  return value
+}
+
+// Computed properties pour détecter les modifications
+const hasFormChanges = computed(() => {
+  if (!initialFormData.value) return false
+
+  // Comparer les champs principaux du formulaire avec normalisation
+  const currentData = {
+    firstName: normalizeValue(formData.firstName),
+    lastName: normalizeValue(formData.lastName),
+    email: normalizeValue(formData.email),
+    birthDate: normalizeValue(formData.birthDate),
+    address: normalizeValue(formData.address),
+    postalCode: normalizeValue(formData.postalCode),
+    city: normalizeValue(formData.city),
+    homePhone: normalizeValue(formData.homePhone),
+    mobilePhone: normalizeValue(formData.mobilePhone),
+    imageRights: Boolean(formData.imageRights),
+    trialDate: normalizeValue(formData.trialDate),
+    registrationDate: normalizeValue(formData.registrationDate),
+    status: normalizeValue(formData.status)
+  }
+
+  const initialData = {
+    firstName: normalizeValue(initialFormData.value.firstName),
+    lastName: normalizeValue(initialFormData.value.lastName),
+    email: normalizeValue(initialFormData.value.email),
+    birthDate: normalizeValue(initialFormData.value.birthDate),
+    address: normalizeValue(initialFormData.value.address),
+    postalCode: normalizeValue(initialFormData.value.postalCode),
+    city: normalizeValue(initialFormData.value.city),
+    homePhone: normalizeValue(initialFormData.value.homePhone),
+    mobilePhone: normalizeValue(initialFormData.value.mobilePhone),
+    imageRights: Boolean(initialFormData.value.imageRights),
+    trialDate: normalizeValue(initialFormData.value.trialDate),
+    registrationDate: normalizeValue(initialFormData.value.registrationDate),
+    status: normalizeValue(initialFormData.value.status)
+  }
+
+  return JSON.stringify(currentData) !== JSON.stringify(initialData)
+})
+
+const hasEventChanges = computed(() => {
+  if (!initialEnrolledEvents.value) return false
+
+  // Comparer les événements inscrits
+  return JSON.stringify(formData.enrolledEvents) !== JSON.stringify(initialEnrolledEvents.value)
+})
+
+const hasAnyChanges = computed(() => {
+  return hasFormChanges.value ||
+    hasEventChanges.value ||
+    newPayments.value.length > 0 ||
+    modifiedPayments.value.size > 0
 })
 
 const formatDate = (dateString: string) => {
@@ -2075,6 +2251,9 @@ watch(filters, (newFilters) => {
 
 // Watcher pour gérer automatiquement la date d'inscription selon le statut
 watch(() => formData.status, (newStatus) => {
+  // Ne pas se déclencher lors de l'initialisation du formulaire
+  if (isInitializingForm.value) return
+
   if (newStatus === 'inscrit') {
     // Si le statut est "Inscrit", mettre la date du jour
     formData.registrationDate = new Date().toISOString().split('T')[0]
