@@ -578,7 +578,7 @@
                     <div class="text-caption text-medium-emphasis mb-1">
                       Version {{ rules.version }} • {{ formatDate(rules.uploadDate) }}
                       <span v-if="rules.uploadedBy"> par {{ rules.uploadedBy.firstName }} {{ rules.uploadedBy.lastName
-                      }}</span>
+                        }}</span>
                     </div>
                     <div v-if="rules.description" class="text-body-2 mb-1">
                       {{ rules.description }}
