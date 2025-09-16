@@ -268,8 +268,7 @@
                     </div>
                     <div v-else class="selected-events-list">
                       <VChip v-for="eventId in formData.enrolledEvents" :key="eventId"
-                        :color="getEventChipColor(eventId)" size="small" class="me-2 mb-2" closable
-                        @click:close="removeEvent(eventId)">
+                        :color="getEventChipColor(eventId)" size="small" closable @click:close="removeEvent(eventId)">
                         {{ getEventDisplayName(eventId) }}
                       </VChip>
                     </div>
@@ -377,7 +376,7 @@
 
     <!-- MODAL SÉLECTION D'ÉVÉNEMENTS -->
     <EventSelectorModal v-model="showEventSelectorModal" :selected-event-ids="formData.enrolledEvents"
-      @confirm="onEventsSelected" />
+      :member-name="`${formData.firstName} ${formData.lastName}`" @confirm="onEventsSelected" />
 
 
     <!-- MODAL STEPPER PAIEMENT -->
@@ -579,7 +578,7 @@
                     <div class="text-caption text-medium-emphasis mb-1">
                       Version {{ rules.version }} • {{ formatDate(rules.uploadDate) }}
                       <span v-if="rules.uploadedBy"> par {{ rules.uploadedBy.firstName }} {{ rules.uploadedBy.lastName
-                        }}</span>
+                      }}</span>
                     </div>
                     <div v-if="rules.description" class="text-body-2 mb-1">
                       {{ rules.description }}
@@ -610,6 +609,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '@/services/api'
 import { useNotifications } from '@/composables/useNotifications'
 import { useViewPermissions } from '@/composables/useViewPermissions'
@@ -630,6 +630,8 @@ interface Event {
 }
 
 // État réactif
+const route = useRoute()
+const router = useRouter()
 const api = useApi()
 const { showSuccess, showError, showWarning } = useNotifications()
 // Permissions pour cette vue
@@ -759,18 +761,35 @@ const onEventsSelected = (selectedEvents: any[]) => {
       return {
         eventId: event.eventId,
         isRecurring: true,
-        isAllOccurrences: true
+        isAllOccurrences: true,
+        title: event.title,
+        type: event.type,
+        level: event.level,
+        location: event.location,
+        recurrence: event.recurrence,
+        time: event.time
       }
     } else if (event.isRecurring) {
       return {
         eventId: event.eventId,
         occurrenceDate: event.occurrenceDate,
-        isRecurring: true
+        isRecurring: true,
+        title: event.title,
+        type: event.type,
+        level: event.level,
+        location: event.location,
+        time: event.time
       }
     } else {
       return {
         eventId: event.eventId,
-        isRecurring: false
+        isRecurring: false,
+        title: event.title,
+        type: event.type,
+        level: event.level,
+        location: event.location,
+        time: event.time,
+        eventDate: event.eventDate // Inclure la date de l'événement ponctuel
       }
     }
   })
@@ -807,7 +826,23 @@ const getEventDisplayName = (eventEnrollment: any) => {
       }
     }
 
-    // Si eventId est un string (format du formulaire), chercher dans events.value
+    // Si eventId est un string mais qu'on a les infos complètes (nouveau format du formulaire)
+    if (typeof eventEnrollment.eventId === 'string' && eventEnrollment.title) {
+      if (eventEnrollment.isAllOccurrences) {
+        return `${eventEnrollment.title} (Toutes les occurrences)`
+      } else if (eventEnrollment.occurrenceDate) {
+        const date = new Date(eventEnrollment.occurrenceDate).toLocaleDateString('fr-FR')
+        return `${eventEnrollment.title} - ${date}`
+      } else if (eventEnrollment.eventDate) {
+        // Événement ponctuel avec date
+        const date = new Date(eventEnrollment.eventDate).toLocaleDateString('fr-FR')
+        return `${eventEnrollment.title} - ${date}`
+      } else {
+        return eventEnrollment.title
+      }
+    }
+
+    // Si eventId est un string (ancien format), chercher dans events.value
     if (typeof eventEnrollment.eventId === 'string') {
       const event = events.value.find(e => e._id === eventEnrollment.eventId)
       if (event) {
@@ -842,7 +877,7 @@ const getEventDisplayName = (eventEnrollment: any) => {
     }
   }
 
-  return eventEnrollment?.eventId?.title || eventEnrollment?.eventId || eventEnrollment || 'Événement inconnu'
+  return eventEnrollment?.eventId?.title || eventEnrollment?.title || eventEnrollment?.eventId || eventEnrollment || 'Événement inconnu'
 }
 
 const getEventChipColor = (eventEnrollment: any) => {
@@ -853,6 +888,10 @@ const getEventChipColor = (eventEnrollment: any) => {
     // Si eventId est un objet (grâce au populate), l'utiliser directement
     if (eventEnrollment.eventId && typeof eventEnrollment.eventId === 'object') {
       event = eventEnrollment.eventId
+    }
+    // Si eventId est un string mais qu'on a les infos complètes (nouveau format du formulaire)
+    else if (typeof eventEnrollment.eventId === 'string' && eventEnrollment.type) {
+      event = eventEnrollment
     }
     // Si eventId est encore un string (ancien format), chercher dans events.value
     else if (typeof eventEnrollment.eventId === 'string') {
@@ -871,11 +910,13 @@ const getEventChipColor = (eventEnrollment: any) => {
   }
 
   if (event) {
-    switch (event.type) {
-      case 'Cours': return 'primary'
-      case 'Événement': return 'success'
-      case 'Compétition': return 'warning'
-      case 'Stage': return 'info'
+    // Utiliser le niveau de difficulté pour la couleur
+    switch (event.level) {
+      case 'Débutant': return 'success'
+      case 'Novice': return 'info'
+      case 'Intermédiaire': return 'warning'
+      case 'Avancé': return 'error'
+      case 'Tous niveaux': return 'primary'
       default: return 'default'
     }
   }
@@ -1080,6 +1121,12 @@ const loadMembers = async () => {
     console.log('Réponse complète reçue:', response) // Debug
     members.value = response.data || []
     pagination.value = (response as any).pagination || null
+
+    // Vérifier si on doit ouvrir une modale après le chargement des membres
+    const memberId = route.query.view
+    if (memberId && typeof memberId === 'string') {
+      openViewById(memberId)
+    }
   } catch (error: any) {
     console.error('Erreur lors du chargement des membres:', error)
     showError('Erreur lors du chargement des membres. Veuillez réessayer.')
@@ -1132,6 +1179,30 @@ const openView = (member: Member) => {
   showViewModal.value = true
 }
 
+// Fonction pour ouvrir la modale de visualisation à partir d'un ID de membre
+const openViewById = async (memberId: string) => {
+  try {
+    // Chercher le membre dans la liste actuelle
+    let member = members.value.find(m => m._id === memberId)
+
+    // Si le membre n'est pas trouvé dans la liste actuelle, le charger depuis l'API
+    if (!member) {
+      const response = await api.getData<Member>(`/members/${memberId}`)
+      member = response
+    }
+
+    if (member) {
+      viewingMember.value = member
+      showViewModal.value = true
+    } else {
+      showError('Membre non trouvé')
+    }
+  } catch (error) {
+    console.error('Erreur lors du chargement du membre:', error)
+    showError('Erreur lors du chargement du membre')
+  }
+}
+
 const openDelete = (member: Member) => {
   deletingMember.value = member
   showDeleteModal.value = true
@@ -1175,20 +1246,37 @@ const fillForm = (member: Member) => {
       return {
         eventId: enrollment.eventId._id,
         isRecurring: true,
-        isAllOccurrences: true
+        isAllOccurrences: true,
+        title: enrollment.eventId.title,
+        type: enrollment.eventId.type,
+        level: enrollment.eventId.level,
+        location: enrollment.eventId.location,
+        recurrence: enrollment.eventId.recurrence,
+        time: `${timeShort(enrollment.eventId.start)}–${timeShort(enrollment.eventId.end)}`
       }
     } else if (enrollment.occurrenceDate) {
       // Pour une occurrence spécifique
       return {
         eventId: enrollment.eventId._id,
         occurrenceDate: enrollment.occurrenceDate,
-        isRecurring: true
+        isRecurring: true,
+        title: enrollment.eventId.title,
+        type: enrollment.eventId.type,
+        level: enrollment.eventId.level,
+        location: enrollment.eventId.location,
+        time: `${timeShort(enrollment.eventId.start)}–${timeShort(enrollment.eventId.end)}`
       }
     } else {
       // Pour un événement simple
       return {
         eventId: enrollment.eventId._id,
-        isRecurring: false
+        isRecurring: false,
+        title: enrollment.eventId.title,
+        type: enrollment.eventId.type,
+        level: enrollment.eventId.level,
+        location: enrollment.eventId.location,
+        time: `${timeShort(enrollment.eventId.start)}–${timeShort(enrollment.eventId.end)}`,
+        eventDate: enrollment.eventId.start.split('T')[0] // Ajouter la date de l'événement ponctuel
       }
     }
   }) || []
@@ -1214,11 +1302,8 @@ const fillForm = (member: Member) => {
 // Fonction utilitaire pour convertir une date locale en ISO sans décalage de fuseau horaire
 const toLocalISOString = (dateString: string) => {
   if (!dateString) return undefined
-  const date = new Date(dateString)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}T00:00:00.000Z`
+  // Utiliser directement la date string pour éviter les problèmes de fuseau horaire
+  return `${dateString}T00:00:00.000Z`
 }
 
 const saveMember = async () => {
@@ -1734,6 +1819,12 @@ const getAgeGroupCount = (ageGroup: string) => {
   return group?.count || 0
 }
 
+// Fonction utilitaire pour formater l'heure
+const timeShort = (dateString: string | Date) => {
+  const date = new Date(dateString)
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
 
 // Méthodes pour les règlements intérieurs
 const loadActiveRules = async () => {
@@ -1931,6 +2022,26 @@ watch(filters, (newFilters) => {
   currentPage.value = 1
   loadMembers()
 }, { deep: true })
+
+// Watcher pour détecter le paramètre 'view' dans l'URL
+watch(() => route.query.view, (memberId) => {
+  if (memberId && typeof memberId === 'string') {
+    // Attendre que les membres soient chargés avant d'ouvrir la modale
+    if (members.value.length > 0) {
+      openViewById(memberId)
+    }
+  }
+}, { immediate: true })
+
+// Watcher pour nettoyer l'URL quand la modale se ferme
+watch(showViewModal, (isOpen) => {
+  if (!isOpen && route.query.view) {
+    // Nettoyer l'URL en supprimant le paramètre 'view'
+    const query = { ...route.query }
+    delete query.view
+    router.replace({ query })
+  }
+})
 
 // Initialisation
 onMounted(() => {

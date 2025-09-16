@@ -3,7 +3,7 @@
     persistent class="event-selector-modal">
     <VCard>
       <VCardTitle class="d-flex justify-space-between align-center">
-        <span>Sélectionner les événements</span>
+        <span>Gérer les inscriptions de {{ props.memberName }}</span>
         <VBtn icon="mdi-close" variant="text" size="small" @click="closeModal" />
       </VCardTitle>
 
@@ -19,48 +19,81 @@
           <!-- Colonne de droite : Événements et sélection -->
           <VCol cols="12" lg="8" xl="8">
             <!-- Événements de la date sélectionnée -->
-            <div v-if="selectedDate && eventsOnSelectedDate.length > 0" class="events-section">
+            <div v-if="selectedDate" class="events-section">
               <h4 class="text-h6">
                 Événements du {{ formatSelectedDate(selectedDate) }}
               </h4>
-              <!-- Treeview des événements -->
-              <VTreeview v-model="treeviewSelection" :items="treeviewItems" item-key="id" item-title="title"
-                item-children="children" selectable return-object class="events-treeview" density="compact"
-                @update:selected="(val: any) => onTreeviewSelectionChange(val)">
-                <template v-if="false" #prepend="{ item }">
-                  <VIcon :icon="item.icon" :color="item.color" size="small" class="me-2" />
-                </template>
+              <!-- Liste des événements avec options intégrées - Interface compacte -->
+              <div class="events-container">
+                <VCard v-for="event in groupedEvents" :key="event.originalEventId || event.id" class="event-card"
+                  :class="{ 'event-card--selected': isEventSelected(event) }" elevation="1"
+                  @click="toggleEventCard(event)">
+                  <VCardText class="pa-4 event-card-content">
+                    <!-- Contenu principal de l'événement -->
+                    <div class="event-main-content">
+                      <!-- En-tête de l'événement -->
+                      <div class="event-header">
+                        <div class="event-title-section">
+                          <VIcon :icon="getEventTypeIcon(event.type)" :color="getEventTypeColor(event.type)"
+                            size="small" class="event-icon" />
+                          <h5 class="event-title">{{ event.title }}</h5>
+                        </div>
+                        <div class="event-details">
+                          <div class="event-chips">
+                            <VChip v-if="event.level" :color="getLevelColor(event.level)" size="small" variant="flat"
+                              class="event-chip">
+                              {{ event.level }}
+                            </VChip>
+                            <VChip v-if="event.recurrence && event.recurrence !== 'Aucune'" color="info" size="small"
+                              variant="outlined" class="event-chip">
+                              {{ event.recurrence }}
+                            </VChip>
+                          </div>
+                          <div class="event-meta">
+                            <span class="event-time">
+                              <VIcon icon="mdi-clock-outline" size="x-small" class="me-1" />
+                              {{ event.time }}
+                            </span>
+                            <span class="event-location">
+                              <VIcon icon="mdi-map-marker" size="x-small" class="me-1" />
+                              {{ event.location }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
-                <template #title="{ item }">
-                  <div class="d-flex align-center flex-wrap">
+                    <!-- Options de participation (toujours en bas) -->
+                    <div v-if="event.recurrence && event.recurrence !== 'Aucune'" class="participation-options"
+                      @click.stop>
+                      <VRadioGroup :model-value="getEventSelectionType(event)"
+                        @update:model-value="(value: string | null) => updateEventSelection(event, value || 'none')"
+                        inline density="compact" hide-details>
+                        <VRadio :value="'all'" :label="`Tous les ${getRecurrenceLabel(event.recurrence)}`"
+                          color="success" />
+                        <VRadio :value="'single'" :label="`Seulement le ${formatEventDate({ start: selectedDate })}`"
+                          color="primary" />
+                        <VRadio :value="'none'" label="Ne pas participer" color="default" />
+                      </VRadioGroup>
+                    </div>
 
-                    <!-- Icône pour tous les événements -->
-                    <VIcon :icon="(item as any).isSimpleEvent ? getEventTypeIcon(item.type || 'Cours') : item.icon"
-                      :color="(item as any).isSimpleEvent ? getEventTypeColor(item.type || 'Cours') : item.color"
-                      size="small" class="me-2" />
+                    <!-- Événement ponctuel -->
+                    <div v-else class="participation-options" @click.stop>
+                      <VCheckbox :model-value="isEventSelected(event)"
+                        @update:model-value="(checked: boolean | null) => toggleSimpleEvent(event, checked || false)"
+                        :label="`Participer à cet événement`" color="primary" hide-details />
+                    </div>
+                  </VCardText>
+                </VCard>
+              </div>
 
-                    <VChip v-if="item.level" :color="getLevelColor(item.level)" size="x-small" variant="flat"
-                      class="me-2">
-                      {{ item.level }}
-                    </VChip>
-                    <span class="font-weight-medium me-2">{{ item.title }}</span>
-
-
-                    <VChip v-if="item.recurrence" color="info" size="x-small" variant="outlined" class="me-2">
-                      {{ item.recurrence }}
-                    </VChip>
-
-                    <span v-if="item.time" class="text-caption me-2">
-                      {{ item.time }}
-                    </span>
-
-                    <span v-if="item.location" class="text-caption">
-                      <VIcon icon="mdi-map-marker" size="x-small" class="me-1" />
-                      {{ item.location }}
-                    </span>
-                  </div>
-                </template>
-              </VTreeview>
+              <!-- Message si aucun événement pour cette date -->
+              <div v-if="eventsOnSelectedDate.length === 0" class="no-events-message mt-4">
+                <VAlert type="info" variant="tonal" class="text-center">
+                  <VIcon icon="mdi-calendar-blank" class="me-2" />
+                  Aucun événement disponible pour cette date.
+                </VAlert>
+              </div>
             </div>
 
             <!-- Message si aucun événement -->
@@ -81,48 +114,52 @@
           </VCol>
         </VRow>
 
-        <!-- Liste des événements sélectionnés (pleine largeur) -->
-        <div v-if="selectedEvents.length > 0" class="selected-events-section">
+        <!-- Liste des événements inscrits (pleine largeur) -->
+        <div v-if="enrolledEvents.length > 0" class="selected-events-section">
           <h4 class="text-h6">
             <VIcon icon="mdi-check-circle" class="me-2" />
-            Événements sélectionnés ({{ selectedEvents.length }})
+            Événements auxquels {{ props.memberName }} est inscrit ({{ enrolledEvents.length }})
           </h4>
           <VList density="compact">
-            <VListItem v-for="event in selectedEvents" :key="getEventKey(event)" class="selected-event-item">
+            <VListItem v-for="event in enrolledEvents"
+              :key="event.eventId + (event.isAllOccurrences ? '_all' : event.isSingleOccurrence ? '_single' : '')"
+              class="selected-event-item">
               <template #prepend>
                 <VIcon :icon="getEventTypeIcon(event.type)" :color="getEventTypeColor(event.type)" />
               </template>
 
               <VListItemTitle>
                 <div class="d-flex align-center flex-wrap">
-                  <VChip :color="getLevelColor(event.level)" size="small" variant="flat" class="me-2">
-                    {{ event.level }}
-                  </VChip>
-                  <span class="font-weight-medium">{{ event.title }}</span>
-                  <VChip v-if="event.isAllOccurrences" color="success" size="x-small" variant="outlined" class="ml-2">
+                  <span class="font-weight-medium me-2">{{ event.title }}</span>
+                  <VChip v-if="event.isAllOccurrences" color="success" size="x-small" variant="outlined">
                     Toutes les occurrences
+                  </VChip>
+                  <VChip v-if="event.isSingleOccurrence" color="primary" size="x-small" variant="outlined">
+                    Occurrence unique
+                  </VChip>
+                  <VChip v-if="event.level" :color="getLevelColor(event.level)" size="x-small" variant="flat">
+                    {{ event.level }}
                   </VChip>
                 </div>
               </VListItemTitle>
 
               <VListItemSubtitle>
                 <div class="d-flex align-center flex-wrap">
-                  <span v-if="!event.isAllOccurrences && event.start" class="me-2">
+                  <span v-if="event.isSingleOccurrence && event.occurrenceDate" class="me-2">
                     <VIcon icon="mdi-calendar" size="small" class="me-1" />
-                    {{ formatEventDate(event) }}
+                    {{ formatEventDate({ start: event.occurrenceDate }) }}
                   </span>
-                  <span v-if="!event.isAllOccurrences && !event.start && event.title" class="me-2">
-                    <VIcon icon="mdi-calendar" size="small" class="me-1" />
-                    {{ event.title }}
-                  </span>
-                  <span class="me-2">
+                  <span v-if="event.time" class="me-2">
                     <VIcon icon="mdi-clock-outline" size="small" class="me-1" />
-                    {{ event.time || (event.start && event.end ? `${timeShort(event.start)}–${timeShort(event.end)}` :
-                      '') }}
+                    {{ event.time }}
                   </span>
                   <span v-if="event.location" class="me-2">
                     <VIcon icon="mdi-map-marker" size="small" class="me-1" />
                     {{ event.location }}
+                  </span>
+                  <span v-if="event.recurrence && event.recurrence !== 'Aucune'" class="me-2">
+                    <VIcon icon="mdi-repeat" size="small" class="me-1" />
+                    {{ event.recurrence }}
                   </span>
                 </div>
               </VListItemSubtitle>
@@ -150,17 +187,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import { useApi } from '@/services/api'
 
 // Props
 interface Props {
   modelValue: boolean
   selectedEventIds?: string[]
+  memberName?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  selectedEventIds: () => []
+  selectedEventIds: () => [],
+  memberName: 'le membre'
 })
 
 // Emits
@@ -177,64 +216,118 @@ const events = ref<any[]>([])
 const loading = ref(false)
 const selectedDate = ref<string | null>(null)
 
-// Événements sélectionnés
+// Événements sélectionnés (tous les événements auxquels le membre est inscrit)
 const selectedEvents = ref<any[]>([])
 
-// Treeview
-const treeviewSelection = ref<any[]>([])
+// Sélection des événements - Gestion avec la nouvelle interface
+const isUpdatingSelection = ref(false)
 
 // Dates min/max pour le date picker
 const minDate = computed(() => {
   const date = new Date()
-  // Commencer à partir d'aujourd'hui (pas de dates passées)
   return date.toISOString().split('T')[0]
 })
 
 const maxDate = computed(() => {
   const date = new Date()
-  date.setFullYear(date.getFullYear() + 1) // 1 an dans le futur
+  date.setFullYear(date.getFullYear() + 1)
   return date.toISOString().split('T')[0]
 })
 
-// Événements virtuels pour le calendrier (génère les occurrences récurrentes)
-const virtualEvents = computed(() => {
-  const virtualEvents: any[] = []
-  const now = new Date()
-  // Ne pas inclure les dates passées - commencer à partir d'aujourd'hui
-  const startDate = new Date(now)
-  startDate.setHours(0, 0, 0, 0) // Commencer au début de la journée
-  const endDate = new Date(now)
-  endDate.setFullYear(endDate.getFullYear() + 1) // 1 an dans le futur
+// Événements de la date sélectionnée (avec génération des occurrences récurrentes)
+const eventsOnSelectedDate = computed(() => {
+  if (!selectedDate.value) return []
 
-  events.value.forEach(event => {
+  const targetDate = new Date(selectedDate.value)
+  const targetDateString = targetDate.toISOString().split('T')[0]
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const eventsForDate: any[] = []
+
+  events.value.forEach((event, index) => {
+
     if (event.recurrence === 'Aucune') {
-      // Événement ponctuel : l'ajouter seulement s'il est dans le futur
-      const eventDate = new Date(event.start)
-      if (eventDate >= startDate) {
-        virtualEvents.push(event)
+      // Événement ponctuel : vérifier si c'est la bonne date
+      const eventDate = new Date(event.start).toISOString().split('T')[0]
+      if (eventDate === targetDateString) {
+        eventsForDate.push(event)
       }
     } else {
-      // Événement récurrent : générer seulement les occurrences futures
+      // Événement récurrent : générer les occurrences futures
       const eventStart = new Date(event.start)
       const eventEnd = new Date(event.end)
+      // Si la date de fin est identique à la date de début, utiliser une durée par défaut de 1h30
       const duration = eventEnd.getTime() - eventStart.getTime()
+      const defaultDuration = 90 * 60 * 1000 // 1h30 en millisecondes
+      const finalDuration = duration > 0 ? duration : defaultDuration
+
+      // Calculer les occurrences futures jusqu'à 1 an dans le futur
+      const endDate = new Date()
+      endDate.setFullYear(endDate.getFullYear() + 1)
+
+      // Vérifier d'abord si la date cible correspond à la date d'origine de l'événement
+      const originalEventDateString = eventStart.toISOString().split('T')[0]
+
+      if (originalEventDateString === targetDateString) {
+        // La date cible correspond à la date d'origine de l'événement récurrent
+        const virtualEvent = {
+          ...event,
+          _id: `${event._id}_${eventStart.getTime()}`,
+          start: new Date(eventStart),
+          end: new Date(eventStart.getTime() + finalDuration),
+          isVirtualOccurrence: true,
+          originalEventId: event._id,
+          occurrenceDate: originalEventDateString
+        }
+        eventsForDate.push(virtualEvent)
+        return // Passer au prochain événement
+      }
 
       let currentOccurrence = new Date(eventStart)
 
+      // Si l'événement original est dans le passé, calculer la prochaine occurrence
+      const currentOccurrenceDateString = currentOccurrence.toISOString().split('T')[0]
+      const todayString = today.toISOString().split('T')[0]
+
+
+      if (currentOccurrenceDateString < todayString) {
+        switch (event.recurrence) {
+          case 'Hebdomadaire':
+            while (currentOccurrence.toISOString().split('T')[0] < todayString) {
+              currentOccurrence.setDate(currentOccurrence.getDate() + 7)
+            }
+            break
+          case 'Toutes les 2 semaines':
+            while (currentOccurrence.toISOString().split('T')[0] < todayString) {
+              currentOccurrence.setDate(currentOccurrence.getDate() + 14)
+            }
+            break
+          case 'Mensuelle':
+            while (currentOccurrence.toISOString().split('T')[0] < todayString) {
+              currentOccurrence.setMonth(currentOccurrence.getMonth() + 1)
+            }
+            break
+        }
+      }
+
       // Générer les occurrences jusqu'à la date de fin
       while (currentOccurrence <= endDate) {
-        // Ne générer que les occurrences futures (aujourd'hui inclus)
-        if (currentOccurrence >= startDate) {
+        const occurrenceDateString = currentOccurrence.toISOString().split('T')[0]
+
+        if (occurrenceDateString === targetDateString) {
+          // Créer une occurrence virtuelle pour cette date
           const virtualEvent = {
             ...event,
-            _id: `${event._id}_${currentOccurrence.getTime()}`, // ID unique pour chaque occurrence
+            _id: `${event._id}_${currentOccurrence.getTime()}`,
             start: new Date(currentOccurrence),
-            end: new Date(currentOccurrence.getTime() + duration),
+            end: new Date(currentOccurrence.getTime() + finalDuration),
             isVirtualOccurrence: true,
             originalEventId: event._id,
-            occurrenceDate: currentOccurrence.toISOString().split('T')[0]
+            occurrenceDate: occurrenceDateString
           }
-          virtualEvents.push(virtualEvent)
+          eventsForDate.push(virtualEvent)
+          break // On a trouvé l'occurrence pour cette date
         }
 
         // Calculer la prochaine occurrence
@@ -253,214 +346,297 @@ const virtualEvents = computed(() => {
     }
   })
 
-  return virtualEvents
+  return eventsForDate
 })
 
-// Dates autorisées (dates qui ont des événements)
-const allowedDates = computed(() => {
-  const dates = new Set<string>()
-  virtualEvents.value.forEach(event => {
-    const eventDate = new Date(event.start).toISOString().split('T')[0]
-    dates.add(eventDate)
-  })
-  return Array.from(dates)
-})
-
-// Événements de la date sélectionnée
-const eventsOnSelectedDate = computed(() => {
-  if (!selectedDate.value) return []
-
-  const targetDate = new Date(selectedDate.value)
-  return virtualEvents.value.filter(event => {
-    const eventDate = new Date(event.start)
-    return eventDate.toDateString() === targetDate.toDateString()
-  })
-})
-
-// Grouper les événements par événement original
-const groupedEventsOnSelectedDate = computed(() => {
-  const groups = new Map<string, any>()
+// Structure des événements groupés pour l'interface compacte
+const groupedEvents = computed(() => {
+  const grouped: any[] = []
+  const processedEvents = new Set<string>() // Pour éviter les doublons
 
   eventsOnSelectedDate.value.forEach(event => {
-    const originalId = event.isVirtualOccurrence ? event.originalEventId : event._id
+    if (event.isVirtualOccurrence) {
+      // C'est une occurrence d'un événement récurrent
+      const originalEventId = event.originalEventId
 
-    if (!groups.has(originalId)) {
-      const originalEvent = events.value.find(e => e._id === originalId)
-      groups.set(originalId, {
-        originalId,
-        title: originalEvent?.title || event.title,
-        type: originalEvent?.type || event.type,
-        level: originalEvent?.level || event.level,
-        location: originalEvent?.location || event.location,
-        recurrence: originalEvent?.recurrence || 'Aucune',
-        isRecurring: originalEvent?.recurrence !== 'Aucune',
-        occurrences: []
+      if (!processedEvents.has(originalEventId)) {
+        processedEvents.add(originalEventId)
+
+        // Trouver l'événement original
+        const originalEvent = events.value.find(e => e._id === originalEventId)
+        if (originalEvent) {
+          grouped.push({
+            id: originalEventId,
+            originalEventId: originalEventId,
+            title: originalEvent.title,
+            type: originalEvent.type,
+            level: originalEvent.level,
+            location: originalEvent.location,
+            recurrence: originalEvent.recurrence,
+            time: `${timeShort(originalEvent.start)}–${timeShort(originalEvent.end)}`,
+            isRecurring: true
+          })
+        }
+      }
+    } else if (event.recurrence === 'Aucune') {
+      // Événement ponctuel
+      grouped.push({
+        id: event._id,
+        title: event.title,
+        type: event.type,
+        level: event.level,
+        location: event.location,
+        recurrence: 'Aucune',
+        time: `${timeShort(event.start)}–${timeShort(event.end)}`,
+        isRecurring: false
       })
     }
-
-    groups.get(originalId).occurrences.push(event)
   })
 
-  return Array.from(groups.values())
+  return grouped
 })
 
-// Items pour le VTreeview
-const treeviewItems = computed(() => {
-  const items: any[] = []
+// Événements inscrits à afficher (tous, sans filtrage par date)
+const enrolledEvents = computed(() => {
+  return selectedEvents.value
+})
 
-  groupedEventsOnSelectedDate.value.forEach(eventGroup => {
-    if (eventGroup.isRecurring) {
-      // Pour les événements récurrents, créer un groupe avec des enfants
-      const baseItem: any = {
-        id: eventGroup.originalId,
-        title: eventGroup.title,
-        icon: getEventTypeIcon(eventGroup.type),
-        color: getEventTypeColor(eventGroup.type),
-        level: eventGroup.level,
-        location: eventGroup.location,
-        recurrence: eventGroup.recurrence,
-        time: eventGroup.occurrences[0] ? `${timeShort(eventGroup.occurrences[0].start)}–${timeShort(eventGroup.occurrences[0].end)}` : null,
-        children: []
+// Dates autorisées (dates qui ont des événements, y compris les occurrences récurrentes)
+const allowedDates = computed(() => {
+  const dates = new Set<string>()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const endDate = new Date()
+  endDate.setFullYear(endDate.getFullYear() + 1)
+
+  events.value.forEach((event, index) => {
+
+    if (event.recurrence === 'Aucune') {
+      // Événement ponctuel
+      const eventDate = new Date(event.start).toISOString().split('T')[0]
+      if (new Date(eventDate) >= today) {
+        dates.add(eventDate)
+      }
+    } else {
+      // Événement récurrent : générer toutes les occurrences futures
+      const eventStart = new Date(event.start)
+      const eventEnd = new Date(event.end)
+      const duration = eventEnd.getTime() - eventStart.getTime()
+
+      let currentOccurrence = new Date(eventStart)
+      let occurrenceCount = 0
+
+      // Si l'événement original est dans le passé, calculer la prochaine occurrence
+      const currentOccurrenceDateString = currentOccurrence.toISOString().split('T')[0]
+      const todayString = today.toISOString().split('T')[0]
+
+      if (currentOccurrenceDateString < todayString) {
+        switch (event.recurrence) {
+          case 'Hebdomadaire':
+            while (currentOccurrence.toISOString().split('T')[0] < todayString && occurrenceCount < 100) { // Limite de sécurité
+              currentOccurrence.setDate(currentOccurrence.getDate() + 7)
+              occurrenceCount++
+            }
+            break
+          case 'Toutes les 2 semaines':
+            while (currentOccurrence.toISOString().split('T')[0] < todayString && occurrenceCount < 100) {
+              currentOccurrence.setDate(currentOccurrence.getDate() + 14)
+              occurrenceCount++
+            }
+            break
+          case 'Mensuelle':
+            while (currentOccurrence.toISOString().split('T')[0] < todayString && occurrenceCount < 100) {
+              currentOccurrence.setMonth(currentOccurrence.getMonth() + 1)
+              occurrenceCount++
+            }
+            break
+        }
       }
 
-      // Ajouter l'option "Toutes les occurrences"
-      baseItem.children.push({
-        id: `all_${eventGroup.originalId}`,
-        title: 'Toutes les occurrences',
-        icon: 'mdi-check-all',
-        color: 'success',
-        isAllOccurrences: true,
-        originalEventId: eventGroup.originalId,
-        time: eventGroup.occurrences[0] ? `${timeShort(eventGroup.occurrences[0].start)}–${timeShort(eventGroup.occurrences[0].end)}` : null,
-        location: eventGroup.location,
-        level: eventGroup.level,
-        recurrence: eventGroup.recurrence
-      })
+      // Générer les occurrences jusqu'à la date de fin
+      while (currentOccurrence <= endDate && occurrenceCount < 200) { // Limite de sécurité
+        const occurrenceDateString = currentOccurrence.toISOString().split('T')[0]
+        dates.add(occurrenceDateString)
+        occurrenceCount++
 
-      // Ajouter les occurrences individuelles
-      eventGroup.occurrences.forEach((event: any) => {
-        baseItem.children.push({
-          id: getEventKey(event),
-          title: formatEventDate(event),
-          icon: 'mdi-calendar',
-          color: 'primary',
-          time: `${timeShort(event.start)}–${timeShort(event.end)}`,
-          location: event.location,
-          originalEventId: event.originalEventId,
-          occurrenceDate: event.occurrenceDate,
-          isVirtualOccurrence: event.isVirtualOccurrence
-        })
-      })
-
-      items.push(baseItem)
-    } else {
-      // Pour les événements non récurrents, créer directement un item feuille
-      eventGroup.occurrences.forEach((event: any) => {
-        items.push({
-          id: event._id,
-          title: event.title,
-          type: event.type,
-          level: event.level,
-          location: event.location,
-          time: `${timeShort(event.start)}–${timeShort(event.end)}`,
-          isSimpleEvent: true // Marquer comme événement simple
-        })
-      })
+        // Calculer la prochaine occurrence
+        switch (event.recurrence) {
+          case 'Hebdomadaire':
+            currentOccurrence.setDate(currentOccurrence.getDate() + 7)
+            break
+          case 'Toutes les 2 semaines':
+            currentOccurrence.setDate(currentOccurrence.getDate() + 14)
+            break
+          case 'Mensuelle':
+            currentOccurrence.setMonth(currentOccurrence.getMonth() + 1)
+            break
+        }
+      }
     }
   })
 
-  return items
+  const result = Array.from(dates).sort()
+  return result
 })
 
-// Méthodes utilitaires
+// Méthodes utilitaires simplifiées
 function timeShort(dateString: string | Date) {
   const date = new Date(dateString)
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
-function getEventKey(event: any) {
-  if (event.isAllOccurrences) {
-    return `all_${event.originalEventId}`
-  }
-  if (event.isVirtualOccurrence) {
-    return `${event.originalEventId}_${event.occurrenceDate}`
-  }
-  return event._id
-}
 
-function isEventSelected(event: any) {
-  const key = getEventKey(event)
-  return selectedEvents.value.some(selected => getEventKey(selected) === key)
-}
-
-function isAllOccurrencesSelected(eventGroup: any) {
-  return selectedEvents.value.some(event =>
-    event.isAllOccurrences && event.originalEventId === eventGroup.originalId
-  )
-}
-
-function toggleEventSelection(event: any) {
-  const key = getEventKey(event)
-  const existingIndex = selectedEvents.value.findIndex(selected => getEventKey(selected) === key)
-
-  if (existingIndex >= 0) {
-    selectedEvents.value.splice(existingIndex, 1)
-  } else {
-    // Si on sélectionne une occurrence individuelle, désélectionner "Toutes les occurrences"
-    if (event.isVirtualOccurrence) {
-      selectedEvents.value = selectedEvents.value.filter(selected =>
-        !(selected.isAllOccurrences && selected.originalEventId === event.originalEventId)
-      )
-    }
-    selectedEvents.value.push(event)
-  }
-}
-
-function toggleAllOccurrences(eventGroup: any) {
-  const allOccurrencesKey = `all_${eventGroup.originalId}`
-  const existingIndex = selectedEvents.value.findIndex(event =>
-    event.isAllOccurrences && event.originalEventId === eventGroup.originalId
-  )
-
-  if (existingIndex >= 0) {
-    // Désélectionner toutes les occurrences
-    selectedEvents.value.splice(existingIndex, 1)
-  } else {
-    // Sélectionner toutes les occurrences
-    // D'abord, supprimer les occurrences individuelles de ce groupe
-    selectedEvents.value = selectedEvents.value.filter(event =>
-      !eventGroup.occurrences.some((occurrence: any) => getEventKey(occurrence) === getEventKey(event))
+// Gestion de la sélection avec la nouvelle interface
+function isEventSelected(event: any): boolean {
+  if (event.isRecurring) {
+    // Pour les événements récurrents, vérifier si "toutes les occurrences" ou "occurrence unique" est sélectionné
+    return selectedEvents.value.some(selected =>
+      selected.eventId === event.originalEventId &&
+      (selected.isAllOccurrences || selected.isSingleOccurrence)
     )
-
-    // Ajouter l'événement "toutes les occurrences"
-    const allOccurrencesEvent = {
-      ...eventGroup.occurrences[0],
-      isAllOccurrences: true,
-      originalEventId: eventGroup.originalId,
-      title: eventGroup.title,
-      type: eventGroup.type,
-      level: eventGroup.level,
-      location: eventGroup.location,
-      recurrence: eventGroup.recurrence
-    }
-    selectedEvents.value.push(allOccurrencesEvent)
+  } else {
+    // Pour les événements ponctuels
+    return selectedEvents.value.some(selected => selected.eventId === event.id)
   }
 }
+
+function getEventSelectionType(event: any): string {
+  if (!event.isRecurring) return 'none'
+
+  const selected = selectedEvents.value.find(selected => selected.eventId === event.originalEventId)
+
+  if (!selected) return 'none'
+
+  if (selected.isAllOccurrences) return 'all'
+  if (selected.isSingleOccurrence) {
+    // Vérifier si la date de l'occurrence unique correspond à la date actuellement sélectionnée
+    if (selected.occurrenceDate === selectedDate.value) {
+      return 'single'
+    } else {
+      // L'occurrence unique est pour une autre date, donc "ne pas participer" pour cette date
+      return 'none'
+    }
+  }
+  return 'none'
+}
+
+function getRecurrenceLabel(recurrence: string): string {
+  switch (recurrence) {
+    case 'Hebdomadaire': return 'mercredis'
+    case 'Toutes les 2 semaines': return 'mercredis (2 semaines)'
+    case 'Mensuelle': return 'mercredis du mois'
+    default: return 'occurrences'
+  }
+}
+
+function updateEventSelection(event: any, selectionType: string) {
+  // Retirer d'abord toute sélection existante pour cet événement (toutes les occurrences ET occurrences uniques)
+  selectedEvents.value = selectedEvents.value.filter(selected =>
+    selected.eventId !== event.originalEventId
+  )
+
+  if (selectionType === 'all') {
+    // Ajouter "toutes les occurrences" et retirer toutes les occurrences uniques de cet événement
+    const newEvent = {
+      eventId: event.originalEventId,
+      isAllOccurrences: true,
+      isRecurring: true,
+      title: event.title,
+      type: event.type,
+      level: event.level,
+      location: event.location,
+      recurrence: event.recurrence,
+      time: event.time
+    }
+    selectedEvents.value.push(newEvent)
+
+    // Retirer toutes les occurrences uniques de ce même événement récurrent
+    selectedEvents.value = selectedEvents.value.filter(selected =>
+      !(selected.isSingleOccurrence && selected.eventId === event.originalEventId)
+    )
+  } else if (selectionType === 'single') {
+    // Ajouter "occurrence unique"
+    const newEvent = {
+      eventId: event.originalEventId,
+      isSingleOccurrence: true,
+      isRecurring: true,
+      occurrenceDate: selectedDate.value,
+      title: event.title,
+      type: event.type,
+      level: event.level,
+      location: event.location,
+      time: event.time
+    }
+    selectedEvents.value.push(newEvent)
+  }
+  // Si 'none', on ne fait rien (déjà retiré)
+}
+
+function toggleSimpleEvent(event: any, checked: boolean) {
+  if (checked) {
+    // Ajouter l'événement ponctuel
+    selectedEvents.value.push({
+      eventId: event.id,
+      isRecurring: false,
+      title: event.title,
+      type: event.type,
+      level: event.level,
+      location: event.location,
+      time: event.time,
+      eventDate: selectedDate.value // Ajouter la date de l'événement ponctuel
+    })
+  } else {
+    // Retirer l'événement ponctuel
+    selectedEvents.value = selectedEvents.value.filter(selected => selected.eventId !== event.id)
+  }
+}
+
+function toggleEventCard(event: any) {
+  // Pour les événements récurrents, faire un cycle : none → all → single → none
+  if (event.isRecurring) {
+    const currentType = getEventSelectionType(event)
+
+    if (currentType === 'none') {
+      updateEventSelection(event, 'all')
+    } else if (currentType === 'all') {
+      updateEventSelection(event, 'single')
+    } else if (currentType === 'single') {
+      updateEventSelection(event, 'none')
+    } else {
+      // Par défaut, commencer par "all"
+      updateEventSelection(event, 'all')
+    }
+  } else {
+    // Pour les événements ponctuels, basculer la checkbox
+    const isSelected = isEventSelected(event)
+    toggleSimpleEvent(event, !isSelected)
+  }
+}
+
 
 function removeEvent(event: any) {
-  const key = getEventKey(event)
-  const index = selectedEvents.value.findIndex(selected => getEventKey(selected) === key)
+  const index = selectedEvents.value.findIndex(selected => {
+    if (event.isAllOccurrences || event.isSingleOccurrence) {
+      return selected.eventId === event.eventId &&
+        selected.isAllOccurrences === event.isAllOccurrences &&
+        selected.isSingleOccurrence === event.isSingleOccurrence
+    } else {
+      return selected.eventId === event.eventId
+    }
+  })
+
   if (index >= 0) {
     selectedEvents.value.splice(index, 1)
-
-    // Mettre à jour la sélection du VTreeview seulement pour la date courante
-    updateTreeviewSelectionForCurrentDate()
+    updateCheckboxSelection()
   }
 }
 
-// Note: La fonction updateTreeviewSelection() a été supprimée car elle causait
-// des conflits entre les sélections de différentes dates. Seule la fonction
-// updateTreeviewSelectionForCurrentDate() est utilisée maintenant.
+// Synchronisation de la nouvelle interface avec les événements sélectionnés
+function updateCheckboxSelection() {
+  // Cette fonction n'est plus nécessaire avec la nouvelle interface
+  // car la sélection est gérée directement par les composants VRadioGroup et VCheckbox
+  // La logique de présélection est maintenant dans getEventSelectionType()
+}
 
 function getEventTypeIcon(type: string) {
   switch (type) {
@@ -513,273 +689,35 @@ function formatEventDate(event: any) {
   })
 }
 
-function onDateSelected(date: string | null) {
-  selectedDate.value = date
-
-  // Mettre à jour la sélection du treeview pour refléter les événements sélectionnés de cette date
-  updateTreeviewSelectionForCurrentDate()
-}
-
-// Fonction pour mettre à jour la sélection du treeview pour la date actuelle
-function updateTreeviewSelectionForCurrentDate() {
-  console.log('updateTreeviewSelectionForCurrentDate - selectedDate:', selectedDate.value)
-  console.log('updateTreeviewSelectionForCurrentDate - selectedEvents:', selectedEvents.value)
-
-  if (!selectedDate.value) {
-    treeviewSelection.value = []
-    return
-  }
-
-  // Convertir la date sélectionnée en string pour la comparaison (en utilisant les méthodes locales pour éviter les problèmes de fuseau horaire)
-  let selectedDateString: string
-  if ((selectedDate.value as any) instanceof Date) {
-    const year = (selectedDate.value as any).getFullYear()
-    const month = String((selectedDate.value as any).getMonth() + 1).padStart(2, '0')
-    const day = String((selectedDate.value as any).getDate()).padStart(2, '0')
-    selectedDateString = `${year}-${month}-${day}`
+function onDateSelected(date: string | Date | null) {
+  // Convertir en chaîne de caractères si c'est un objet Date
+  if (date instanceof Date) {
+    // Utiliser les méthodes locales pour éviter les problèmes de fuseau horaire
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    selectedDate.value = `${year}-${month}-${day}`
   } else {
-    selectedDateString = selectedDate.value || ''
+    selectedDate.value = date
   }
 
-  console.log('selectedDateString:', selectedDateString)
-
-  // Trouver les événements sélectionnés qui correspondent à la date actuelle
-  const currentDateEvents = selectedEvents.value.filter(event => {
-    if (event.isAllOccurrences) {
-      // Pour "Toutes les occurrences", vérifier si cet événement a des occurrences sur la date courante
-      const hasOccurrenceOnCurrentDate = eventsOnSelectedDate.value.some(occurrence =>
-        occurrence.originalEventId === event.originalEventId
-      )
-      return hasOccurrenceOnCurrentDate
-    } else if (event.isVirtualOccurrence) {
-      console.log('Comparing:', event.occurrenceDate, '===', selectedDateString)
-      return event.occurrenceDate === selectedDateString
-    } else {
-      // Pour les événements simples, vérifier si leur date correspond
-      const eventDate = new Date(event.start).toISOString().split('T')[0]
-      return eventDate === selectedDateString
-    }
-  })
-
-  console.log('currentDateEvents:', currentDateEvents)
-
-  // Convertir en items du treeview
-  const matchingTreeviewItems: any[] = []
-  currentDateEvents.forEach(event => {
-    if ((event as any).isAllOccurrences) {
-      // Pour "Toutes les occurrences", trouver l'item correspondant
-      const treeviewItem = treeviewItems.value.find((item: any) =>
-        item.children && item.children.some((child: any) => child.id === `all_${(event as any).originalEventId}`)
-      )
-      if (treeviewItem) {
-        const childItem = treeviewItem.children.find((child: any) => child.id === `all_${(event as any).originalEventId}`)
-        if (childItem) {
-          matchingTreeviewItems.push(childItem)
-        }
-      }
-    } else if ((event as any).isVirtualOccurrence) {
-      // Pour les occurrences individuelles
-      const treeviewItem = treeviewItems.value.find((item: any) =>
-        item.children && item.children.some((child: any) => child.id === getEventKey(event))
-      )
-      if (treeviewItem) {
-        const childItem = treeviewItem.children.find((child: any) => child.id === getEventKey(event))
-        if (childItem) {
-          matchingTreeviewItems.push(childItem)
-        }
-      }
-    } else {
-      // Pour les événements simples, trouver directement l'item
-      const simpleItem = treeviewItems.value.find((item: any) =>
-        item.id === (event as any).eventId && item.isSimpleEvent
-      )
-      if (simpleItem) {
-        matchingTreeviewItems.push(simpleItem)
-      }
-    }
-  })
-
-  console.log('matchingTreeviewItems:', matchingTreeviewItems)
-  treeviewSelection.value = matchingTreeviewItems
+  updateCheckboxSelection()
 }
 
-// Gestion des sélections du treeview
-function onTreeviewSelectionChange(selectedItems: any[]) {
-  console.log('onTreeviewSelectionChange - selectedItems:', selectedItems)
-
-  // Convertir la date sélectionnée en string pour la comparaison
-  let selectedDateString: string
-  if ((selectedDate.value as any) instanceof Date) {
-    const year = (selectedDate.value as any).getFullYear()
-    const month = String((selectedDate.value as any).getMonth() + 1).padStart(2, '0')
-    const day = String((selectedDate.value as any).getDate()).padStart(2, '0')
-    selectedDateString = `${year}-${month}-${day}`
-  } else {
-    selectedDateString = selectedDate.value || ''
-  }
-
-  // Obtenir les événements actuellement sélectionnés pour la date courante
-  const currentDateEvents = selectedEvents.value.filter(event => {
-    if (event.isAllOccurrences) {
-      // Pour "Toutes les occurrences", vérifier si cet événement a des occurrences sur la date courante
-      const hasOccurrenceOnCurrentDate = eventsOnSelectedDate.value.some(occurrence =>
-        occurrence.originalEventId === event.originalEventId
-      )
-      return hasOccurrenceOnCurrentDate
-    } else if (event.isVirtualOccurrence) {
-      return event.occurrenceDate === selectedDateString
-    } else {
-      const eventDateObj = new Date(event.start)
-      const year = eventDateObj.getFullYear()
-      const month = String(eventDateObj.getMonth() + 1).padStart(2, '0')
-      const day = String(eventDateObj.getDate()).padStart(2, '0')
-      const eventDate = `${year}-${month}-${day}`
-      return eventDate === selectedDateString
-    }
-  })
-
-  // Convertir les items sélectionnés en événements
-  let newCurrentDateEvents = selectedItems.map(item => {
-    if (item.isAllOccurrences) {
-      const originalEvent = events.value.find(e => e._id === item.originalEventId)
-      return {
-        isAllOccurrences: true,
-        originalEventId: item.originalEventId,
-        title: originalEvent?.title || item.title,
-        type: originalEvent?.type || 'recurring',
-        level: item.level,
-        recurrence: item.recurrence,
-        time: item.time,
-        location: item.location
-      }
-    } else if (item.isVirtualOccurrence) {
-      const originalEvent = events.value.find(e => e._id === item.originalEventId)
-      return {
-        eventId: item.originalEventId,
-        occurrenceDate: item.occurrenceDate,
-        isRecurring: true,
-        isVirtualOccurrence: true,
-        originalEventId: item.originalEventId,
-        title: item.title,
-        time: item.time,
-        location: item.location,
-        level: originalEvent?.level,
-        type: originalEvent?.type,
-        start: originalEvent?.start,
-        end: originalEvent?.end
-      }
-    } else if (item.isSimpleEvent) {
-      const originalEvent = events.value.find(e => e._id === item.id)
-      return {
-        eventId: item.id,
-        isRecurring: false,
-        title: item.title,
-        time: item.time,
-        location: item.location,
-        level: originalEvent?.level,
-        type: originalEvent?.type,
-        start: originalEvent?.start,
-        end: originalEvent?.end
-      }
-    } else {
-      return {
-        eventId: item.id,
-        isRecurring: false,
-        title: item.title,
-        time: item.time,
-        location: item.location
-      }
-    }
-  })
-
-  // Gérer l'exclusion mutuelle entre "Toutes les occurrences" et les occurrences individuelles
-  const allOccurrencesEvents = newCurrentDateEvents.filter(event => (event as any).isAllOccurrences)
-  const individualOccurrencesEvents = newCurrentDateEvents.filter(event => (event as any).isVirtualOccurrence)
-
-  // Si "Toutes les occurrences" est sélectionné, supprimer les occurrences individuelles du même événement
-  if (allOccurrencesEvents.length > 0) {
-    newCurrentDateEvents = newCurrentDateEvents.filter(event => {
-      if ((event as any).isVirtualOccurrence) {
-        const hasAllOccurrences = allOccurrencesEvents.some(allEvent =>
-          (allEvent as any).originalEventId === (event as any).originalEventId
-        )
-        return !hasAllOccurrences
-      }
-      return true
-    })
-  }
-
-  // Si des occurrences individuelles sont sélectionnées, supprimer "Toutes les occurrences" du même événement
-  if (individualOccurrencesEvents.length > 0) {
-    newCurrentDateEvents = newCurrentDateEvents.filter(event => {
-      if ((event as any).isAllOccurrences) {
-        const hasIndividualOccurrences = individualOccurrencesEvents.some(indEvent =>
-          (indEvent as any).originalEventId === (event as any).originalEventId
-        )
-        return !hasIndividualOccurrences
-      }
-      return true
-    })
-  }
-
-  // Remplacer les événements de la date courante par les nouveaux
-  let otherDateEvents = selectedEvents.value.filter(event => {
-    if (event.isAllOccurrences) {
-      // Pour "Toutes les occurrences", vérifier si cet événement a des occurrences sur la date courante
-      const hasOccurrenceOnCurrentDate = eventsOnSelectedDate.value.some(occurrence =>
-        occurrence.originalEventId === event.originalEventId
-      )
-      return !hasOccurrenceOnCurrentDate
-    } else if (event.isVirtualOccurrence) {
-      return event.occurrenceDate !== selectedDateString
-    } else {
-      const eventDate = new Date(event.start).toISOString().split('T')[0]
-      return eventDate !== selectedDateString
-    }
-  })
-
-  // Appliquer l'exclusion mutuelle sur toutes les dates
-  if (allOccurrencesEvents.length > 0) {
-    otherDateEvents = otherDateEvents.filter(event => {
-      if ((event as any).isVirtualOccurrence) {
-        const hasAllOccurrences = allOccurrencesEvents.some(allEvent =>
-          (allEvent as any).originalEventId === (event as any).originalEventId
-        )
-        return !hasAllOccurrences
-      }
-      return true
-    })
-  }
-
-  if (individualOccurrencesEvents.length > 0) {
-    otherDateEvents = otherDateEvents.filter(event => {
-      if ((event as any).isAllOccurrences) {
-        const hasIndividualOccurrences = individualOccurrencesEvents.some(indEvent =>
-          (indEvent as any).originalEventId === (event as any).originalEventId
-        )
-        return !hasIndividualOccurrences
-      }
-      return true
-    })
-  }
-
-  // Reconstituer la liste complète
-  selectedEvents.value = [...otherDateEvents, ...newCurrentDateEvents]
-
-  console.log('Final selectedEvents:', selectedEvents.value)
-  console.log('Exclusion mutuelle appliquée - allOccurrencesEvents:', allOccurrencesEvents.length, 'individualOccurrencesEvents:', individualOccurrencesEvents.length)
-}
-
-// Chargement des événements (seulement les événements futurs)
+// Chargement des événements (événements futurs + événements récurrents)
 async function loadEvents() {
   try {
     loading.value = true
-    const response = await api.get('/events/upcoming?limit=1000')
+
+    // Utiliser le nouvel endpoint qui récupère tous les événements pertinents
+    const response = await api.get('/events/for-selection?limit=1000')
+
     if (response.success) {
       events.value = response.data as any[]
     }
+
   } catch (error) {
-    console.error('Erreur lors du chargement des événements:', error)
+    // Erreur silencieuse - l'utilisateur verra un message approprié
   } finally {
     loading.value = false
   }
@@ -795,7 +733,7 @@ function confirmSelection() {
   const processedEvents = selectedEvents.value.map(event => {
     if (event.isAllOccurrences) {
       return {
-        eventId: event.originalEventId,
+        eventId: event.eventId,
         isAllOccurrences: true,
         isRecurring: true,
         title: event.title,
@@ -805,9 +743,9 @@ function confirmSelection() {
         recurrence: event.recurrence,
         time: event.time
       }
-    } else if (event.isVirtualOccurrence) {
+    } else if (event.isSingleOccurrence) {
       return {
-        eventId: event.originalEventId,
+        eventId: event.eventId,
         occurrenceDate: event.occurrenceDate,
         isRecurring: true,
         title: event.title,
@@ -818,13 +756,14 @@ function confirmSelection() {
       }
     } else {
       return {
-        eventId: event._id,
+        eventId: event.eventId,
         isRecurring: false,
         title: event.title,
         type: event.type,
         level: event.level,
         location: event.location,
-        time: event.time
+        time: event.time,
+        eventDate: event.eventDate // Inclure la date de l'événement ponctuel
       }
     }
   })
@@ -838,89 +777,64 @@ function initializeSelectedEvents() {
   selectedEvents.value = []
 
   if (props.selectedEventIds && props.selectedEventIds.length > 0) {
-    // Reconstruire les événements sélectionnés à partir des IDs
     props.selectedEventIds.forEach(eventEnrollment => {
-      // Gérer le nouveau format d'objet
       if (typeof eventEnrollment === 'object') {
         const enrollment = eventEnrollment as any
         const event = events.value.find(e => e._id === enrollment.eventId)
         if (event) {
           if (enrollment.isAllOccurrences) {
-            // "Toutes les occurrences"
-            const allOccurrencesEvent = {
-              ...event,
+            selectedEvents.value.push({
+              eventId: enrollment.eventId,
               isAllOccurrences: true,
-              originalEventId: enrollment.eventId,
+              isRecurring: true,
               title: event.title,
               type: event.type,
               level: event.level,
               location: event.location,
-              recurrence: event.recurrence
-            }
-            selectedEvents.value.push(allOccurrencesEvent)
+              recurrence: event.recurrence,
+              time: `${timeShort(event.start)}–${timeShort(event.end)}`
+            })
           } else if (enrollment.occurrenceDate) {
-            // Occurrence individuelle
-            const virtualEvent = {
-              ...event,
-              _id: `${enrollment.eventId}_${enrollment.occurrenceDate}`,
-              isVirtualOccurrence: true,
-              originalEventId: enrollment.eventId,
+            selectedEvents.value.push({
+              eventId: enrollment.eventId,
+              isSingleOccurrence: true,
+              isRecurring: true,
               occurrenceDate: enrollment.occurrenceDate,
-              start: new Date(enrollment.occurrenceDate + 'T' + timeShort(event.start)),
-              end: new Date(enrollment.occurrenceDate + 'T' + timeShort(event.end))
-            }
-            selectedEvents.value.push(virtualEvent)
+              title: event.title,
+              type: event.type,
+              level: event.level,
+              location: event.location,
+              time: `${timeShort(event.start)}–${timeShort(event.end)}`
+            })
           } else {
-            // Événement simple
-            selectedEvents.value.push(event)
-          }
-        }
-      } else if (typeof eventEnrollment === 'string') {
-        // Gérer l'ancien format string (compatibilité)
-        if (eventEnrollment.includes('_')) {
-          // Occurrence récurrente
-          const [originalId, occurrenceDate] = eventEnrollment.split('_')
-          const event = events.value.find(e => e._id === originalId)
-          if (event) {
-            const virtualEvent = {
-              ...event,
-              _id: eventEnrollment,
-              isVirtualOccurrence: true,
-              originalEventId: originalId,
-              occurrenceDate: occurrenceDate,
-              start: new Date(occurrenceDate + 'T' + timeShort(event.start)),
-              end: new Date(occurrenceDate + 'T' + timeShort(event.end))
-            }
-            selectedEvents.value.push(virtualEvent)
-          }
-        } else {
-          // Événement simple
-          const event = events.value.find(e => e._id === eventEnrollment)
-          if (event) {
-            selectedEvents.value.push(event)
+            selectedEvents.value.push({
+              eventId: event._id,
+              isRecurring: false,
+              title: event.title,
+              type: event.type,
+              level: event.level,
+              location: event.location,
+              time: `${timeShort(event.start)}–${timeShort(event.end)}`
+            })
           }
         }
       }
     })
 
-    // Définir une date par défaut pour afficher les événements sélectionnés
-    if (selectedEvents.value.length > 0 && !selectedDate.value) {
-      // Prendre la première date d'événement sélectionné
-      const firstEvent = selectedEvents.value[0]
-      if (firstEvent.isVirtualOccurrence) {
-        selectedDate.value = firstEvent.occurrenceDate
-      } else if (firstEvent.start) {
-        const eventDate = new Date(firstEvent.start)
-        const year = eventDate.getFullYear()
-        const month = String(eventDate.getMonth() + 1).padStart(2, '0')
-        const day = String(eventDate.getDate()).padStart(2, '0')
-        selectedDate.value = `${year}-${month}-${day}`
+    // Définir une date par défaut (première date future disponible)
+    if (!selectedDate.value) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      // Utiliser la première date autorisée (qui est déjà triée et ne contient que les dates futures)
+      if (allowedDates.value.length > 0) {
+        selectedDate.value = allowedDates.value[0]
       }
     }
   }
 }
 
-// Watchers
+// Watchers simplifiés
 watch(() => props.modelValue, (newValue) => {
   if (newValue) {
     loadEvents()
@@ -930,28 +844,26 @@ watch(() => props.modelValue, (newValue) => {
 watch(() => props.selectedEventIds, () => {
   if (events.value.length > 0) {
     initializeSelectedEvents()
+    updateCheckboxSelection()
   }
 }, { deep: true })
 
 watch(events, () => {
   if (events.value.length > 0) {
     initializeSelectedEvents()
+    updateCheckboxSelection()
   }
 })
 
-// Watcher pour synchroniser le VTreeview quand selectedEvents change
-watch(selectedEvents, () => {
-  if (selectedDate.value) {
-    updateTreeviewSelectionForCurrentDate()
-  }
-}, { deep: true })
+// Supprimé le watcher sur selectedEvents pour éviter la boucle infinie
 
-// Watcher pour synchroniser le VTreeview quand selectedDate change
 watch(selectedDate, () => {
-  if (selectedDate.value) {
-    updateTreeviewSelectionForCurrentDate()
-  }
+  updateCheckboxSelection()
 })
+
+watch(groupedEvents, () => {
+  updateCheckboxSelection()
+}, { deep: true })
 
 // Lifecycle
 onMounted(() => {
@@ -964,5 +876,288 @@ onMounted(() => {
 <style>
 @import '@/assets/event-selector-modal.css';
 
-/* Laisser Vuetify gérer nativement l'affichage des chevrons et espaces */
+/* Styles pour la nouvelle interface compacte */
+.events-container {
+  max-height: 600px;
+  overflow-y: auto;
+  padding: 12px;
+  background: rgb(var(--v-theme-surface));
+  border-radius: 8px;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  margin-bottom: 16px;
+}
+
+/* Structure de base de la carte */
+.event-card {
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  background: rgb(var(--v-theme-surface-container));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  min-height: 140px;
+}
+
+.event-card:last-child {
+  margin-bottom: 0;
+}
+
+.event-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: rgb(var(--v-theme-outline));
+}
+
+.event-card--selected {
+  border-color: rgb(var(--v-theme-primary));
+  background: rgb(var(--v-theme-primary-container));
+  box-shadow: 0 2px 8px rgba(var(--v-theme-primary), 0.2);
+}
+
+.event-card--selected .event-title {
+  color: rgb(var(--v-theme-on-primary-container));
+}
+
+.event-card--selected .event-time,
+.event-card--selected .event-location {
+  color: rgb(var(--v-theme-on-primary-container));
+  opacity: 0.8;
+}
+
+/* Contenu de la carte avec flexbox */
+.event-card-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 16px;
+}
+
+.event-main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.event-header {
+  margin-bottom: 8px;
+}
+
+/* Section participation - toujours en bas */
+.participation-options {
+  margin-top: auto;
+  padding: 12px 16px 8px 16px;
+  border-top: 1px solid rgb(var(--v-theme-outline-variant));
+  background: rgb(var(--v-theme-surface-variant));
+  border-radius: 0 0 8px 8px;
+  margin-left: -16px;
+  margin-right: -16px;
+  margin-bottom: -16px;
+}
+
+.participation-options .v-radio-group {
+  margin-top: 0;
+}
+
+.participation-options .v-radio {
+  margin-right: 16px;
+  margin-bottom: 8px;
+}
+
+.participation-options .v-radio .v-label {
+  font-weight: 500;
+  color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.event-card .event-title-section {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.event-card .event-icon {
+  margin-right: 1.4rem;
+  flex-shrink: 0;
+}
+
+.event-card .event-title-section h5.event-title {
+  font-size: 1.3rem !important;
+  font-weight: 600 !important;
+  margin: 0 !important;
+  color: rgb(var(--v-theme-primary-darken-1)) !important;
+}
+
+.event-card .event-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.event-card .event-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.event-card .event-chip {
+  font-size: 0.8rem;
+}
+
+.event-card .event-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.event-card .event-time,
+.event-card .event-location {
+  font-size: 0.85rem;
+  color: rgb(var(--v-theme-on-surface-variant));
+  display: flex;
+  align-items: center;
+}
+
+/* Amélioration de l'espacement des éléments sélectionnés */
+.selected-event-item {
+  border-radius: 8px;
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+}
+
+.selected-event-item:hover {
+  background: rgb(var(--v-theme-surface-variant));
+}
+
+/* Responsive pour la nouvelle interface */
+@media (max-width: 768px) {
+  .events-container {
+    padding: 8px;
+  }
+
+  .event-card {
+    margin-bottom: 12px;
+    min-height: 120px;
+  }
+
+  .event-card-content {
+    padding: 12px;
+  }
+
+  .event-header {
+    margin-bottom: 8px;
+  }
+
+  .event-card .event-title-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .event-card .event-icon {
+    margin-right: 0;
+    margin-bottom: 4px;
+  }
+
+  .event-card .event-title-section h5.event-title {
+    font-size: 1.1rem !important;
+  }
+
+  .event-card .event-details {
+    gap: 6px;
+  }
+
+  .event-card .event-chips {
+    gap: 4px;
+  }
+
+  .event-card .event-chip {
+    font-size: 0.75rem;
+    height: 24px;
+  }
+
+  .event-card .event-meta {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .event-card .event-time,
+  .event-card .event-location {
+    font-size: 0.8rem;
+  }
+
+  .participation-options {
+    margin-left: -12px;
+    margin-right: -12px;
+    margin-bottom: -12px;
+    padding: 12px;
+  }
+
+  .participation-options .v-radio-group {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .participation-options .v-radio {
+    margin-right: 0;
+    margin-bottom: 6px;
+    width: 100%;
+  }
+
+  .participation-options .v-radio .v-label {
+    font-size: 0.85rem;
+    line-height: 1.2;
+  }
+}
+
+/* Pour les très petits écrans */
+@media (max-width: 480px) {
+  .events-container {
+    padding: 4px;
+  }
+
+  .event-card {
+    margin-bottom: 8px;
+    min-height: 100px;
+  }
+
+  .event-card-content {
+    padding: 8px;
+  }
+
+  .event-card .event-title-section h5.event-title {
+    font-size: 1rem !important;
+  }
+
+  .event-card .event-chip {
+    font-size: 0.7rem;
+    height: 20px;
+    padding: 0 6px;
+  }
+
+  .event-card .event-time,
+  .event-card .event-location {
+    font-size: 0.75rem;
+  }
+
+  .participation-options {
+    margin-left: -8px;
+    margin-right: -8px;
+    margin-bottom: -8px;
+    padding: 12px 8px 8px 8px;
+  }
+
+  .participation-options .v-radio .v-label {
+    font-size: 0.8rem;
+  }
+
+  .event-header {
+    margin-bottom: 6px;
+  }
+
+  .event-details {
+    gap: 4px;
+  }
+}
 </style>
