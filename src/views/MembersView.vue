@@ -626,7 +626,7 @@
                     <div class="text-caption text-medium-emphasis mb-1">
                       Version {{ rules.version }} • {{ formatDate(rules.uploadDate) }}
                       <span v-if="rules.uploadedBy"> par {{ rules.uploadedBy.firstName }} {{ rules.uploadedBy.lastName
-                        }}</span>
+                      }}</span>
                     </div>
                     <div v-if="rules.description" class="text-body-2 mb-1">
                       {{ rules.description }}
@@ -875,6 +875,10 @@ const getEventDisplayName = (eventEnrollment: any) => {
     // Si eventId est un objet (grâce au populate), l'utiliser directement
     if (eventEnrollment.eventId && typeof eventEnrollment.eventId === 'object') {
       const event = eventEnrollment.eventId
+      if (!event || !event.title) {
+        console.warn('Événement sans titre trouvé:', event)
+        return 'Événement inconnu'
+      }
       if (eventEnrollment.isAllOccurrences) {
         return `${event.title} (Toutes les occurrences)`
       } else if (eventEnrollment.occurrenceDate) {
@@ -968,7 +972,7 @@ const getEventChipColor = (eventEnrollment: any) => {
     event = events.value.find(e => e._id === eventId)
   }
 
-  if (event) {
+  if (event && event.level) {
     // Utiliser le niveau de difficulté pour la couleur
     switch (event.level) {
       case 'Débutant': return 'success'
@@ -1381,6 +1385,12 @@ const resetForm = () => {
 const fillForm = (member: Member) => {
   // Traiter les événements inscrits pour reconstruire les valeurs du formulaire
   const processedEventValues = member.enrolledEvents?.map(enrollment => {
+    // Vérifier que enrollment.eventId existe avant d'y accéder
+    if (!enrollment.eventId) {
+      console.warn('Événement sans eventId trouvé:', enrollment)
+      return null
+    }
+
     // Maintenant enrollment contient eventId (grâce au populate) et les propriétés d'inscription
     if (enrollment.isAllOccurrences) {
       // Pour "toutes les occurrences", retourner l'objet complet
@@ -1420,7 +1430,7 @@ const fillForm = (member: Member) => {
         eventDate: enrollment.eventId.start.split('T')[0] // Ajouter la date de l'événement ponctuel
       }
     }
-  }) || []
+  }).filter(Boolean) || [] // Filtrer les valeurs null
 
   Object.assign(formData, {
     firstName: member.firstName,
