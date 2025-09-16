@@ -3,7 +3,7 @@
     <div class="d-flex justify-space-between align-center mb-4">
       <div class="d-flex align-center">
         <h5 class="text-subtitle-1 m-0 me-2">Paiements</h5>
-        <VTooltip>
+        <VTooltip v-if="props.hasPendingChanges">
           <template #activator="{ props }">
             <VIcon icon="mdi-information-outline" size="16" color="primary" v-bind="props" class="info-icon" />
           </template>
@@ -85,6 +85,7 @@ import type { Payment } from '@/types'
 // Props
 const props = defineProps<{
   memberId: string
+  hasPendingChanges?: boolean
 }>()
 
 // Composables

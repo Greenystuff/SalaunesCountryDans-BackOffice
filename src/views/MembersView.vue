@@ -353,6 +353,7 @@
               <VCol cols="12" v-if="editingMember">
                 <VDivider class="my-3" />
                 <PaymentsManager ref="paymentsManagerRef" :member-id="editingMember._id"
+                  :has-pending-changes="newPayments.length > 0 || modifiedPayments.size > 0"
                   @add-payment="openPaymentStepper" @edit-payment="editExistingPayment" />
               </VCol>
             </VRow>
@@ -578,7 +579,7 @@
                     <div class="text-caption text-medium-emphasis mb-1">
                       Version {{ rules.version }} • {{ formatDate(rules.uploadDate) }}
                       <span v-if="rules.uploadedBy"> par {{ rules.uploadedBy.firstName }} {{ rules.uploadedBy.lastName
-                        }}</span>
+                      }}</span>
                     </div>
                     <div v-if="rules.description" class="text-body-2 mb-1">
                       {{ rules.description }}
@@ -675,6 +676,9 @@ const paymentsManagerRef = ref()
 
 // Paiements ajoutés pour un nouveau membre avant création
 const newPayments = ref<any[]>([])
+
+// Paiements modifiés (pour les membres existants)
+const modifiedPayments = ref<Set<string>>(new Set())
 
 // Données du formulaire de paiement
 const paymentFormData = ref({
@@ -1027,6 +1031,9 @@ const savePayment = async () => {
       await api.put(`/payments/${editingExistingPayment.value._id}`, paymentDataForAPI)
       showSuccess('Paiement modifié avec succès')
 
+      // Marquer ce paiement comme modifié
+      modifiedPayments.value.add(editingExistingPayment.value._id)
+
       // Recharger les paiements dans le PaymentsManager
       if (paymentsManagerRef.value) {
         paymentsManagerRef.value.reloadPayments()
@@ -1253,6 +1260,7 @@ const resetForm = () => {
   })
   // Réinitialiser aussi les paiements
   newPayments.value = []
+  modifiedPayments.value.clear()
 }
 
 const fillForm = (member: Member) => {
@@ -1414,8 +1422,9 @@ const saveMember = async () => {
           paymentsManagerRef.value.reloadPayments()
         }
 
-        // Vider la liste des nouveaux paiements
+        // Vider la liste des nouveaux paiements et des paiements modifiés
         newPayments.value = []
+        modifiedPayments.value.clear()
       } else {
         showSuccess('Membre modifié avec succès')
       }
