@@ -91,18 +91,95 @@
               <!-- Actions -->
               <div class="event-actions">
                 <VBtn icon="mdi-pencil" variant="text" size="small" @click="editEvent(item)" />
-                <VBtn icon="mdi-delete" variant="text" color="error" size="small" @click="deleteEvent(item._id)" />
+                <VBtn icon="mdi-delete" variant="text" color="error" size="small" @click="deleteEvent(item)" />
               </div>
             </div>
           </div>
         </div>
       </div>
     </VCard>
+
+    <!-- MODAL DE CONFIRMATION DE SUPPRESSION -->
+    <VDialog v-model="showDeleteConfirmation" max-width="500px">
+      <VCard>
+        <VCardTitle class="d-flex align-center">
+          <VIcon icon="mdi-alert-circle" color="error" class="me-2" />
+          Confirmer la suppression
+        </VCardTitle>
+        <VCardText>
+          <div class="confirmation-content">
+            <p class="confirmation-text">
+              Êtes-vous sûr de vouloir supprimer l'événement
+              <strong class="event-name">{{ eventToDelete?.title }}</strong> ?
+            </p>
+
+            <!-- Informations sur les inscriptions -->
+            <div v-if="loadingEnrollmentInfo" class="loading-info">
+              <VProgressCircular size="20" indeterminate class="me-2" />
+              <span>Chargement des inscriptions...</span>
+            </div>
+
+            <div v-else-if="enrollmentInfo && enrollmentInfo.enrollmentCount > 0" class="enrollment-warning">
+              <VIcon icon="mdi-account-group" size="small" class="me-1" />
+              <span class="warning-text">
+                <strong>{{ enrollmentInfo.enrollmentCount }} membre(s) inscrit(s)</strong> à cet événement.
+                <br>
+                <span class="enrollment-detail">Ils seront automatiquement désinscrits lors de la suppression.</span>
+              </span>
+
+              <!-- Liste des membres inscrits (optionnelle, peut être masquée) -->
+              <div v-if="enrollmentInfo.enrolledMembers && enrollmentInfo.enrolledMembers.length > 0"
+                class="enrolled-members-list">
+                <div class="members-header">
+                  <VIcon icon="mdi-account-multiple" size="small" class="me-1" />
+                  <span>Membres concernés :</span>
+                </div>
+                <div class="members-list">
+                  <div v-for="member in enrollmentInfo.enrolledMembers.slice(0, 5)" :key="member._id"
+                    class="member-item">
+                    <VIcon icon="mdi-account" size="small" class="me-1" />
+                    <span>{{ member.firstName }} {{ member.lastName }}</span>
+                  </div>
+                  <div v-if="enrollmentInfo.enrolledMembers.length > 5" class="member-item more-members">
+                    <VIcon icon="mdi-dots-horizontal" size="small" class="me-1" />
+                    <span>et {{ enrollmentInfo.enrolledMembers.length - 5 }} autre(s)...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="eventToDelete?.recurrence && eventToDelete.recurrence !== 'Aucune'" class="recurrence-warning">
+              <VIcon icon="mdi-repeat" size="small" class="me-1" />
+              <span class="warning-text">
+                Cet événement est récurrent ({{ eventToDelete.recurrence }}).
+                <strong>Toutes les occurrences futures seront supprimées.</strong>
+              </span>
+            </div>
+
+            <div class="irreversible-warning">
+              <VIcon icon="mdi-alert" size="small" class="me-1" />
+              <span>Cette action est irréversible.</span>
+            </div>
+          </div>
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn variant="text" @click="cancelDelete" :disabled="deleting">
+            Annuler
+          </VBtn>
+          <VBtn color="error" @click="confirmDelete" :loading="deleting">
+            <VIcon icon="mdi-delete" class="me-1" />
+            Supprimer
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
   </VDialog>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { useApi } from '@/services/api'
 
 // Props
 const props = defineProps({
@@ -122,6 +199,16 @@ const props = defineProps({
 
 // Emits
 const emit = defineEmits(['update:modelValue', 'add-event', 'edit-event', 'delete-event'])
+
+// Service API
+const api = useApi()
+
+// Variables réactives pour la confirmation de suppression
+const showDeleteConfirmation = ref(false)
+const eventToDelete = ref(null)
+const deleting = ref(false)
+const enrollmentInfo = ref(null)
+const loadingEnrollmentInfo = ref(false)
 
 // Computed
 const isOpen = computed({
@@ -211,8 +298,60 @@ function editEvent(event) {
   emit('edit-event', event)
 }
 
-function deleteEvent(eventId) {
+async function deleteEvent(item) {
+  // Stocker l'événement à supprimer
+  eventToDelete.value = item
+
+  // Récupérer les informations d'inscription
+  await loadEnrollmentInfo(item)
+
+  // Afficher la confirmation
+  showDeleteConfirmation.value = true
+}
+
+async function loadEnrollmentInfo(item) {
+  try {
+    loadingEnrollmentInfo.value = true
+
+    // Si c'est une occurrence virtuelle d'événement récurrent, utiliser l'ID original
+    const eventId = item.isVirtualOccurrence ? item.originalEventId : item._id
+
+    const response = await api.get(`/events/${eventId}/enrollment-count`)
+
+    if (response.success) {
+      enrollmentInfo.value = response.data
+    } else {
+      enrollmentInfo.value = { enrollmentCount: 0, enrolledMembers: [] }
+    }
+  } catch (error) {
+    console.error('Erreur lors du chargement des inscriptions:', error)
+    enrollmentInfo.value = { enrollmentCount: 0, enrolledMembers: [] }
+  } finally {
+    loadingEnrollmentInfo.value = false
+  }
+}
+
+function cancelDelete() {
+  showDeleteConfirmation.value = false
+  eventToDelete.value = null
+  deleting.value = false
+}
+
+function confirmDelete() {
+  if (!eventToDelete.value) return
+
+  deleting.value = true
+
+  // Si c'est une occurrence virtuelle d'événement récurrent, utiliser l'ID original
+  const eventId = eventToDelete.value.isVirtualOccurrence ? eventToDelete.value.originalEventId : eventToDelete.value._id
+
+  // Émettre l'événement de suppression
   emit('delete-event', eventId)
+
+  // Fermer la confirmation
+  showDeleteConfirmation.value = false
+  eventToDelete.value = null
+  deleting.value = false
 }
 </script>
 
@@ -483,5 +622,136 @@ function deleteEvent(eventId) {
     align-self: flex-end;
     margin-left: 0;
   }
+}
+
+/* ===== MODAL DE CONFIRMATION DE SUPPRESSION ===== */
+.confirmation-content {
+  padding: 8px 0;
+}
+
+.confirmation-text {
+  margin: 0 0 16px 0;
+  font-size: 1rem;
+  color: rgb(var(--v-theme-on-surface));
+  line-height: 1.5;
+}
+
+.event-name {
+  color: rgb(var(--v-theme-primary));
+  font-weight: 600;
+}
+
+.recurrence-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(var(--v-theme-warning), 0.1);
+  border: 1px solid rgba(var(--v-theme-warning), 0.3);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.recurrence-warning .v-icon {
+  color: rgb(var(--v-theme-warning));
+  margin-top: 2px;
+}
+
+.warning-text {
+  font-size: 0.9rem;
+  color: rgb(var(--v-theme-warning));
+  line-height: 1.4;
+}
+
+.irreversible-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(var(--v-theme-error), 0.08);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: rgba(var(--v-theme-on-surface), 0.8);
+}
+
+.irreversible-warning .v-icon {
+  color: rgb(var(--v-theme-error));
+}
+
+/* Informations de chargement */
+.loading-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(var(--v-theme-primary), 0.08);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+  color: rgba(var(--v-theme-on-surface), 0.8);
+}
+
+/* Avertissement d'inscriptions */
+.enrollment-warning {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(var(--v-theme-info), 0.1);
+  border: 1px solid rgba(var(--v-theme-info), 0.3);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.enrollment-warning .v-icon {
+  color: rgb(var(--v-theme-info));
+  margin-top: 2px;
+}
+
+.enrollment-detail {
+  font-size: 0.85rem;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  font-style: italic;
+}
+
+/* Liste des membres inscrits */
+.enrolled-members-list {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(var(--v-theme-outline), 0.2);
+}
+
+.members-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(var(--v-theme-on-surface), 0.8);
+  margin-bottom: 8px;
+}
+
+.members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: rgba(var(--v-theme-on-surface), 0.7);
+  padding: 2px 0;
+}
+
+.member-item .v-icon {
+  color: rgba(var(--v-theme-on-surface), 0.5);
+}
+
+.member-item.more-members {
+  font-style: italic;
+  color: rgba(var(--v-theme-on-surface), 0.6);
 }
 </style>

@@ -116,7 +116,7 @@
                             {{ getEventTypeLabel(event.type) }}
                           </VChip>
                           <span class="event-date">{{ formatDate(event.trialDate || event.occurrenceDate || event.start)
-                          }}</span>
+                            }}</span>
                         </div>
                         <h5 class="event-title">{{ event.title }}</h5>
                         <div v-if="event.description" class="event-description">
@@ -147,7 +147,7 @@
                             {{ getEventTypeLabel(event.type) }}
                           </VChip>
                           <span class="event-date">{{ formatDate(event.trialDate || event.occurrenceDate || event.start)
-                          }}</span>
+                            }}</span>
                         </div>
                         <h5 class="event-title">{{ event.title }}</h5>
                         <div v-if="event.description" class="event-description">
@@ -576,7 +576,7 @@ watch(() => props.modelValue, (newValue) => {
 })
 </script>
 
-<style>
+<style scoped>
 @import '@/assets/member-details-modal.css';
 
 .payments-container {
