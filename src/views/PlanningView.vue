@@ -1,7 +1,6 @@
 <template>
   <div class="planning-container">
     <VCard class="main-card">
-
       <!-- HEADER -->
       <div class="header-title">
         <div class="header-content">
@@ -21,34 +20,72 @@
 
       <!-- BARRE D'OUTILS / FILTRES -->
       <div class="toolbar">
-        <VTextField v-model="filters.q" placeholder="Rechercher un événement, un lieu, un animateur…" variant="solo"
-          density="comfortable" hide-details clearable prepend-inner-icon="mdi-magnify" class="toolbar-item" />
-        <VSelect v-model="filters.type" :items="typeOptions" label="Type" variant="solo" hide-details clearable
-          class="toolbar-item" />
-        <VSelect v-model="filters.level" :items="levelOptions" label="Niveau" variant="solo" hide-details clearable
-          class="toolbar-item" />
-        <VSelect v-model="filters.instructor" :items="instructorOptions" label="Animateur" variant="solo" hide-details
-          clearable class="toolbar-item" />
-        <VBtn class="toolbar-item" variant="tonal" @click="resetFilters">
-          Réinitialiser
-        </VBtn>
+        <VTextField
+          v-model="filters.q"
+          placeholder="Rechercher un événement, un lieu, un animateur…"
+          variant="solo"
+          density="comfortable"
+          hide-details
+          clearable
+          prepend-inner-icon="mdi-magnify"
+          class="toolbar-item"
+        />
+        <VSelect
+          v-model="filters.type"
+          :items="typeOptions"
+          label="Type"
+          variant="solo"
+          hide-details
+          clearable
+          class="toolbar-item"
+        />
+        <VSelect
+          v-model="filters.level"
+          :items="levelOptions"
+          label="Niveau"
+          variant="solo"
+          hide-details
+          clearable
+          class="toolbar-item"
+        />
+        <VSelect
+          v-model="filters.instructor"
+          :items="instructorOptions"
+          label="Animateur"
+          variant="solo"
+          hide-details
+          clearable
+          class="toolbar-item"
+        />
+        <VBtn class="toolbar-item" variant="tonal" @click="resetFilters"> Réinitialiser </VBtn>
       </div>
 
       <!-- CALENDRIER -->
       <div class="calendar-section">
         <!-- Composant Calendar de v-calendar -->
-        <VCalendar class="custom-calendar" is-expanded :first-day-of-week="2" :min-weeks="5" :locale="'fr'"
-          title-position="center" trim-weeks>
+        <VCalendar
+          class="custom-calendar"
+          is-expanded
+          :first-day-of-week="2"
+          :min-weeks="5"
+          :locale="'fr'"
+          title-position="center"
+          trim-weeks
+        >
           <template #day-content="{ day }">
             <div class="vc-day-content" @click="onDayClick(day)">
               <div class="vc-day-label">{{ day.day }}</div>
               <div class="vc-day-content-wrapper">
                 <!-- Affichage normal pour 1-2 événements -->
                 <template v-if="coursesOnDate(day.date).length <= 2">
-                  <div v-for="item in coursesOnDate(day.date)" :key="item._id" class="vc-day-content-item"
+                  <div
+                    v-for="item in coursesOnDate(day.date)"
+                    :key="item._id"
+                    class="vc-day-content-item"
                     :data-level="item.level"
                     :title="`${timeShort(item.start)}–${timeShort(item.end)} · ${item.title} (${item.level})`"
-                    @click.stop="canEdit ? openEdit(item) : null">
+                    @click.stop="canEdit ? openEdit(item) : null"
+                  >
                     <div class="event-time">{{ timeShort(item.start) }}</div>
                     <div class="event-title">{{ item.title }}</div>
                     <div class="event-level">{{ item.level }}</div>
@@ -58,10 +95,14 @@
                 <!-- Affichage en dots pour 3+ événements -->
                 <template v-else>
                   <div class="vc-day-dots-wrapper">
-                    <div v-for="item in coursesOnDate(day.date)" :key="item._id" class="vc-day-dot"
+                    <div
+                      v-for="item in coursesOnDate(day.date)"
+                      :key="item._id"
+                      class="vc-day-dot"
                       :data-level="item.level"
                       :title="`${timeShort(item.start)}–${timeShort(item.end)} · ${item.title} (${item.level})`"
-                      @click.stop="canEdit ? openEdit(item) : null" />
+                      @click.stop="canEdit ? openEdit(item) : null"
+                    />
                   </div>
                   <div class="vc-day-events-count">
                     {{ coursesOnDate(day.date).length }} événements
@@ -80,9 +121,7 @@
         <div class="list-header">
           <h3 class="list-title">À venir</h3>
           <div class="list-actions">
-            <VBtn variant="text" density="comfortable" @click="loadEvents">
-              Actualiser
-            </VBtn>
+            <VBtn variant="text" density="comfortable" @click="loadEvents"> Actualiser </VBtn>
           </div>
         </div>
 
@@ -107,10 +146,30 @@
                     {{ item.level }}
                   </VChip>
                   <span class="title">{{ item.title }}</span>
-                  <VChip v-if="item.recurrence && item.recurrence !== 'Aucune'"
-                    :color="item.recurrence === 'Hebdomadaire' ? 'success' : item.recurrence === 'Toutes les 2 semaines' ? 'info' : 'warning'"
-                    size="x-small" variant="flat" class="ml-2">
+                  <VChip
+                    v-if="item.recurrence && item.recurrence !== 'Aucune'"
+                    :color="
+                      item.recurrence === 'Hebdomadaire'
+                        ? 'success'
+                        : item.recurrence === 'Toutes les 2 semaines'
+                          ? 'info'
+                          : 'warning'
+                    "
+                    size="x-small"
+                    variant="flat"
+                    class="ml-2"
+                  >
                     {{ item.recurrence }}
+                  </VChip>
+                  <VChip
+                    v-if="item.hasException"
+                    color="orange"
+                    size="x-small"
+                    variant="flat"
+                    class="ml-2"
+                    title="Cette occurrence a été modifiée"
+                  >
+                    Modifiée
                   </VChip>
                 </div>
               </td>
@@ -119,7 +178,13 @@
               <td class="actions">
                 <div class="actions-wrapper">
                   <VBtn v-if="canEdit" icon="mdi-pencil" variant="text" @click="openEdit(item)" />
-                  <VBtn v-if="canDelete" icon="mdi-delete" variant="text" color="error" @click="remove(item._id)" />
+                  <VBtn
+                    v-if="canDelete"
+                    icon="mdi-delete"
+                    variant="text"
+                    color="error"
+                    @click="remove(item._id)"
+                  />
                 </div>
               </td>
             </tr>
@@ -160,7 +225,9 @@
           <VCol cols="12" md="3">
             <VCard class="stat-card">
               <VCardText class="text-center">
-                <div class="stat-number">{{stats.byType?.find(s => s._id === 'Cours')?.count || 0}}</div>
+                <div class="stat-number">
+                  {{ stats.byType?.find((s) => s._id === 'Cours')?.count || 0 }}
+                </div>
                 <div class="stat-label">Cours</div>
               </VCardText>
             </VCard>
@@ -168,21 +235,22 @@
           <VCol cols="12" md="3">
             <VCard class="stat-card">
               <VCardText class="text-center">
-                <div class="stat-number">{{stats.byType?.find(s => s._id === 'Événement')?.count || 0}}</div>
+                <div class="stat-number">
+                  {{ stats.byType?.find((s) => s._id === 'Événement')?.count || 0 }}
+                </div>
                 <div class="stat-label">Événements</div>
               </VCardText>
             </VCard>
           </VCol>
         </VRow>
       </div>
-
     </VCard>
 
     <!-- DIALOGUE CRÉATION / ÉDITION -->
     <VDialog v-model="dialog.open" max-width="720" class="event-dialog">
       <VCard>
         <div class="dialog-title">
-          <span>{{ dialog.mode === 'create' ? 'Nouvel événement' : 'Modifier l\'événement' }}</span>
+          <span>{{ dialog.mode === 'create' ? 'Nouvel événement' : "Modifier l'événement" }}</span>
           <VBtn icon="mdi-close" variant="text" @click="dialog.open = false" />
         </div>
 
@@ -209,7 +277,11 @@
                   <VTextField v-model="form.location" label="Lieu" />
                 </VCol>
                 <VCol cols="12" md="6">
-                  <VTextField v-model="form.maxParticipants" type="number" label="Participants max" />
+                  <VTextField
+                    v-model="form.maxParticipants"
+                    type="number"
+                    label="Participants max"
+                  />
                 </VCol>
               </VRow>
 
@@ -227,18 +299,35 @@
                   <h4 class="periods-title">Créneau</h4>
                 </div>
                 <div class="period-grid">
-                  <VMenu v-model="showDatePicker" :close-on-content-click="false" transition="scale-transition"
-                    offset-y>
+                  <VMenu
+                    v-model="showDatePicker"
+                    :close-on-content-click="false"
+                    transition="scale-transition"
+                    offset-y
+                  >
                     <template #activator="{ props }">
-                      <VTextField v-model="formattedDateInput" label="Date" prepend-inner-icon="mdi-calendar" readonly
-                        v-bind="props" />
+                      <VTextField
+                        v-model="formattedDateInput"
+                        label="Date"
+                        prepend-inner-icon="mdi-calendar"
+                        readonly
+                        v-bind="props"
+                      />
                     </template>
-                    <VDatePicker v-model="dateInput" :min="minEventDate" :max="maxEventDate"
-                      @update:model-value="showDatePicker = false" />
+                    <VDatePicker
+                      v-model="dateInput"
+                      :min="minEventDate"
+                      :max="maxEventDate"
+                      @update:model-value="showDatePicker = false"
+                    />
                   </VMenu>
                   <VTextField v-model="startTime" type="time" label="Heure début" required />
                   <VTextField v-model="endTime" type="time" label="Heure fin" required />
-                  <VSelect v-model="form.recurrence" :items="recurrenceOptions" label="Récurrence" />
+                  <VSelect
+                    v-model="form.recurrence"
+                    :items="recurrenceOptions"
+                    label="Récurrence"
+                  />
                 </div>
               </div>
             </div>
@@ -247,7 +336,12 @@
 
         <div class="dialog-actions">
           <div class="left">
-            <VBtn v-if="dialog.mode === 'edit' && canDelete" variant="text" color="error" @click="remove(form._id)">
+            <VBtn
+              v-if="dialog.mode === 'edit' && canDelete"
+              variant="text"
+              color="error"
+              @click="remove(form._id)"
+            >
               Supprimer
             </VBtn>
           </div>
@@ -262,8 +356,46 @@
     </VDialog>
 
     <!-- MODALE DE GESTION DE JOURNÉE -->
-    <DayManagementModal v-model="dayModal.open" :selected-date="selectedDate" :events="eventsForSelectedDate"
-      @add-event="openCreate" @edit-event="openEdit" @delete-event="remove" />
+    <DayManagementModal
+      v-model="dayModal.open"
+      :selected-date="selectedDate"
+      :events="eventsForSelectedDate"
+      @add-event="openCreate"
+      @edit-event="openEdit"
+      @delete-event="remove"
+    />
+
+    <!-- MODALE DE CHOIX D'ÉDITION (OCCURRENCE UNIQUE VS TOUTES) -->
+    <VDialog v-model="editChoiceDialog.open" max-width="600">
+      <VCard>
+        <VCardTitle class="text-h5 pa-6">
+          Modifier l'événement récurrent
+        </VCardTitle>
+        <VCardText class="pa-6">
+          <p class="mb-4">
+            Cet événement se répète. Souhaitez-vous modifier uniquement cette occurrence ou toutes
+            les occurrences futures ?
+          </p>
+          <VAlert type="info" variant="tonal" class="mb-0">
+            <strong>{{ editChoiceDialog.eventTitle }}</strong>
+            <br />
+            {{ dateLong(editChoiceDialog.occurrenceStart) }} à
+            {{ timeShort(editChoiceDialog.occurrenceStart) }}
+          </VAlert>
+        </VCardText>
+        <VCardActions class="pa-6 pt-0 d-flex flex-column ga-3">
+          <VBtn color="primary" @click="confirmEditSingleOccurrence" block size="large">
+            Cette occurrence uniquement
+          </VBtn>
+          <VBtn color="primary" variant="tonal" @click="confirmEditAllOccurrences" block size="large">
+            Toutes les occurrences
+          </VBtn>
+          <VBtn variant="text" @click="editChoiceDialog.open = false" block>
+            Annuler
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
   </div>
 </template>
 
@@ -291,7 +423,7 @@ const filters = reactive({
   q: '',
   type: null,
   level: null,
-  instructor: null
+  instructor: null,
 })
 
 // État de chargement et gestion des erreurs
@@ -314,6 +446,19 @@ const pagination = ref(null)
 const dialog = reactive({ open: false, mode: 'create' }) // 'create' | 'edit'
 const formRef = ref(null)
 const showDatePicker = ref(false)
+const editingSingleOccurrence = ref(false)
+const occurrenceDate = ref(null)
+
+/** ----------------------------
+ *  Modale de choix d'édition
+ *  ---------------------------- */
+const editChoiceDialog = reactive({
+  open: false,
+  eventTitle: '',
+  occurrenceStart: null,
+  originalEvent: null,
+  item: null,
+})
 
 /** ----------------------------
  *  Modale de gestion de journée
@@ -332,7 +477,7 @@ const form = reactive({
   maxParticipants: null,
   price: null,
   isPublic: true,
-  recurrence: 'Aucune'
+  recurrence: 'Aucune',
 })
 
 const dateInput = ref(toISODate(new Date()))
@@ -363,24 +508,25 @@ const filtered = computed(() => {
 
   if (filters.q) {
     const query = filters.q.toLowerCase()
-    result = result.filter(event =>
-      event.title.toLowerCase().includes(query) ||
-      (event.description && event.description.toLowerCase().includes(query)) ||
-      (event.instructor && event.instructor.toLowerCase().includes(query)) ||
-      (event.location && event.location.toLowerCase().includes(query))
+    result = result.filter(
+      (event) =>
+        event.title.toLowerCase().includes(query) ||
+        (event.description && event.description.toLowerCase().includes(query)) ||
+        (event.instructor && event.instructor.toLowerCase().includes(query)) ||
+        (event.location && event.location.toLowerCase().includes(query)),
     )
   }
 
   if (filters.type) {
-    result = result.filter(event => event.type === filters.type)
+    result = result.filter((event) => event.type === filters.type)
   }
 
   if (filters.level) {
-    result = result.filter(event => event.level === filters.level)
+    result = result.filter((event) => event.level === filters.level)
   }
 
   if (filters.instructor) {
-    result = result.filter(event => event.instructor === filters.instructor)
+    result = result.filter((event) => event.instructor === filters.instructor)
   }
 
   return result
@@ -388,7 +534,7 @@ const filtered = computed(() => {
 
 // Computed properties pour les options des selects
 const instructorOptions = computed(() => {
-  const instructors = [...new Set(events.value.map(event => event.instructor).filter(Boolean))]
+  const instructors = [...new Set(events.value.map((event) => event.instructor).filter(Boolean))]
   return instructors.sort()
 })
 
@@ -403,7 +549,7 @@ const upcoming = computed(() => {
   const upcomingEvents = []
 
   // Traiter chaque événement filtré
-  filtered.value.forEach(event => {
+  filtered.value.forEach((event) => {
     if (event.recurrence === 'Aucune') {
       // Événement ponctuel : l'ajouter s'il est à venir
       if (new Date(event.end) >= now) {
@@ -442,7 +588,7 @@ const upcoming = computed(() => {
           nextOccurrence: nextOccurrence,
           // Utiliser la prochaine occurrence pour le tri et l'affichage
           start: nextOccurrence,
-          end: new Date(nextOccurrence.getTime() + duration)
+          end: new Date(nextOccurrence.getTime() + duration),
         }
         upcomingEvents.push(upcomingEvent)
       }
@@ -450,9 +596,7 @@ const upcoming = computed(() => {
   })
 
   // Trier par date de début et limiter à 20 éléments
-  return upcomingEvents
-    .sort((a, b) => new Date(a.start) - new Date(b.start))
-    .slice(0, 20)
+  return upcomingEvents.sort((a, b) => new Date(a.start) - new Date(b.start)).slice(0, 20)
 })
 
 // État du composant
@@ -513,12 +657,18 @@ function dateLong(d) {
  *  ---------------------------- */
 function levelColor(level) {
   switch (level) {
-    case 'Débutant': return 'success'
-    case 'Novice': return 'info'
-    case 'Intermédiaire': return 'warning'
-    case 'Avancé': return 'error'
-    case 'Tous niveaux': return 'primary'
-    default: return 'primary'
+    case 'Débutant':
+      return 'success'
+    case 'Novice':
+      return 'info'
+    case 'Intermédiaire':
+      return 'warning'
+    case 'Avancé':
+      return 'error'
+    case 'Tous niveaux':
+      return 'primary'
+    default:
+      return 'primary'
   }
 }
 
@@ -533,7 +683,7 @@ const virtualEvents = computed(() => {
 
   console.log('🎯 Génération des événements virtuels pour', filtered.value.length, 'événements')
 
-  filtered.value.forEach(event => {
+  filtered.value.forEach((event) => {
     if (event.recurrence === 'Aucune') {
       // Événement ponctuel : l'ajouter tel quel
       virtualEvents.push(event)
@@ -549,15 +699,35 @@ const virtualEvents = computed(() => {
       while (currentOccurrence <= endDate) {
         // Ne générer que les occurrences dans la plage visible
         if (currentOccurrence >= startDate) {
-          const virtualEvent = {
-            ...event,
-            _id: `${event._id}_${currentOccurrence.getTime()}`, // ID unique pour chaque occurrence
-            start: new Date(currentOccurrence),
-            end: new Date(currentOccurrence.getTime() + duration),
-            isVirtualOccurrence: true,
-            originalEventId: event._id
+          const occurrenceDate = new Date(currentOccurrence)
+
+          // Chercher une exception pour cette occurrence
+          const exception = event.exceptions?.find(ex => {
+            const exDate = new Date(ex.occurrenceDate)
+            return exDate.toDateString() === occurrenceDate.toDateString()
+          })
+
+          // Si annulée, ne pas afficher
+          if (exception?.modificationType === 'cancelled') {
+            // Skip cette occurrence
+          } else {
+            // Créer l'événement virtuel avec les modifications éventuelles
+            const virtualEvent = {
+              ...event,
+              _id: `${event._id}_${currentOccurrence.getTime()}`,
+              start: exception?.modifiedFields?.start ? new Date(exception.modifiedFields.start) : new Date(currentOccurrence),
+              end: exception?.modifiedFields?.end ? new Date(exception.modifiedFields.end) : new Date(currentOccurrence.getTime() + duration),
+              instructor: exception?.modifiedFields?.instructor ?? event.instructor,
+              location: exception?.modifiedFields?.location ?? event.location,
+              level: exception?.modifiedFields?.level ?? event.level,
+              maxParticipants: exception?.modifiedFields?.maxParticipants ?? event.maxParticipants,
+              price: exception?.modifiedFields?.price ?? event.price,
+              isVirtualOccurrence: true,
+              originalEventId: event._id,
+              hasException: !!exception,
+            }
+            virtualEvents.push(virtualEvent)
           }
-          virtualEvents.push(virtualEvent)
         }
 
         // Calculer la prochaine occurrence
@@ -581,7 +751,7 @@ const virtualEvents = computed(() => {
 
 function coursesOnDate(date) {
   const targetDate = new Date(date)
-  return virtualEvents.value.filter(event => {
+  return virtualEvents.value.filter((event) => {
     const eventDate = new Date(event.start)
     return eventDate.toDateString() === targetDate.toDateString()
   })
@@ -594,7 +764,7 @@ function composeDate(dateInput, timeString) {
 
   // Vérifier le format de l'heure
   if (!/^\d{2}:\d{2}$/.test(timeString)) {
-    throw new Error('Format d\'heure invalide. Attendu: HH:MM')
+    throw new Error("Format d'heure invalide. Attendu: HH:MM")
   }
 
   let dateOnly
@@ -636,7 +806,7 @@ function composeDate(dateInput, timeString) {
     date.getDate(),
     date.getHours(),
     date.getMinutes(),
-    date.getSeconds()
+    date.getSeconds(),
   )
 
   return localDate
@@ -662,7 +832,7 @@ async function loadEvents() {
       page: currentPage.value.toString(),
       limit: '1000', // Charger tous les événements pour le calendrier
       sortBy: 'start',
-      sortOrder: 'asc'
+      sortOrder: 'asc',
     })
 
     // Ajouter les filtres
@@ -672,7 +842,7 @@ async function loadEvents() {
     if (filters.instructor) params.append('instructor', filters.instructor)
 
     const response = await apiService.get(`/events?${params}`, {
-      signal: abortController.value.signal
+      signal: abortController.value.signal,
     })
 
     if (response.success) {
@@ -728,7 +898,7 @@ function openCreate(baseDate) {
     maxParticipants: null,
     price: null,
     isPublic: true,
-    recurrence: 'Aucune'
+    recurrence: 'Aucune',
   })
   const d = baseDate || new Date()
   dateInput.value = toISODate(d)
@@ -740,18 +910,55 @@ function openCreate(baseDate) {
 function openEdit(item) {
   dialog.mode = 'edit'
 
-  // Si c'est une occurrence virtuelle, utiliser l'événement original
-  const eventToEdit = item.isVirtualOccurrence ?
-    filtered.value.find(e => e._id === item.originalEventId) :
-    item
+  // Si c'est une occurrence virtuelle d'un événement récurrent
+  if (item.isVirtualOccurrence && item.originalEventId) {
+    const originalEvent = filtered.value.find((e) => e._id === item.originalEventId)
+    if (originalEvent && originalEvent.recurrence !== 'Aucune') {
+      // Ouvrir la modale de choix
+      editChoiceDialog.open = true
+      editChoiceDialog.eventTitle = originalEvent.title
+      editChoiceDialog.occurrenceStart = item.start
+      editChoiceDialog.originalEvent = originalEvent
+      editChoiceDialog.item = item
+      return
+    }
+  }
+
+  // Édition normale
+  editingSingleOccurrence.value = false
+  occurrenceDate.value = null
+  const eventToEdit = item.isVirtualOccurrence
+    ? filtered.value.find((e) => e._id === item.originalEventId)
+    : item
 
   Object.assign(form, { ...eventToEdit })
-
-  // Pour l'édition, on utilise la date de l'événement original
-  // L'utilisateur peut la modifier via le date picker
   dateInput.value = toISODate(new Date(eventToEdit.start))
   startTime.value = timeShort(eventToEdit.start)
   endTime.value = timeShort(eventToEdit.end)
+  dialog.open = true
+}
+
+function confirmEditSingleOccurrence() {
+  const { item, originalEvent } = editChoiceDialog
+  editingSingleOccurrence.value = true
+  occurrenceDate.value = new Date(item.start)
+  Object.assign(form, { ...originalEvent })
+  dateInput.value = toISODate(new Date(item.start))
+  startTime.value = timeShort(item.start)
+  endTime.value = timeShort(item.end)
+  editChoiceDialog.open = false
+  dialog.open = true
+}
+
+function confirmEditAllOccurrences() {
+  const { originalEvent } = editChoiceDialog
+  editingSingleOccurrence.value = false
+  occurrenceDate.value = null
+  Object.assign(form, { ...originalEvent })
+  dateInput.value = toISODate(new Date(originalEvent.start))
+  startTime.value = timeShort(originalEvent.start)
+  endTime.value = timeShort(originalEvent.end)
+  editChoiceDialog.open = false
   dialog.open = true
 }
 
@@ -765,7 +972,7 @@ async function save() {
   try {
     // Validations côté client
     if (!form.title.trim()) {
-      showError('Le titre de l\'événement est requis')
+      showError("Le titre de l'événement est requis")
       return
     }
 
@@ -790,7 +997,7 @@ async function save() {
       startTime: startTime.value,
       endTime: endTime.value,
       dateInputType: typeof dateInput.value,
-      dateInputValue: dateInput.value
+      dateInputValue: dateInput.value,
     })
 
     let start, end
@@ -804,47 +1011,60 @@ async function save() {
 
     // Validation de la cohérence des heures
     if (start >= end) {
-      showError('L\'heure de fin doit être postérieure à l\'heure de début')
+      showError("L'heure de fin doit être postérieure à l'heure de début")
       return
     }
 
     // Validation de la durée (pas plus de 8 heures)
     const durationHours = (end - start) / (1000 * 60 * 60)
     if (durationHours > 8) {
-      showError('La durée de l\'événement ne peut pas dépasser 8 heures')
+      showError("La durée de l'événement ne peut pas dépasser 8 heures")
       return
     }
 
     saving.value = true
 
-    const eventData = {
-      title: form.title.trim(),
-      description: form.description ? form.description.trim() : '',
-      type: form.type,
-      level: form.level || undefined,
-      instructor: form.instructor ? form.instructor.trim() : '',
-      location: form.location ? form.location.trim() : '',
-      maxParticipants: form.maxParticipants || undefined,
-      price: form.price || undefined,
-      isPublic: form.isPublic,
-      start: toLocalISOString(start),
-      end: toLocalISOString(end),
-      recurrence: form.recurrence
-    }
-
-    console.log('📤 Données envoyées au backend:', {
-      start: toLocalISOString(start),
-      end: toLocalISOString(end),
-      startLocal: start.toString(),
-      endLocal: end.toString()
-    })
-
-    if (dialog.mode === 'edit' && form._id) {
-      await apiService.put(`/events/${form._id}`, eventData)
-      showSuccess('Événement modifié avec succès')
+    // Si on édite une seule occurrence, créer une exception
+    if (dialog.mode === 'edit' && editingSingleOccurrence.value && occurrenceDate.value) {
+      const exceptionData = {
+        occurrenceDate: occurrenceDate.value.toISOString(),
+        modificationType: 'modified',
+        modifiedFields: {
+          instructor: form.instructor ? form.instructor.trim() : '',
+          location: form.location ? form.location.trim() : '',
+          start: toLocalISOString(start),
+          end: toLocalISOString(end),
+          level: form.level,
+          maxParticipants: form.maxParticipants,
+          price: form.price,
+        }
+      }
+      await apiService.post(`/events/${form._id}/exceptions`, exceptionData)
+      showSuccess('Occurrence modifiée avec succès')
     } else {
-      await apiService.post('/events', eventData)
-      showSuccess('Événement créé avec succès')
+      // Comportement normal
+      const eventData = {
+        title: form.title.trim(),
+        description: form.description ? form.description.trim() : '',
+        type: form.type,
+        level: form.level || undefined,
+        instructor: form.instructor ? form.instructor.trim() : '',
+        location: form.location ? form.location.trim() : '',
+        maxParticipants: form.maxParticipants || undefined,
+        price: form.price || undefined,
+        isPublic: form.isPublic,
+        start: toLocalISOString(start),
+        end: toLocalISOString(end),
+        recurrence: form.recurrence,
+      }
+
+      if (dialog.mode === 'edit' && form._id) {
+        await apiService.put(`/events/${form._id}`, eventData)
+        showSuccess('Événement modifié avec succès')
+      } else {
+        await apiService.post('/events', eventData)
+        showSuccess('Événement créé avec succès')
+      }
     }
 
     // Recharger les données seulement si le composant est toujours monté
@@ -897,12 +1117,16 @@ onUnmounted(() => {
 })
 
 // Watchers pour recharger les données quand les filtres changent
-watch([() => filters.q, () => filters.type, () => filters.level, () => filters.instructor], () => {
-  if (isComponentMounted.value) {
-    currentPage.value = 1
-    loadEvents()
-  }
-}, { debounce: 300 })
+watch(
+  [() => filters.q, () => filters.type, () => filters.level, () => filters.instructor],
+  () => {
+    if (isComponentMounted.value) {
+      currentPage.value = 1
+      loadEvents()
+    }
+  },
+  { debounce: 300 },
+)
 </script>
 
 <style>
