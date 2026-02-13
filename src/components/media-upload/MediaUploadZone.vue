@@ -16,12 +16,12 @@
           :disabled="disabled || loading"
           class="upload-zone"
         >
-          <template #default="{ isDragging, isHovering }">
+          <template #default="slotProps">
             <div
               class="upload-dropzone"
               :class="{
-                'dropzone-dragging': isDragging,
-                'dropzone-hovering': isHovering,
+                'dropzone-dragging': slotProps?.isDragging,
+                'dropzone-hovering': slotProps?.isHovering,
                 'dropzone-disabled': disabled || loading,
                 'dropzone-error': error,
               }"
@@ -30,24 +30,24 @@
                 <!-- Icon -->
                 <v-icon
                   :icon="
-                    isDragging
+                    slotProps?.isDragging
                       ? 'mdi-file-download'
                       : mediaType === 'image'
                         ? 'mdi-image-plus'
                         : 'mdi-video-plus'
                   "
                   :class="{
-                    'icon-pulse': isDragging,
+                    'icon-pulse': slotProps?.isDragging,
                     'icon-error': error,
                   }"
                   size="48"
-                  :color="error ? 'error' : isDragging ? 'primary' : 'grey-lighten-1'"
+                  :color="error ? 'error' : slotProps?.isDragging ? 'primary' : 'grey-lighten-1'"
                 />
 
                 <!-- Text -->
                 <div class="dropzone-text mt-3">
                   <p class="text-h6 mb-2 font-weight-medium">
-                    {{ isDragging ? 'Déposez votre fichier ici' : 'Glissez-déposez votre fichier' }}
+                    {{ slotProps?.isDragging ? 'Déposez votre fichier ici' : 'Glissez-déposez votre fichier' }}
                   </p>
                   <p class="text-body-2 text-medium-emphasis mb-3">
                     ou cliquez pour parcourir
