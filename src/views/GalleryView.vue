@@ -1,18 +1,15 @@
 <template>
   <div class="gallery-container">
     <VCard class="main-card">
-
       <!-- HEADER -->
       <div class="header-title">
         <div class="header-content">
-          <h1 class="main-title">Galerie Photos</h1>
-          <p class="subtitle">
-            Gérez les photos et images du club.
-          </p>
+          <h1 class="main-title">Galerie Médias</h1>
+          <p class="subtitle">Gérez les photos et vidéos du club.</p>
         </div>
         <div class="header-actions">
           <VBtn v-if="canCreate" color="primary" prepend-icon="mdi-plus" @click="openDialog()">
-            Ajouter des images
+            Ajouter des médias
           </VBtn>
         </div>
       </div>
@@ -21,132 +18,127 @@
 
       <!-- BARRE D'OUTILS / FILTRES -->
       <div class="toolbar">
-        <VTextField v-model="search" placeholder="Rechercher une image..." variant="solo" density="comfortable"
-          hide-details clearable prepend-inner-icon="mdi-magnify" class="toolbar-item" />
-        <VSelect v-model="filters.category" :items="categoryOptions" label="Catégorie" variant="solo" hide-details
-          clearable class="toolbar-item" />
-        <VSelect v-model="filters.isActive" :items="[
-          { title: 'Toutes', value: '' },
-          { title: 'Actives', value: 'true' },
-          { title: 'Inactives', value: 'false' }
-        ]" label="Statut" variant="solo" hide-details class="toolbar-item" />
-        <VBtn class="toolbar-item" variant="tonal" @click="clearFilters">
-          Réinitialiser
-        </VBtn>
+        <VTextField
+          v-model="search"
+          placeholder="Rechercher un média..."
+          variant="solo"
+          density="comfortable"
+          hide-details
+          clearable
+          prepend-inner-icon="mdi-magnify"
+          class="toolbar-item"
+        />
+
+        <!-- NOUVEAU: Filtre type média -->
+        <VSelect
+          v-model="filters.mediaType"
+          :items="mediaTypeOptions"
+          label="Type"
+          variant="solo"
+          hide-details
+          class="toolbar-item"
+        />
+
+        <VSelect
+          v-model="filters.category"
+          :items="categoryOptions"
+          label="Catégorie"
+          variant="solo"
+          hide-details
+          clearable
+          class="toolbar-item"
+        />
+
+        <VSelect
+          v-model="filters.isActive"
+          :items="[
+            { title: 'Tous', value: '' },
+            { title: 'Actifs', value: 'true' },
+            { title: 'Inactifs', value: 'false' },
+          ]"
+          label="Statut"
+          variant="solo"
+          hide-details
+          class="toolbar-item"
+        />
+
+        <VBtn class="toolbar-item" variant="tonal" @click="clearFilters"> Réinitialiser </VBtn>
       </div>
 
       <!-- CONTENU PRINCIPAL -->
       <div class="gallery-content">
-        <!-- Grille des images -->
-        <v-row v-if="!loading && filteredImages.length > 0">
-          <v-col v-for="image in filteredImages" :key="image._id" cols="12" sm="6" md="4" lg="3">
-            <GalleryImageCard :image="image" :can-edit="canEdit" :can-delete="canDelete" @edit="openDialog" @delete="deleteImage" />
+        <!-- Grille des médias -->
+        <v-row v-if="!loading && filteredMedia.length > 0">
+          <v-col v-for="item in filteredMedia" :key="item._id" cols="12" sm="6" md="4" lg="3">
+            <!-- Carte Image -->
+            <GalleryImageCard
+              v-if="item.mediaType === 'image'"
+              :image="item as GalleryImage"
+              :can-edit="canEdit"
+              :can-delete="canDelete"
+              @edit="() => openDialog(item)"
+              @delete="() => deleteMedia(item)"
+            />
+
+            <!-- Carte Vidéo -->
+            <GalleryVideoCardBO
+              v-else-if="item.mediaType === 'video'"
+              :video="item as GalleryVideo"
+              :can-edit="canEdit"
+              :can-delete="canDelete"
+              @edit="() => openDialog(item)"
+              @delete="() => deleteMedia(item)"
+              @retry="retryTranscoding"
+            />
           </v-col>
         </v-row>
 
-        <!-- Message si aucune image -->
+        <!-- Message si aucun média -->
         <v-card v-else-if="!loading" class="text-center pa-8">
-          <v-icon icon="mdi-image-off" size="48" color="grey" class="mb-4" />
-          <h2 class="text-h5 font-weight-bold mb-2">Aucune image trouvée</h2>
+          <v-icon icon="mdi-multimedia" size="48" color="grey" class="mb-4" />
+          <h2 class="text-h5 font-weight-bold mb-2">Aucun média trouvé</h2>
           <p class="text-body-1 text-medium-emphasis">
-            Aucune image ne correspond à vos critères de recherche.
+            Aucun média ne correspond à vos critères de recherche.
           </p>
         </v-card>
 
         <!-- Loading -->
         <div v-if="loading" class="text-center py-12">
           <v-progress-circular indeterminate color="primary" size="64" class="mb-4" />
-          <p class="text-h6">Chargement des images...</p>
+          <p class="text-h6">Chargement des médias...</p>
         </div>
       </div>
 
-      <!-- Dialog pour ajouter/modifier une image -->
-      <v-dialog v-model="dialog" max-width="600px" persistent>
-        <v-card>
-          <v-card-title class="text-h5 pa-4 d-flex justify-space-between align-center">
-            <span>{{ editingImage ? 'Modifier l\'image' : 'Ajouter une image' }}</span>
-            <v-btn icon="mdi-close" variant="text" size="small" @click="closeDialog" class="ml-auto" />
-          </v-card-title>
-
-          <v-card-text class="pa-4">
-            <v-form ref="form" v-model="formValid" class="form-spacing">
-              <!-- Upload d'image -->
-              <v-file-input v-model="imageFile" label="Image" accept="image/*" prepend-icon="mdi-camera"
-                variant="outlined" :rules="editingImage ? [] : [v => !!v || 'Une image est requise']"
-                :disabled="!!editingImage" @change="handleImageChange" class="mb-4" />
-
-              <!-- Prévisualisation -->
-              <div v-if="imagePreview" class="text-center mb-6">
-                <v-img :src="imagePreview" max-height="200" max-width="300" class="mx-auto rounded" contain />
-              </div>
-
-              <!-- Titre -->
-              <v-text-field v-model="imageForm.title" label="Titre *" variant="outlined"
-                :rules="[v => !!v || 'Le titre est requis']" required class="mb-4" />
-
-              <!-- Description -->
-              <v-textarea v-model="imageForm.description" label="Description" variant="outlined" rows="3" counter="1000"
-                class="mb-4" />
-
-              <!-- Alt Text -->
-              <v-text-field v-model="imageForm.altText" label="Texte alternatif" variant="outlined" counter="200"
-                hint="Description de l'image pour l'accessibilité" class="mb-4" />
-
-              <!-- Catégorie -->
-              <v-select v-model="imageForm.category" :items="categoryOptions" label="Catégorie" variant="outlined"
-                clearable class="mb-4" />
-
-              <!-- Tags -->
-              <v-text-field v-model="imageForm.tagsString" label="Tags" variant="outlined"
-                hint="Séparez les tags par des virgules" placeholder="événement, danse, groupe" class="mb-4" />
-
-              <!-- Ordre -->
-              <v-text-field v-model.number="imageForm.order" label="Ordre d'affichage" type="number" variant="outlined"
-                min="0" class="mb-4" />
-            </v-form>
-          </v-card-text>
-
-          <!-- Actions avec toggle et boutons -->
-          <v-card-actions class="pa-4 d-flex justify-space-between align-center">
-            <!-- Toggle à gauche -->
-            <v-switch v-model="imageForm.isActive" label="Image active" color="primary" class="ma-0" hide-details />
-
-            <!-- Boutons à droite -->
-            <div class="d-flex gap-2">
-              <v-btn variant="outlined" @click="resetForm" :disabled="!hasChanges">
-                Réinitialiser
-              </v-btn>
-              <v-btn color="primary" :loading="saving" :disabled="isSaveButtonDisabled" @click="saveImage">
-                {{ editingImage ? 'Modifier' : 'Créer' }}
-              </v-btn>
-            </div>
-          </v-card-actions>
-
-
-        </v-card>
-      </v-dialog>
-
+      <!-- New MediaUploadModal -->
+      <MediaUploadModal
+        v-model="dialog"
+        :editing-media="editingMedia"
+        :categories="['Événements', 'Cours', 'Spectacles', 'Vie du club', 'Autre']"
+        @save="handleModalSave"
+        @close="handleModalClose"
+      />
     </VCard>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { apiService } from '@/services/api'
 import { useNotifications } from '@/composables/useNotifications'
 import { useViewPermissions } from '@/composables/useViewPermissions'
+import { globalWebSocket } from '@/composables/useWebSocket'
 import GalleryImageCard from '@/components/GalleryImageCard.vue'
+import GalleryVideoCardBO from '@/components/GalleryVideoCardBO.vue'
+import MediaUploadModal from '@/components/media-upload/MediaUploadModal.vue'
 
-interface GalleryImage {
+// Types étendus pour supporter images ET vidéos
+interface BaseMediaItem {
   _id: string
   title: string
   description?: string
   altText?: string
   category?: string
   tags?: string[]
-  imageFile: string
-  imageUrl?: string
-  originalImageUrl?: string
   width?: number
   height?: number
   fileSize?: number
@@ -155,397 +147,286 @@ interface GalleryImage {
   order: number
   createdAt: string
   updatedAt: string
+  variants?: any[] // Champ commun pour rétrocompatibilité avec l'API
 }
+
+interface GalleryImage extends BaseMediaItem {
+  mediaType: 'image'
+  imageFile: string
+  imageUrl?: string
+  originalImageUrl?: string
+}
+
+interface GalleryVideo extends BaseMediaItem {
+  mediaType: 'video'
+  videoFile?: string
+  videoUrl?: string
+  thumbnailFile?: string
+  thumbnailUrl?: string
+  duration?: number
+  processingStatus?: 'pending' | 'processing' | 'completed' | 'failed' | 'partial'
+  processingProgress?: number
+  processingError?: string
+  variants?: any[]
+}
+
+type GalleryMediaItem = GalleryImage | GalleryVideo
 
 // État
 const { showSuccess, showError, showWarning } = useNotifications()
-// Permissions pour cette vue
 const { canCreate, canEdit, canDelete } = useViewPermissions('gallery')
 
 const loading = ref(false)
-const saving = ref(false)
 const dialog = ref(false)
-const formValid = ref(false)
-const editingImage = ref<GalleryImage | null>(null)
-const imageFile = ref<File | null>(null)
-const imagePreview = ref<string | null>(null)
+const editingMedia = ref<GalleryMediaItem | null>(null)
 
-// Images
-const images = ref<GalleryImage[]>([])
+// Médias
+const mediaItems = ref<GalleryMediaItem[]>([])
 
 // Filtres
 const search = ref('')
 const filters = ref({
+  mediaType: 'all',
   category: null,
-  isActive: '' // Valeur par défaut pour "Toutes"
+  isActive: '',
 })
 
-// Contrôleur d'annulation pour les requêtes
+// Contrôleur d'annulation
 const abortController = ref<AbortController | null>(null)
 
-// Formulaire
-const imageForm = ref({
-  title: '',
-  description: '',
-  altText: '',
-  category: null as string | null,
-  tagsString: '',
-  order: 0,
-  isActive: true
-})
-
-// État initial pour v-confirm-edit
-const initialFormState = ref({
-  title: '',
-  description: '',
-  altText: '',
-  category: null as string | null,
-  tagsString: '',
-  order: 0,
-  isActive: true
-})
-
 // Options
-const categoryOptions = [
-  'Événements',
-  'Cours',
-  'Compétitions',
-  'Portraits',
-  'Lieux',
-  'Autres'
+const mediaTypeOptions = [
+  { title: 'Tous', value: 'all' },
+  { title: 'Images', value: 'image' },
+  { title: 'Vidéos', value: 'video' },
 ]
 
-
+const categoryOptions = computed(() => {
+  const categories = new Set<string>()
+  mediaItems.value.forEach((item) => {
+    if (item.category) categories.add(item.category)
+  })
+  return Array.from(categories).sort()
+})
 
 // Computed
-const filteredImages = computed(() => {
-  let filtered = images.value
+const filteredMedia = computed(() => {
+  console.log('[DEBUG] === FILTRAGE START ===')
+  console.log('[DEBUG] mediaItems.value length:', mediaItems.value.length, mediaItems.value)
+  console.log('[DEBUG] filters:', filters.value)
+  console.log('[DEBUG] search:', search.value)
 
-  // Filtre par recherche
-  if (search.value) {
-    const searchLower = search.value.toLowerCase()
-    filtered = filtered.filter(image =>
-      image.title.toLowerCase().includes(searchLower) ||
-      (image.description && image.description.toLowerCase().includes(searchLower)) ||
-      (image.tags && image.tags.some(tag => tag.toLowerCase().includes(searchLower)))
-    )
+  let filtered = mediaItems.value
+
+  // Filtre par type
+  if (filters.value.mediaType && filters.value.mediaType !== 'all') {
+    console.log('[DEBUG] Applying mediaType filter:', filters.value.mediaType)
+    filtered = filtered.filter((item) => item.mediaType === filters.value.mediaType)
+    console.log('[DEBUG] After mediaType filter, length:', filtered.length)
   }
 
   // Filtre par catégorie
   if (filters.value.category) {
-    filtered = filtered.filter(image => image.category === filters.value.category)
+    console.log('[DEBUG] Applying category filter:', filters.value.category)
+    filtered = filtered.filter((item) => item.category === filters.value.category)
+    console.log('[DEBUG] After category filter, length:', filtered.length)
   }
 
   // Filtre par statut
-  if (filters.value.isActive !== '' && filters.value.isActive !== null) {
-    filtered = filtered.filter(image => image.isActive.toString() === filters.value.isActive)
+  if (filters.value.isActive !== '') {
+    const isActive = filters.value.isActive === 'true'
+    console.log('[DEBUG] Applying isActive filter:', isActive)
+    filtered = filtered.filter((item) => item.isActive === isActive)
+    console.log('[DEBUG] After isActive filter, length:', filtered.length)
   }
 
-  return filtered.sort((a, b) => a.order - b.order)
-})
-
-// Validation du formulaire
-const isFormValid = computed(() => {
-  // En mode édition, on vérifie le titre ET qu'il y a des changements
-  if (editingImage.value) {
-    return !!imageForm.value.title.trim() && hasChanges.value
+  // Recherche textuelle
+  if (search.value) {
+    const searchLower = search.value.toLowerCase()
+    console.log('[DEBUG] Applying search filter:', searchLower)
+    filtered = filtered.filter(
+      (item) =>
+        item.title.toLowerCase().includes(searchLower) ||
+        item.description?.toLowerCase().includes(searchLower) ||
+        item.tags?.some((tag) => tag.toLowerCase().includes(searchLower)),
+    )
+    console.log('[DEBUG] After search filter, length:', filtered.length)
   }
 
-  // En mode création, on vérifie le titre et l'image
-  return !!imageForm.value.title.trim() && !!imageFile.value
+  console.log('[DEBUG] FINAL filteredMedia length:', filtered.length, filtered)
+  console.log('[DEBUG] === FILTRAGE END ===')
+  return filtered
 })
 
-// Détection des changements
-const hasChanges = computed((): boolean => {
-  if (!editingImage.value) {
-    // En mode création, on considère qu'il y a des changements si le titre n'est pas vide
-    return Boolean(imageForm.value.title.trim() || imageFile.value)
-  }
-
-  // En mode édition, comparer avec l'état initial
-  const hasChanges = (JSON.stringify(imageForm.value) !== JSON.stringify(initialFormState.value) || !!imageFile.value)
-  return Boolean(hasChanges)
-})
-
-const isSaveButtonDisabled = computed((): boolean => {
-  const isValid = Boolean(formValid.value)
-  const hasChangesValue = Boolean(hasChanges.value)
-  const isEditing = Boolean(editingImage.value)
-  return !isValid || (isEditing && !hasChangesValue)
-})
-
-// Protection contre les appels multiples
-const isLoadingImages = ref(false)
 
 // Méthodes
-const loadImages = async () => {
-  // Protection contre les appels multiples
-  if (isLoadingImages.value) {
-    return
-  }
-
+const loadMedia = async () => {
   try {
-    isLoadingImages.value = true
+    loading.value = true
 
-    // Annuler la requête précédente si elle existe
     if (abortController.value) {
       abortController.value.abort()
     }
-
-    // Créer un nouveau contrôleur d'annulation
     abortController.value = new AbortController()
 
-    loading.value = true
-    const response = await apiService.get('/gallery', {
-      signal: abortController.value.signal
+    const response = await apiService.get<{
+      data: GalleryMediaItem[]
+      total: number
+    }>('/gallery', {
+      signal: abortController.value.signal,
     })
-    images.value = (response.data as GalleryImage[]) || []
-  } catch (error: any) {
-    // Ne pas afficher l'erreur si la requête a été annulée
-    if (error.name !== 'CanceledError' && error.name !== 'CanceledError') {
-      console.error('Erreur lors du chargement des images:', error)
-      showError('Erreur lors du chargement des images. Veuillez réessayer.')
+
+    console.log('[DEBUG] === API LOAD START ===')
+    console.log('[DEBUG] Full response:', response)
+
+    if (response.success && response.data) {
+      console.log('[DEBUG] response.data (should be array):', response.data)
+      console.log('[DEBUG] Is array?', Array.isArray(response.data))
+      mediaItems.value = response.data as any
+      console.log('[DEBUG] mediaItems.value after assignment:', mediaItems.value)
+      console.log('[DEBUG] === API LOAD END ===')
+    } else {
+      console.error('[DEBUG] API response.success is false or no data')
     }
-    // Les erreurs d'annulation sont normales lors du démontage/remontage du composant
+  } catch (error: any) {
+    if (error.name !== 'CanceledError') {
+      console.error('Erreur lors du chargement:', error)
+      showError('Erreur lors du chargement des médias')
+    }
   } finally {
     loading.value = false
-    isLoadingImages.value = false
   }
 }
 
-const openDialog = (image?: GalleryImage) => {
-  editingImage.value = image || null
-
-  if (image) {
-    // Mode édition
-    const formData = {
-      title: image.title,
-      description: image.description || '',
-      altText: image.altText || '',
-      category: image.category || '',
-      tagsString: image.tags ? image.tags.join(', ') : '',
-      order: image.order,
-      isActive: image.isActive
-    }
-    imageForm.value = { ...formData }
-    initialFormState.value = { ...formData }
-    imagePreview.value = image.imageUrl || null
-  } else {
-    // Mode création
-    const formData = {
-      title: '',
-      description: '',
-      altText: '',
-      category: '',
-      tagsString: '',
-      order: images.value.length,
-      isActive: true
-    }
-    imageForm.value = { ...formData }
-    initialFormState.value = { ...formData }
-    imagePreview.value = null
-  }
-
+const openDialog = (item?: GalleryMediaItem) => {
+  editingMedia.value = item || null
   dialog.value = true
 }
 
-const resetForm = () => {
-  // Réinitialiser le formulaire avec l'état initial
-  imageForm.value = { ...initialFormState.value }
-
-  // Réinitialiser le fichier sélectionné
-  imageFile.value = null
-
-  // Gérer l'aperçu selon le mode
-  if (editingImage.value) {
-    // Mode édition : restaurer l'aperçu original
-    imagePreview.value = editingImage.value.imageUrl || null
-  } else {
-    // Mode création : supprimer l'aperçu
-    if (imagePreview.value) {
-      URL.revokeObjectURL(imagePreview.value)
-    }
-    imagePreview.value = null
-  }
-}
-
-const closeDialog = () => {
-  dialog.value = false
-  editingImage.value = null
-  imageFile.value = null
-
-  // Nettoyer l'URL d'objet si elle existe
-  if (imagePreview.value) {
-    URL.revokeObjectURL(imagePreview.value)
-  }
-  imagePreview.value = null
-
-  imageForm.value = {
-    title: '',
-    description: '',
-    altText: '',
-    category: null,
-    tagsString: '',
-    order: 0,
-    isActive: true
-  }
-}
-
-const handleImageChange = (file: File | File[] | null) => {
-  // Nettoyer l'ancienne URL si elle existe
-  if (imagePreview.value) {
-    URL.revokeObjectURL(imagePreview.value)
-  }
-
-  if (file && file instanceof File) {
-    // Vérifier que c'est bien une image
-    if (!file.type.startsWith('image/')) {
-      imageFile.value = null
-      imagePreview.value = null
-      showError('Le fichier sélectionné n\'est pas une image valide')
-      return
-    }
-
-    // Vérifier la taille (10MB max)
-    const maxSize = 10 * 1024 * 1024 // 10MB
-    if (file.size > maxSize) {
-      imageFile.value = null
-      imagePreview.value = null
-      showError('L\'image est trop volumineuse (maximum 10MB)')
-      return
-    }
-
-    // Formats supportés
-    const supportedFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-    if (!supportedFormats.includes(file.type)) {
-      imageFile.value = null
-      imagePreview.value = null
-      showError('Format non supporté. Utilisez JPEG, PNG ou WebP')
-      return
-    }
-
-    imagePreview.value = URL.createObjectURL(file)
-  } else {
-    imagePreview.value = null
-  }
-}
-
-const saveImage = async () => {
+// Modal handlers
+const handleModalSave = async (data: any) => {
   try {
-    saving.value = true
-
-    if (editingImage.value) {
-      // Mode édition
-      const updateData: any = {
-        ...imageForm.value,
-        tags: imageForm.value.tagsString ? imageForm.value.tagsString.split(',').map(tag => tag.trim()) : []
-      }
-      delete updateData.tagsString
-
-      await apiService.put(`/gallery/${editingImage.value._id}`, updateData)
-      showSuccess('Image modifiée avec succès')
-    } else {
-      // Mode création
-      if (!imageFile.value) {
-        showError('Aucune image sélectionnée')
-        return
-      }
-
-      const formData = new FormData()
-      formData.append('image', imageFile.value)
-      formData.append('title', imageForm.value.title)
-      formData.append('description', imageForm.value.description || '')
-      formData.append('altText', imageForm.value.altText || '')
-      formData.append('category', imageForm.value.category || '')
-      formData.append('tags', imageForm.value.tagsString || '')
-      formData.append('order', imageForm.value.order.toString())
-      formData.append('isActive', imageForm.value.isActive.toString())
-
-      await apiService.post('/gallery/upload', formData)
-      showSuccess('Image ajoutée avec succès')
+    if (data.isEdit) {
+      // Handle edit mode
+      await apiService.put(`/gallery/${data.id}`, data.data)
+      showSuccess('Média modifié avec succès')
+      await loadMedia()
+      dialog.value = false
+      editingMedia.value = null
+    } else if (data.success) {
+      // Handle successful upload from modal
+      await loadMedia()
+      dialog.value = false
+      editingMedia.value = null
     }
-
-    await loadImages()
-    closeDialog()
   } catch (error: any) {
     console.error('Erreur lors de la sauvegarde:', error)
-
-    // Gestion des erreurs spécifiques
     if (error.name !== 'CanceledError') {
-      if (error.response?.data?.message) {
-        const errorMessage = error.response.data.message
-
-        if (errorMessage.includes('file size') || errorMessage.includes('taille')) {
-          showError('Fichier trop volumineux. Réduisez la taille de l\'image.')
-        } else if (errorMessage.includes('format') || errorMessage.includes('type')) {
-          showError('Format d\'image non supporté')
-        } else if (errorMessage.includes('titre') || errorMessage.includes('title')) {
-          showError('Le titre est requis')
-        } else {
-          showError(`Erreur: ${errorMessage}`)
-        }
-      } else if (error.message) {
-        showError(`Erreur lors de la sauvegarde: ${error.message}`)
-      } else {
-        showError('Erreur inconnue lors de la sauvegarde de l\'image')
-      }
+      const errorMessage = error.response?.data?.message || 'Erreur lors de la sauvegarde du média'
+      showError(errorMessage)
     }
-  } finally {
-    saving.value = false
   }
 }
 
-const deleteImage = async (image: GalleryImage) => {
-  if (confirm(`Êtes-vous sûr de vouloir supprimer l'image "${image.title}" ?`)) {
+const handleModalClose = () => {
+  dialog.value = false
+  editingMedia.value = null
+}
+
+const deleteMedia = async (item: GalleryMediaItem) => {
+  if (confirm(`Êtes-vous sûr de vouloir supprimer "${item.title}" ?`)) {
     try {
-      await apiService.delete(`/gallery/${image._id}`)
-      await loadImages()
-      showSuccess(`Image "${image.title}" supprimée avec succès`)
+      await apiService.delete(`/gallery/${item._id}`)
+      await loadMedia()
+      showSuccess(`"${item.title}" supprimé avec succès`)
     } catch (error: any) {
       console.error('Erreur lors de la suppression:', error)
-
-      // Ne pas afficher l'erreur si la requête a été annulée
       if (error.name !== 'CanceledError') {
-        if (error.response?.data?.message) {
-          showError(`Erreur: ${error.response.data.message}`)
-        } else if (error.message) {
-          showError(`Erreur lors de la suppression: ${error.message}`)
-        } else {
-          showError('Erreur inconnue lors de la suppression de l\'image')
-        }
+        showError('Erreur lors de la suppression')
       }
+    }
+  }
+}
+
+const retryTranscoding = async (video: GalleryVideo) => {
+  try {
+    await apiService.post(`/gallery/${video._id}/retry`)
+    showSuccess('Transcoding relancé')
+    await loadMedia()
+  } catch (error: any) {
+    console.error('Erreur retry:', error)
+    if (error.response?.data?.message) {
+      showError(error.response.data.message)
+    } else {
+      showError('Erreur lors du retry')
     }
   }
 }
 
 const clearFilters = () => {
   search.value = ''
+  filters.value.mediaType = 'all'
   filters.value.category = null
-  filters.value.isActive = '' // Retour à "Toutes"
+  filters.value.isActive = ''
 }
 
-// Les fonctions getCategoryColor, formatFileSize et isPortrait
-// sont maintenant dans le composant GalleryImageCard
+// WebSocket handler for video processing updates
+const handleVideoProcessingUpdate = async (data: any) => {
+  const { entity, action, data: updateData } = data
 
-// Charger les images au montage
+  if (entity === 'video-processing' && action === 'update') {
+    const { videoId, status, progress, variants } = updateData
+
+    // Find and update the video in mediaItems
+    const videoIndex = mediaItems.value.findIndex((item) => item._id === videoId)
+    if (videoIndex !== -1) {
+      const video = mediaItems.value[videoIndex] as GalleryVideo
+
+      console.log('[DEBUG] Updating video processing:', { videoId, status, progress })
+
+      // Update the video's processing status and progress
+      video.processingStatus = status
+      video.processingProgress = progress
+
+      // If completed, reload all media to get the updated thumbnails and URLs
+      if (status === 'completed') {
+        console.log('[DEBUG] Video processing completed, reloading media to get thumbnails')
+        await loadMedia()
+      } else {
+        // For progress updates, just update the progress without reloading
+        mediaItems.value[videoIndex] = { ...video }
+      }
+    }
+  }
+}
+
+// Lifecycle
 onMounted(() => {
-  loadImages()
+  loadMedia()
+
+  // Subscribe to WebSocket updates for video processing
+  globalWebSocket.on('dataUpdate', handleVideoProcessingUpdate)
 })
 
-// Nettoyer les URLs d'objet et annuler les requêtes au démontage
 onUnmounted(() => {
-  // Annuler les requêtes en cours
   if (abortController.value) {
     abortController.value.abort()
   }
 
-  // Nettoyer les URLs d'objet
-  if (imagePreview.value) {
-    URL.revokeObjectURL(imagePreview.value)
-  }
+  // Unsubscribe from WebSocket updates
+  globalWebSocket.off('dataUpdate', handleVideoProcessingUpdate)
 })
 </script>
 
 <style>
 @import '@/assets/gallery-view.css';
+
+/* Styles supplémentaires pour la grille étendue */
+.toolbar {
+  grid-template-columns: 1fr 0.7fr 0.7fr 0.7fr auto !important;
+}
+
+.video-preview {
+  border: 1px solid rgba(var(--v-theme-outline), 0.12);
+}
 </style>

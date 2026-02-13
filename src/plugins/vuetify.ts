@@ -4,9 +4,13 @@ import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import { fr } from 'vuetify/locale'
 import '@mdi/font/css/materialdesignicons.css'
+import { VFileUpload } from 'vuetify/labs/VFileUpload'
 
 const vuetify = createVuetify({
-  components,
+  components: {
+    ...components,
+    VFileUpload,
+  },
   directives,
   locale: {
     locale: 'fr',

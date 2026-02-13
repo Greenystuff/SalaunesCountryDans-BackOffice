@@ -2,8 +2,8 @@
   <v-card class="gallery-image-card h-100" :elevation="0" :hover="true">
     <!-- Overlay avec dégradé pour l'image -->
     <div class="image-overlay">
-      <v-img :src="image.imageUrl" :alt="image.altText || image.title" height="240" :cover="isPortrait(image)"
-        :contain="!isPortrait(image)" class="card-image"
+      <v-img :src="image.imageUrl" :alt="image.altText || image.title" height="240" contain
+        class="card-image"
         :class="{ 'portrait-image': isPortrait(image), 'landscape-image': !isPortrait(image) }">
         <template #placeholder>
           <div class="d-flex align-center justify-center fill-height">

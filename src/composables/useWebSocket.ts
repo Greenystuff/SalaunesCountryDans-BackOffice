@@ -237,10 +237,13 @@ export function useWebSocket(): SocketState & WebSocketHooks {
 
       case 'dataUpdate':
         const updateData = message.data as DataUpdateMessage
-        notifications.showNotification({
-          type: 'info',
-          message: `${updateData.entity} ${updateData.action === 'create' ? 'créé' : updateData.action === 'update' ? 'modifié' : 'supprimé'}`,
-        })
+        // Filtrer les notifications pour le transcoding vidéo (trop verbeux)
+        if (updateData.entity !== 'video-processing') {
+          notifications.showNotification({
+            type: 'info',
+            message: `${updateData.entity} ${updateData.action === 'create' ? 'créé' : updateData.action === 'update' ? 'modifié' : 'supprimé'}`,
+          })
+        }
         break
 
       case 'userActivity':

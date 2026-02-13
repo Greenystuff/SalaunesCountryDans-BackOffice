@@ -60,7 +60,7 @@ const router = createRouter({
       component: GalleryView,
       meta: {
         requiresAuth: true,
-        title: 'Galerie',
+        title: 'Galerie Médias',
       },
     },
     {
