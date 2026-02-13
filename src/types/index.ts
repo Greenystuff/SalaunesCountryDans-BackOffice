@@ -68,3 +68,9 @@ export interface InternalRules {
   }
   pdfUrl?: string
 }
+
+// Props du slot default de v-file-upload (Vuetify 3)
+export interface FileUploadSlotProps {
+  isDragging: boolean
+  isHovering: boolean
+}

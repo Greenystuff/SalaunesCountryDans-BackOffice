@@ -6,86 +6,32 @@
           {{ mediaType === 'image' ? 'Charger une image' : 'Charger une vidéo' }}
         </h3>
 
-        <!-- VFileUpload with drag & drop -->
+        <!-- VFileUpload natif de Vuetify Labs -->
         <v-file-upload
           v-if="!preview"
           :model-value="file ? [file] : []"
           @update:model-value="handleFileChange"
-          :accept="accept"
-          :multiple="false"
+          :title="mediaType === 'image' ? 'Charger une image' : 'Charger une vidéo'"
+          :subtitle="`${acceptText} - ${maxSizeText}`"
+          :icon="mediaType === 'image' ? 'mdi-image-plus' : 'mdi-video-plus'"
           :disabled="disabled || loading"
+          :multiple="false"
+          color="primary"
           class="upload-zone"
-        >
-          <template #default="slotProps">
-            <div
-              class="upload-dropzone"
-              :class="{
-                'dropzone-dragging': slotProps?.isDragging,
-                'dropzone-hovering': slotProps?.isHovering,
-                'dropzone-disabled': disabled || loading,
-                'dropzone-error': error,
-              }"
-            >
-              <div class="dropzone-content">
-                <!-- Icon -->
-                <v-icon
-                  :icon="
-                    slotProps?.isDragging
-                      ? 'mdi-file-download'
-                      : mediaType === 'image'
-                        ? 'mdi-image-plus'
-                        : 'mdi-video-plus'
-                  "
-                  :class="{
-                    'icon-pulse': slotProps?.isDragging,
-                    'icon-error': error,
-                  }"
-                  size="48"
-                  :color="error ? 'error' : slotProps?.isDragging ? 'primary' : 'grey-lighten-1'"
-                />
+        />
 
-                <!-- Text -->
-                <div class="dropzone-text mt-3">
-                  <p class="text-h6 mb-2 font-weight-medium">
-                    {{ slotProps?.isDragging ? 'Déposez votre fichier ici' : 'Glissez-déposez votre fichier' }}
-                  </p>
-                  <p class="text-body-2 text-medium-emphasis mb-3">
-                    ou cliquez pour parcourir
-                  </p>
-                  <v-chip variant="tonal" size="small" color="grey">
-                    {{ acceptText }}
-                  </v-chip>
-                  <v-chip variant="tonal" size="small" color="grey" class="ml-2">
-                    {{ maxSizeText }}
-                  </v-chip>
-                </div>
-
-                <!-- Error message -->
-                <v-expand-transition>
-                  <v-alert
-                    v-if="error"
-                    type="error"
-                    variant="tonal"
-                    density="compact"
-                    class="mt-4 error-alert"
-                  >
-                    {{ error }}
-                  </v-alert>
-                </v-expand-transition>
-
-                <!-- Loading overlay -->
-                <v-overlay
-                  v-if="loading"
-                  contained
-                  persistent
-                  class="align-center justify-center"
-                >
-                  <v-progress-circular indeterminate color="primary" size="48" />
-                </v-overlay>
-              </div>
-            </div>
-          </template>
-        </v-file-upload>
+        <!-- Error message -->
+        <v-expand-transition>
+          <v-alert
+            v-if="error && !preview"
+            type="error"
+            variant="tonal"
+            density="compact"
+            class="mt-2 error-alert"
+          >
+            {{ error }}
+          </v-alert>
+        </v-expand-transition>
 
         <!-- Preview -->
         <v-expand-transition>
